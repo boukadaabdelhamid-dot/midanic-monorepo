@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "wouter";
 import { useGetMyOrders, type Order } from "@workspace/api-client-react";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useLang } from "@/hooks/use-lang";
@@ -115,9 +116,3 @@ export default function Orders() {
   );
 }
 
-// Inline Button component
-function Button({ children, className = "", size = "default", variant = "default" }: { children: React.ReactNode, className?: string, size?: string, variant?: string }) {
-  const sizeClasses = size === "lg" ? "h-11 px-8" : "h-10 px-4 py-2";
-  const variantClasses = variant === "default" ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-transparent hover:bg-muted text-foreground";
-  return <span className={`inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 cursor-pointer ${variantClasses} ${sizeClasses} ${className}`}>{children}</span>;
-}

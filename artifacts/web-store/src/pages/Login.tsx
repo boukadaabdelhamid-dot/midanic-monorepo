@@ -16,7 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import logoPath from "@assets/logo_des_13_midanic_1777739613232.jpeg";
+const logoPath = `${import.meta.env.BASE_URL}midanic-logo.jpg`;
 
 const loginSchema = z.object({
   email: z.string().email(),

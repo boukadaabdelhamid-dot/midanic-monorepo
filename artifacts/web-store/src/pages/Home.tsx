@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { useGetProducts, useGetCategories } from "@workspace/api-client-react";
 import { ProductCard } from "@/components/product/ProductCard";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLang } from "@/hooks/use-lang";
 
@@ -126,7 +127,3 @@ export default function Home() {
   );
 }
 
-// Inline Badge component since it wasn't imported
-function Badge({ children, variant = "default", className = "" }: { children: React.ReactNode, variant?: string, className?: string }) {
-  return <span className={`inline-flex items-center rounded-md px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${className}`}>{children}</span>;
-}

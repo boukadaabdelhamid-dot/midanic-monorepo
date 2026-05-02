@@ -1,11 +1,12 @@
 import React from "react";
 import { Link, useLocation } from "wouter";
 import { ShoppingBag, User, Menu, Globe, LayoutDashboard } from "lucide-react";
-import logoPath from "@assets/logo_des_13_midanic_1777739613232.jpeg";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
 import { useGetCart, getGetCartQueryKey, type CartItem } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
+
+const logoPath = `${import.meta.env.BASE_URL}midanic-logo.jpg`;
 
 export function Navbar() {
   const { user, logout } = useAuth();

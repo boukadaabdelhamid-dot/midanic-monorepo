@@ -9,7 +9,6 @@ import {
   useUploadImage,
   getGetProductsQueryKey,
   type Product,
-  type UploadImageBody
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -110,11 +109,9 @@ export default function AdminProducts() {
     if (!file) return;
 
     setIsUploading(true);
-    const fd = new FormData();
-    fd.append("file", file);
 
     uploadImage.mutate(
-      { data: fd as unknown as UploadImageBody },
+      { data: { file } },
       {
         onSuccess: (uploaded) => {
           form.setValue("imageUrl", uploaded.url);
@@ -132,7 +129,7 @@ export default function AdminProducts() {
   const onSubmit = (values: ProductFormValues) => {
     if (editingId) {
       updateProduct.mutate(
-        { id: editingId, data: values as any },
+        { id: editingId, data: values },
         {
           onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: getGetProductsQueryKey() });
@@ -144,7 +141,7 @@ export default function AdminProducts() {
       );
     } else {
       createProduct.mutate(
-        { data: values as any },
+        { data: values },
         {
           onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: getGetProductsQueryKey() });

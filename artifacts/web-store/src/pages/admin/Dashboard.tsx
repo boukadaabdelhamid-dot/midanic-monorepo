@@ -4,7 +4,7 @@ import { useGetAnalytics } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Package, TrendingUp, ShoppingCart, DollarSign, AlertCircle } from "lucide-react";
+import { Package, TrendingUp, ShoppingCart, DollarSign, AlertCircle, CalendarCheck } from "lucide-react";
 import { useLang } from "@/hooks/use-lang";
 
 export default function AdminDashboard() {
@@ -31,6 +31,12 @@ export default function AdminDashboard() {
 
   if (!analytics) return null;
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayEntry = (analytics.dailySales || []).find(
+    (row) => String(row["date"]).slice(0, 10) === todayStr,
+  );
+  const ordersToday = todayEntry ? Number(todayEntry["orders"] ?? 0) : 0;
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-8 border-b pb-4">
@@ -46,7 +52,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <Card className="bg-primary text-primary-foreground">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
@@ -64,6 +70,16 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">SAR {Number(analytics.netProfit || 0).toLocaleString()}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Orders Today</CardTitle>
+            <CalendarCheck className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-blue-600">{ordersToday}</div>
           </CardContent>
         </Card>
 
