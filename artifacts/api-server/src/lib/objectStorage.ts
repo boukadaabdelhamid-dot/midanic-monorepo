@@ -165,6 +165,7 @@ async function signObjectURL({
   if (!response.ok) {
     throw new Error(`Failed to sign object URL, errorcode: ${response.status}`);
   }
-  const { signed_url: signedURL } = await response.json();
+  const json = await response.json() as { signed_url: string };
+  const signedURL = json.signed_url;
   return signedURL;
 }

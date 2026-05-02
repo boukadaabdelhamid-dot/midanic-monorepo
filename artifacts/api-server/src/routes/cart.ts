@@ -62,13 +62,13 @@ router.put("/cart/:productId", authenticate, async (req: AuthRequest, res) => {
     const { quantity } = req.body;
     if (quantity <= 0) {
       await db.delete(schema.cartItemsTable)
-        .where(and(eq(schema.cartItemsTable.userId, req.user!.id), eq(schema.cartItemsTable.productId, parseInt(req.params.productId))));
+        .where(and(eq(schema.cartItemsTable.userId, req.user!.id), eq(schema.cartItemsTable.productId, parseInt(req.params["productId"] as string))));
       res.json({ success: true });
       return;
     }
     const [item] = await db.update(schema.cartItemsTable)
       .set({ quantity })
-      .where(and(eq(schema.cartItemsTable.userId, req.user!.id), eq(schema.cartItemsTable.productId, parseInt(req.params.productId))))
+      .where(and(eq(schema.cartItemsTable.userId, req.user!.id), eq(schema.cartItemsTable.productId, parseInt(req.params["productId"] as string))))
       .returning();
     res.json(item);
   } catch (err) {
@@ -81,7 +81,7 @@ router.put("/cart/:productId", authenticate, async (req: AuthRequest, res) => {
 router.delete("/cart/:productId", authenticate, async (req: AuthRequest, res) => {
   try {
     await db.delete(schema.cartItemsTable)
-      .where(and(eq(schema.cartItemsTable.userId, req.user!.id), eq(schema.cartItemsTable.productId, parseInt(req.params.productId))));
+      .where(and(eq(schema.cartItemsTable.userId, req.user!.id), eq(schema.cartItemsTable.productId, parseInt(req.params["productId"] as string))));
     res.json({ success: true });
   } catch (err) {
     req.log.error(err);

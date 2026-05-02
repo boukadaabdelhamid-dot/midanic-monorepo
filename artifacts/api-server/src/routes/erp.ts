@@ -6,6 +6,9 @@ import { broadcastToAdmins } from "../lib/ws";
 
 const router = Router();
 
+const pid = (req: { params: Record<string, string | string[]> }, key: string): number =>
+  parseInt(req.params[key] as string);
+
 // ─── Employees ─────────────────────────────────────────────────────
 router.get("/erp/employees", authenticate, requireAdmin, async (req, res) => {
   try {
@@ -24,7 +27,7 @@ router.post("/erp/employees", authenticate, requireAdmin, async (req, res) => {
 router.put("/erp/employees/:id", authenticate, requireAdmin, async (req, res) => {
   try {
     const [emp] = await db.update(schema.employeesTable).set(req.body)
-      .where(eq(schema.employeesTable.id, parseInt(req.params.id))).returning();
+      .where(eq(schema.employeesTable.id, pid(req, "id"))).returning();
     if (!emp) { res.status(404).json({ error: "Not found" }); return; }
     res.json(emp);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
@@ -33,7 +36,7 @@ router.put("/erp/employees/:id", authenticate, requireAdmin, async (req, res) =>
 router.delete("/erp/employees/:id", authenticate, requireAdmin, async (req, res) => {
   try {
     await db.update(schema.employeesTable).set({ status: "inactive" })
-      .where(eq(schema.employeesTable.id, parseInt(req.params.id)));
+      .where(eq(schema.employeesTable.id, pid(req, "id")));
     res.json({ success: true });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
@@ -41,7 +44,7 @@ router.delete("/erp/employees/:id", authenticate, requireAdmin, async (req, res)
 // Attendance
 router.get("/erp/attendance", authenticate, requireAdmin, async (req, res) => {
   try {
-    const { employeeId, date } = req.query as Record<string, string>;
+    const { employeeId } = req.query as Record<string, string>;
     let query = db.select().from(schema.attendanceTable).$dynamic();
     if (employeeId) query = query.where(eq(schema.attendanceTable.employeeId, parseInt(employeeId)));
     const records = await query.orderBy(desc(schema.attendanceTable.date));
@@ -74,7 +77,7 @@ router.post("/erp/leaves", authenticate, requireAdmin, async (req, res) => {
 router.put("/erp/leaves/:id/status", authenticate, requireAdmin, async (req, res) => {
   try {
     const [leave] = await db.update(schema.leavesTable).set({ status: req.body.status })
-      .where(eq(schema.leavesTable.id, parseInt(req.params.id))).returning();
+      .where(eq(schema.leavesTable.id, pid(req, "id"))).returning();
     if (!leave) { res.status(404).json({ error: "Not found" }); return; }
     broadcastToAdmins({ type: "leave_status_changed", leave });
     res.json(leave);
@@ -99,7 +102,7 @@ router.post("/erp/suppliers", authenticate, requireAdmin, async (req, res) => {
 router.put("/erp/suppliers/:id", authenticate, requireAdmin, async (req, res) => {
   try {
     const [supplier] = await db.update(schema.suppliersTable).set(req.body)
-      .where(eq(schema.suppliersTable.id, parseInt(req.params.id))).returning();
+      .where(eq(schema.suppliersTable.id, pid(req, "id"))).returning();
     res.json(supplier);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
@@ -127,7 +130,7 @@ router.post("/erp/purchase-orders", authenticate, requireAdmin, async (req, res)
 
 router.put("/erp/purchase-orders/:id/receive", authenticate, requireAdmin, async (req, res) => {
   try {
-    const poId = parseInt(req.params.id);
+    const poId = pid(req, "id");
     const [po] = await db.update(schema.purchaseOrdersTable)
       .set({ status: "received", receivedAt: new Date() })
       .where(eq(schema.purchaseOrdersTable.id, poId)).returning();
@@ -161,6 +164,7 @@ router.get("/erp/inventory", authenticate, requireAdmin, async (req, res) => {
       reason: schema.inventoryMovementsTable.reason,
       reference: schema.inventoryMovementsTable.reference,
       createdAt: schema.inventoryMovementsTable.createdAt,
+      productId: schema.inventoryMovementsTable.productId,
       product: { id: schema.productsTable.id, nameAr: schema.productsTable.nameAr, nameEn: schema.productsTable.nameEn },
     })
       .from(schema.inventoryMovementsTable)
@@ -213,7 +217,7 @@ router.get("/erp/accounting-summary", authenticate, requireAdmin, async (req, re
       WHERE date::date >= NOW() - INTERVAL '12 months'
       GROUP BY month ORDER BY month
     `);
-    res.json({ totalIncome: Number(income), totalExpenses: Number(expenses), netProfit: Number(income) - Number(expenses), monthly: monthly.rows });
+    res.json({ totalIncome: Number(income), totalExpense: Number(expenses), netBalance: Number(income) - Number(expenses), monthly: monthly.rows });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
@@ -236,7 +240,7 @@ router.get("/erp/customers", authenticate, requireAdmin, async (req, res) => {
 
 router.get("/erp/customers/:id", authenticate, requireAdmin, async (req, res) => {
   try {
-    const userId = parseInt(req.params.id);
+    const userId = pid(req, "id");
     const [user] = await db.select().from(schema.usersTable).where(eq(schema.usersTable.id, userId)).limit(1);
     if (!user) { res.status(404).json({ error: "Customer not found" }); return; }
     const orders = await db.select().from(schema.ordersTable).where(eq(schema.ordersTable.userId, userId)).orderBy(desc(schema.ordersTable.createdAt));
@@ -248,7 +252,7 @@ router.get("/erp/customers/:id", authenticate, requireAdmin, async (req, res) =>
 router.post("/erp/customers/:id/notes", authenticate, requireAdmin, async (req, res) => {
   try {
     const [note] = await db.insert(schema.customerNotesTable)
-      .values({ userId: parseInt(req.params.id), note: req.body.note }).returning();
+      .values({ userId: pid(req, "id"), note: req.body.note }).returning();
     res.status(201).json(note);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });

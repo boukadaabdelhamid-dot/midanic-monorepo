@@ -5,6 +5,9 @@ import { authenticate, requireAdmin, type AuthRequest } from "../lib/auth";
 
 const router = Router();
 
+const pid = (req: { params: Record<string, string | string[]> }, key: string): number =>
+  parseInt(req.params[key] as string);
+
 // GET /products
 router.get("/products", async (req, res) => {
   try {
@@ -41,7 +44,7 @@ router.get("/products", async (req, res) => {
 router.get("/products/:id", async (req, res) => {
   try {
     const [product] = await db.select().from(schema.productsTable)
-      .where(eq(schema.productsTable.id, parseInt(req.params.id))).limit(1);
+      .where(eq(schema.productsTable.id, pid(req, "id"))).limit(1);
     if (!product) { res.status(404).json({ error: "Product not found" }); return; }
 
     const reviews = await db.select({
@@ -85,7 +88,7 @@ router.put("/products/:id", authenticate, requireAdmin, async (req: AuthRequest,
   try {
     const [product] = await db.update(schema.productsTable)
       .set(req.body)
-      .where(eq(schema.productsTable.id, parseInt(req.params.id)))
+      .where(eq(schema.productsTable.id, pid(req, "id")))
       .returning();
     if (!product) { res.status(404).json({ error: "Not found" }); return; }
     res.json(product);
@@ -98,7 +101,7 @@ router.put("/products/:id", authenticate, requireAdmin, async (req: AuthRequest,
 // DELETE /products/:id (admin)
 router.delete("/products/:id", authenticate, requireAdmin, async (req: AuthRequest, res) => {
   try {
-    await db.delete(schema.productsTable).where(eq(schema.productsTable.id, parseInt(req.params.id)));
+    await db.delete(schema.productsTable).where(eq(schema.productsTable.id, pid(req, "id")));
     res.json({ success: true });
   } catch (err) {
     req.log.error(err);
@@ -132,9 +135,20 @@ router.post("/categories", authenticate, requireAdmin, async (req: AuthRequest, 
 router.put("/categories/:id", authenticate, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const [cat] = await db.update(schema.categoriesTable).set(req.body)
-      .where(eq(schema.categoriesTable.id, parseInt(req.params.id))).returning();
+      .where(eq(schema.categoriesTable.id, pid(req, "id"))).returning();
     if (!cat) { res.status(404).json({ error: "Not found" }); return; }
     res.json(cat);
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// DELETE /categories/:id (admin)
+router.delete("/categories/:id", authenticate, requireAdmin, async (req: AuthRequest, res) => {
+  try {
+    await db.delete(schema.categoriesTable).where(eq(schema.categoriesTable.id, pid(req, "id")));
+    res.json({ success: true });
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
@@ -149,12 +163,11 @@ router.post("/products/:id/reviews", authenticate, async (req: AuthRequest, res)
       res.status(400).json({ error: "Rating must be 1-5" });
       return;
     }
-    const productId = parseInt(req.params.id);
+    const productId = pid(req, "id");
     const [review] = await db.insert(schema.productReviewsTable).values({
       productId, userId: req.user!.id, rating, comment,
     }).returning();
 
-    // Update product rating average
     const reviews = await db.select({ rating: schema.productReviewsTable.rating })
       .from(schema.productReviewsTable).where(eq(schema.productReviewsTable.productId, productId));
     const avg = reviews.reduce((s, r) => s + r.rating, 0) / reviews.length;

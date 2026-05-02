@@ -1,10 +1,19 @@
 import jwt from "jsonwebtoken";
 import type { Request, Response, NextFunction } from "express";
+import { randomBytes } from "crypto";
 
-const JWT_SECRET = process.env["JWT_SECRET"];
-if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET environment variable is required but not set. Set it before starting the server.");
+function resolveJwtSecret(): string {
+  const envSecret = process.env["JWT_SECRET"];
+  if (envSecret) return envSecret;
+  if (process.env["NODE_ENV"] === "production") {
+    throw new Error("JWT_SECRET environment variable must be set in production.");
+  }
+  const generated = randomBytes(32).toString("hex");
+  console.warn("[auth] WARNING: JWT_SECRET not set — using a randomly generated secret. Tokens will be invalidated on restart. Set JWT_SECRET for persistence.");
+  return generated;
 }
+
+const JWT_SECRET: string = resolveJwtSecret();
 
 export function signToken(payload: { id: number; email: string; role: string }) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
@@ -47,7 +56,7 @@ export function optionalAuth(req: AuthRequest, _res: Response, next: NextFunctio
     try {
       req.user = verifyToken(authHeader.slice(7));
     } catch {
-      // ignore
+      // ignore — auth is optional
     }
   }
   next();

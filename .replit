@@ -38,4 +38,3 @@ externalPort = 3000
 [userenv]
 
 [userenv.shared]
-JWT_SECRET = "76f1756ba209f289c17b92b52fd5df9cf6e436acce19df652395ac6e83e6f506"
