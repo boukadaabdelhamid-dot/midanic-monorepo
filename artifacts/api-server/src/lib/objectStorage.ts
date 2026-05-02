@@ -5,23 +5,34 @@ import { ObjectAclPolicy, ObjectPermission } from "./objectAcl";
 
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 
-export const objectStorageClient = new Storage({
-  credentials: {
-    audience: "replit",
-    subject_token_type: "access_token",
-    token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
-    type: "external_account",
-    credential_source: {
-      url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
-      format: {
-        type: "json",
-        subject_token_field_name: "access_token",
+function buildStorageClient(): Storage {
+  const credentialsJson = process.env.GOOGLE_CREDENTIALS_JSON;
+
+  if (credentialsJson) {
+    const credentials = JSON.parse(credentialsJson) as object;
+    return new Storage({ credentials });
+  }
+
+  return new Storage({
+    credentials: {
+      audience: "replit",
+      subject_token_type: "access_token",
+      token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
+      type: "external_account",
+      credential_source: {
+        url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
+        format: {
+          type: "json",
+          subject_token_field_name: "access_token",
+        },
       },
+      universe_domain: "googleapis.com",
     },
-    universe_domain: "googleapis.com",
-  },
-  projectId: "",
-});
+    projectId: "",
+  });
+}
+
+export const objectStorageClient = buildStorageClient();
 
 export class ObjectNotFoundError extends Error {
   constructor() {
@@ -88,10 +99,6 @@ export class ObjectStorageService {
     return new Response(webStream, { headers });
   }
 
-  /**
-   * Upload a buffer directly to object storage and return the path.
-   * Used by POST /api/uploads multipart handler.
-   */
   async uploadBuffer(buffer: Buffer, contentType: string): Promise<{ objectPath: string; publicUrl: string }> {
     const privateObjectDir = this.getPrivateObjectDir();
     const objectId = randomUUID();
@@ -151,6 +158,19 @@ function parseObjectPath(path: string): { bucketName: string; objectName: string
 async function signObjectURL({
   bucketName, objectName, method, ttlSec,
 }: { bucketName: string; objectName: string; method: "GET" | "PUT" | "DELETE" | "HEAD"; ttlSec: number }): Promise<string> {
+  const credentialsJson = process.env.GOOGLE_CREDENTIALS_JSON;
+
+  if (credentialsJson) {
+    const credentials = JSON.parse(credentialsJson) as { client_email: string; private_key: string };
+    const file = objectStorageClient.bucket(bucketName).file(objectName);
+    const [url] = await file.getSignedUrl({
+      version: "v4",
+      action: method === "PUT" ? "write" : method === "GET" ? "read" : method === "DELETE" ? "delete" : "read",
+      expires: Date.now() + ttlSec * 1000,
+    });
+    return url;
+  }
+
   const response = await fetch(`${REPLIT_SIDECAR_ENDPOINT}/object-storage/signed-object-url`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
