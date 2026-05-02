@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout/Layout";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/Login";
+import Home from "@/pages/Home";
 import Dashboard from "@/pages/Dashboard";
 import Orders from "@/pages/Orders";
 import Products from "@/pages/Products";
@@ -17,6 +18,8 @@ import PurchaseOrders from "@/pages/PurchaseOrders";
 import Inventory from "@/pages/Inventory";
 import Accounting from "@/pages/Accounting";
 import Customers from "@/pages/Customers";
+import Caisse from "@/pages/Caisse";
+import RealTime from "@/pages/RealTime";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -37,6 +40,12 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
   );
 }
 
+function ProtectedHome() {
+  const { token } = useAuth();
+  if (!token) return <Redirect to="/login" />;
+  return <Home />;
+}
+
 function Router() {
   const { token } = useAuth();
 
@@ -44,7 +53,10 @@ function Router() {
     <Switch>
       <Route path="/login" component={Login} />
       <Route path="/">
-        {token ? <Redirect to="/dashboard" /> : <Redirect to="/login" />}
+        {token ? <Redirect to="/home" /> : <Redirect to="/login" />}
+      </Route>
+      <Route path="/home">
+        <ProtectedHome />
       </Route>
       <Route path="/dashboard">
         <ProtectedRoute component={Dashboard} />
@@ -78,6 +90,12 @@ function Router() {
       </Route>
       <Route path="/customers">
         <ProtectedRoute component={Customers} />
+      </Route>
+      <Route path="/caisse">
+        <ProtectedRoute component={Caisse} />
+      </Route>
+      <Route path="/realtime">
+        <ProtectedRoute component={RealTime} />
       </Route>
       <Route component={NotFound} />
     </Switch>

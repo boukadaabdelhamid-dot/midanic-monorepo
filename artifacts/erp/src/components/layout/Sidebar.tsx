@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard, ShoppingCart, Package, Users, Clock,
   Calendar, Truck, FileText, BarChart2, CreditCard,
-  UserCheck, LogOut, Menu, X
+  UserCheck, LogOut, Menu, X, Wallet, Activity, Home
 } from "lucide-react";
 import logoPath from "@assets/logo_des_13_midanic_1777739613232.jpeg";
 import { useAuth } from "@/hooks/use-auth";
@@ -11,17 +11,20 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const navItems = [
+  { href: "/home", icon: Home, labelEn: "Home", labelAr: "الرئيسية" },
   { href: "/dashboard", icon: LayoutDashboard, labelEn: "Dashboard", labelAr: "لوحة التحكم" },
-  { href: "/orders", icon: ShoppingCart, labelEn: "Orders", labelAr: "الطلبات" },
-  { href: "/products", icon: Package, labelEn: "Products", labelAr: "المنتجات" },
-  { href: "/employees", icon: Users, labelEn: "Employees", labelAr: "الموظفون" },
-  { href: "/attendance", icon: Clock, labelEn: "Attendance", labelAr: "الحضور" },
-  { href: "/leaves", icon: Calendar, labelEn: "Leaves", labelAr: "الإجازات" },
-  { href: "/suppliers", icon: Truck, labelEn: "Suppliers", labelAr: "الموردون" },
-  { href: "/purchase-orders", icon: FileText, labelEn: "Purchase Orders", labelAr: "أوامر الشراء" },
-  { href: "/inventory", icon: BarChart2, labelEn: "Inventory", labelAr: "المخزون" },
-  { href: "/accounting", icon: CreditCard, labelEn: "Accounting", labelAr: "المحاسبة" },
-  { href: "/customers", icon: UserCheck, labelEn: "Customers", labelAr: "العملاء" },
+  { href: "/realtime", icon: Activity, labelEn: "Temps Réel", labelAr: "الوقت الفعلي" },
+  { href: "/caisse", icon: Wallet, labelEn: "Caisse", labelAr: "الصندوق" },
+  { href: "/orders", icon: ShoppingCart, labelEn: "Ventes", labelAr: "المبيعات" },
+  { href: "/products", icon: Package, labelEn: "Articles", labelAr: "المنتجات" },
+  { href: "/purchase-orders", icon: FileText, labelEn: "Achats", labelAr: "المشتريات" },
+  { href: "/inventory", icon: BarChart2, labelEn: "Stock", labelAr: "المخزون" },
+  { href: "/customers", icon: UserCheck, labelEn: "Clients", labelAr: "العملاء" },
+  { href: "/suppliers", icon: Truck, labelEn: "Fournisseurs", labelAr: "الموردون" },
+  { href: "/employees", icon: Users, labelEn: "Employés", labelAr: "الموظفون" },
+  { href: "/attendance", icon: Clock, labelEn: "Présences", labelAr: "الحضور" },
+  { href: "/leaves", icon: Calendar, labelEn: "Congés", labelAr: "الإجازات" },
+  { href: "/accounting", icon: CreditCard, labelEn: "Comptabilité", labelAr: "المحاسبة" },
 ];
 
 export function Sidebar() {
