@@ -72,7 +72,14 @@ router.get("/products/:id", async (req, res) => {
 // POST /products (admin)
 router.post("/products", authenticate, requireAdmin, async (req: AuthRequest, res) => {
   try {
-    const { nameAr, nameEn, descriptionAr, descriptionEn, price, imageUrl, stock, categoryId, reference, barcode, costPrice, catalogueType } = req.body;
+    const {
+      nameAr, nameEn, descriptionAr, descriptionEn, price, imageUrl, stock, categoryId,
+      reference, barcode, costPrice, catalogueType,
+      brand, model, color, colisage, weight,
+      priceGros, priceSemiGros, priceMin,
+      catalogue1, catalogue2, catalogue3, catalogue4, catalogue5, catalogue6,
+      isActive, isExposed,
+    } = req.body;
     const [product] = await db.insert(schema.productsTable).values({
       nameAr, nameEn,
       descriptionAr: descriptionAr || "",
@@ -82,6 +89,22 @@ router.post("/products", authenticate, requireAdmin, async (req: AuthRequest, re
       barcode: barcode || null,
       costPrice: costPrice || null,
       catalogueType: catalogueType || "ARTICLE",
+      brand: brand || null,
+      model: model || null,
+      color: color || null,
+      colisage: colisage || 1,
+      weight: weight || null,
+      priceGros: priceGros || null,
+      priceSemiGros: priceSemiGros || null,
+      priceMin: priceMin || null,
+      catalogue1: catalogue1 || null,
+      catalogue2: catalogue2 || null,
+      catalogue3: catalogue3 || null,
+      catalogue4: catalogue4 || null,
+      catalogue5: catalogue5 || null,
+      catalogue6: catalogue6 || null,
+      isActive: isActive !== undefined ? isActive : true,
+      isExposed: isExposed || false,
     }).returning();
     res.status(201).json(product);
   } catch (err) {

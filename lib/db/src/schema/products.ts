@@ -20,6 +20,22 @@ export const productsTable = pgTable("products", {
   barcode: text("barcode"),
   costPrice: numeric("cost_price", { precision: 10, scale: 2 }),
   catalogueType: text("catalogue_type").default("ARTICLE"),
+  brand: text("brand"),
+  model: text("model"),
+  color: text("color"),
+  colisage: integer("colisage").default(1),
+  weight: numeric("weight", { precision: 10, scale: 2 }),
+  priceGros: numeric("price_gros", { precision: 10, scale: 2 }),
+  priceSemiGros: numeric("price_semi_gros", { precision: 10, scale: 2 }),
+  priceMin: numeric("price_min", { precision: 10, scale: 2 }),
+  catalogue1: text("catalogue1"),
+  catalogue2: text("catalogue2"),
+  catalogue3: text("catalogue3"),
+  catalogue4: text("catalogue4"),
+  catalogue5: text("catalogue5"),
+  catalogue6: text("catalogue6"),
+  isActive: integer("is_active", { mode: "boolean" }).default(true),
+  isExposed: integer("is_exposed", { mode: "boolean" }).default(false),
 });
 
 export const insertProductSchema = createInsertSchema(productsTable).omit({ id: true, createdAt: true, rating: true, reviewCount: true });
