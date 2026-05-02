@@ -43,7 +43,7 @@ export default function Login() {
           toast({ title: "Welcome back! / مرحباً بعودتك!" });
           setLocation("/");
         },
-        onError: (error: any) => {
+        onError: (error: Error) => {
           toast({
             title: "Login failed / فشل تسجيل الدخول",
             description: error.message || "Please check your credentials",

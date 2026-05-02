@@ -1,11 +1,25 @@
 import React from "react";
 import { Link } from "wouter";
-import { useGetAnalytics } from "@workspace/api-client-react";
+import { useGetAnalytics, type Product } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, BarChart, Bar } from "recharts";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Package, TrendingUp, ShoppingCart, DollarSign, AlertCircle, CalendarCheck } from "lucide-react";
 import { useLang } from "@/hooks/use-lang";
+
+interface DailySalesRow {
+  date: string;
+  orders: number;
+  revenue: number;
+}
+
+interface TopProductRow {
+  id: number;
+  name_ar: string;
+  name_en: string;
+  sold: number;
+  revenue: number;
+}
 
 export default function AdminDashboard() {
   const { lang } = useLang();
@@ -113,7 +127,7 @@ export default function AdminDashboard() {
           <CardContent>
             <div className="h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={analytics.dailySales || []}>
+                <AreaChart data={(analytics.dailySales as unknown as DailySalesRow[]) || []}>
                   <defs>
                     <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.8}/>
@@ -127,7 +141,7 @@ export default function AdminDashboard() {
                     contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
                     itemStyle={{ color: "hsl(var(--foreground))" }}
                   />
-                  <Area type="monotone" dataKey="sales" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorSales)" />
+                  <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" fillOpacity={1} fill="url(#colorSales)" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -141,15 +155,15 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {(analytics.topProducts || []).map((product: any, i: number) => (
-                <div key={i} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-lg transition-colors">
+              {(analytics.topProducts as unknown as TopProductRow[] || []).map((product, i) => (
+                <div key={product.id ?? i} className="flex items-center justify-between p-2 hover:bg-muted/50 rounded-lg transition-colors">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded bg-muted flex items-center justify-center font-bold text-muted-foreground">
                       #{i + 1}
                     </div>
                     <div>
                       <p className="font-medium">{lang === 'ar' ? product.name_ar : product.name_en}</p>
-                      <p className="text-sm text-muted-foreground">{product.total_sold} units sold</p>
+                      <p className="text-sm text-muted-foreground">{product.sold} units sold</p>
                     </div>
                   </div>
                   <div className="font-semibold text-primary">
@@ -174,7 +188,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {analytics.lowStock.map((item: any) => (
+              {analytics.lowStock.map((item: Product) => (
                 <div key={item.id} className="flex justify-between items-center bg-card p-3 rounded-md border border-destructive/20 shadow-sm">
                   <span className="font-medium text-sm truncate pr-2">{lang === 'ar' ? item.nameAr : item.nameEn}</span>
                   <span className="text-destructive font-bold text-sm bg-destructive/10 px-2 py-1 rounded">

@@ -45,7 +45,7 @@ export default function Register() {
           toast({ title: "Account created! / تم إنشاء الحساب!" });
           setLocation("/");
         },
-        onError: (error: any) => {
+        onError: (error: Error) => {
           toast({
             title: "Registration failed / فشل التسجيل",
             description: error.message,
