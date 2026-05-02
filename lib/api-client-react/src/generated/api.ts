@@ -52,6 +52,7 @@ import type {
   OrderDetail,
   Product,
   ProductDetail,
+  ProductStockLevel,
   ProductsResponse,
   PurchaseOrder,
   RegisterRequest,
@@ -3538,6 +3539,81 @@ export function useGetInventoryMovements<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetInventoryMovementsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get current stock levels for all products
+ */
+export const getGetInventoryStockUrl = () => {
+  return `/api/erp/inventory/stock`;
+};
+
+export const getInventoryStock = async (
+  options?: RequestInit,
+): Promise<ProductStockLevel[]> => {
+  return customFetch<ProductStockLevel[]>(getGetInventoryStockUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetInventoryStockQueryKey = () => {
+  return [`/api/erp/inventory/stock`] as const;
+};
+
+export const getGetInventoryStockQueryOptions = <
+  TData = Awaited<ReturnType<typeof getInventoryStock>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getInventoryStock>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetInventoryStockQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getInventoryStock>>
+  > = ({ signal }) => getInventoryStock({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getInventoryStock>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetInventoryStockQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getInventoryStock>>
+>;
+export type GetInventoryStockQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get current stock levels for all products
+ */
+
+export function useGetInventoryStock<
+  TData = Awaited<ReturnType<typeof getInventoryStock>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getInventoryStock>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetInventoryStockQueryOptions(options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

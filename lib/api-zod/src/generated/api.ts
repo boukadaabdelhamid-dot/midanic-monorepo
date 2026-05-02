@@ -804,6 +804,20 @@ export const GetInventoryMovementsResponse = zod.array(
 );
 
 /**
+ * @summary Get current stock levels for all products
+ */
+export const GetInventoryStockResponseItem = zod.object({
+  id: zod.number(),
+  nameEn: zod.string(),
+  nameAr: zod.string(),
+  stock: zod.number(),
+  status: zod.enum(["ok", "low", "critical"]),
+});
+export const GetInventoryStockResponse = zod.array(
+  GetInventoryStockResponseItem,
+);
+
+/**
  * @summary Manual stock adjustment
  */
 export const AdjustInventoryBody = zod.object({

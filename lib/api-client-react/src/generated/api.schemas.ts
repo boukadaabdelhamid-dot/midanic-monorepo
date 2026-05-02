@@ -450,6 +450,23 @@ export interface InventoryMovement {
   product?: InventoryMovementProduct;
 }
 
+export type ProductStockLevelStatus =
+  (typeof ProductStockLevelStatus)[keyof typeof ProductStockLevelStatus];
+
+export const ProductStockLevelStatus = {
+  ok: "ok",
+  low: "low",
+  critical: "critical",
+} as const;
+
+export interface ProductStockLevel {
+  id: number;
+  nameEn: string;
+  nameAr: string;
+  stock: number;
+  status: ProductStockLevelStatus;
+}
+
 export interface AdjustInventoryRequest {
   productId: number;
   quantity: number;

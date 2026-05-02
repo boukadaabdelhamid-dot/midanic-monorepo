@@ -173,6 +173,24 @@ router.put("/erp/purchase-orders/:id/receive", authenticate, requireAdmin, async
 });
 
 // ─── Inventory ─────────────────────────────────────────────────────
+router.get("/erp/inventory/stock", authenticate, requireAdmin, async (req, res) => {
+  try {
+    const products = await db.select({
+      id: schema.productsTable.id,
+      nameEn: schema.productsTable.nameEn,
+      nameAr: schema.productsTable.nameAr,
+      stock: schema.productsTable.stock,
+    }).from(schema.productsTable).orderBy(schema.productsTable.stock);
+
+    const result = products.map((p) => ({
+      ...p,
+      status: p.stock <= 3 ? "critical" : p.stock <= 10 ? "low" : "ok",
+    }));
+
+    res.json(result);
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
+});
+
 router.get("/erp/inventory", authenticate, requireAdmin, async (req, res) => {
   try {
     const movements = await db.select({

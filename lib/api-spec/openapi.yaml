@@ -883,6 +883,23 @@ paths:
                 items:
                   $ref: "#/components/schemas/InventoryMovement"
 
+  /erp/inventory/stock:
+    get:
+      operationId: getInventoryStock
+      tags: [erp]
+      summary: Get current stock levels for all products
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Product stock levels
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProductStockLevel"
+
   /erp/inventory/adjust:
     post:
       operationId: adjustInventory
@@ -1712,6 +1729,22 @@ components:
             nameEn:
               type: string
       required: [id, type, quantity]
+
+    ProductStockLevel:
+      type: object
+      properties:
+        id:
+          type: integer
+        nameEn:
+          type: string
+        nameAr:
+          type: string
+        stock:
+          type: integer
+        status:
+          type: string
+          enum: [ok, low, critical]
+      required: [id, nameEn, nameAr, stock, status]
 
     AdjustInventoryRequest:
       type: object
