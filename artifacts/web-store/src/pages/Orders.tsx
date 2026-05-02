@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "wouter";
-import { useGetMyOrders, type Order } from "@workspace/api-client-react";
+import { useGetMyOrders, getGetMyOrdersQueryKey, type Order } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,9 @@ import { Package, ChevronRight, ChevronLeft } from "lucide-react";
 
 export default function Orders() {
   const { lang } = useLang();
-  const { data: orders, isLoading } = useGetMyOrders();
+  const { data: orders, isLoading } = useGetMyOrders({
+    query: { queryKey: getGetMyOrdersQueryKey(), refetchInterval: 30000 }
+  });
 
   const getStatusColor = (status: string) => {
     switch (status) {

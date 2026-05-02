@@ -15,7 +15,8 @@ export default function OrderDetail() {
   const { data: order, isLoading } = useGetOrder(orderId, {
     query: {
       enabled: !!orderId,
-      queryKey: getGetOrderQueryKey(orderId)
+      queryKey: getGetOrderQueryKey(orderId),
+      refetchInterval: 15000,
     }
   });
 

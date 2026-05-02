@@ -51,17 +51,26 @@ export default function AdminDashboard() {
   );
   const ordersToday = todayEntry ? Number(todayEntry["orders"] ?? 0) : 0;
 
+  const isAr = lang === 'ar';
+
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="flex justify-between items-center mb-8 border-b pb-4">
         <div>
-          <h1 className="text-3xl font-serif font-bold">Admin Dashboard</h1>
-          <h2 className="text-xl font-serif text-muted-foreground mt-1" dir="rtl">لوحة تحكم الإدارة</h2>
+          <h1 className="text-3xl font-serif font-bold">
+            {isAr ? 'لوحة تحكم الإدارة' : 'Admin Dashboard'}
+          </h1>
         </div>
         <div className="flex gap-4">
-          <Link href="/admin/products" className="text-sm font-medium hover:text-primary underline">Products</Link>
-          <Link href="/admin/categories" className="text-sm font-medium hover:text-primary underline">Categories</Link>
-          <Link href="/admin/orders" className="text-sm font-medium hover:text-primary underline">Orders</Link>
+          <Link href="/admin/products" className="text-sm font-medium hover:text-primary underline">
+            {isAr ? 'المنتجات' : 'Products'}
+          </Link>
+          <Link href="/admin/categories" className="text-sm font-medium hover:text-primary underline">
+            {isAr ? 'الفئات' : 'Categories'}
+          </Link>
+          <Link href="/admin/orders" className="text-sm font-medium hover:text-primary underline">
+            {isAr ? 'الطلبات' : 'Orders'}
+          </Link>
         </div>
       </div>
 
@@ -69,7 +78,7 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <Card className="bg-primary text-primary-foreground">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium">{isAr ? 'إجمالي الإيرادات' : 'Total Revenue'}</CardTitle>
             <DollarSign className="h-4 w-4 opacity-80" />
           </CardHeader>
           <CardContent>
@@ -79,7 +88,7 @@ export default function AdminDashboard() {
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
+            <CardTitle className="text-sm font-medium">{isAr ? 'صافي الربح' : 'Net Profit'}</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -89,7 +98,7 @@ export default function AdminDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Orders Today</CardTitle>
+            <CardTitle className="text-sm font-medium">{isAr ? 'طلبات اليوم' : 'Orders Today'}</CardTitle>
             <CalendarCheck className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -99,7 +108,7 @@ export default function AdminDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Total Orders</CardTitle>
+            <CardTitle className="text-sm font-medium">{isAr ? 'إجمالي الطلبات' : 'Total Orders'}</CardTitle>
             <ShoppingCart className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -109,7 +118,7 @@ export default function AdminDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Pending Orders</CardTitle>
+            <CardTitle className="text-sm font-medium">{isAr ? 'طلبات قيد الانتظار' : 'Pending Orders'}</CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -122,7 +131,7 @@ export default function AdminDashboard() {
         {/* Daily Sales Chart */}
         <Card className="col-span-1">
           <CardHeader>
-            <CardTitle>Daily Sales (Last 30 Days)</CardTitle>
+            <CardTitle>{isAr ? 'المبيعات اليومية (آخر 30 يوماً)' : 'Daily Sales (Last 30 Days)'}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">
@@ -151,7 +160,7 @@ export default function AdminDashboard() {
         {/* Top Products */}
         <Card className="col-span-1">
           <CardHeader>
-            <CardTitle>Top Selling Products</CardTitle>
+            <CardTitle>{isAr ? 'أكثر المنتجات مبيعاً' : 'Top Selling Products'}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -162,8 +171,10 @@ export default function AdminDashboard() {
                       #{i + 1}
                     </div>
                     <div>
-                      <p className="font-medium">{lang === 'ar' ? product.name_ar : product.name_en}</p>
-                      <p className="text-sm text-muted-foreground">{product.sold} units sold</p>
+                      <p className="font-medium">{isAr ? product.name_ar : product.name_en}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {product.sold} {isAr ? 'وحدة مباعة' : 'units sold'}
+                      </p>
                     </div>
                   </div>
                   <div className="font-semibold text-primary">
@@ -172,7 +183,9 @@ export default function AdminDashboard() {
                 </div>
               ))}
               {(!analytics.topProducts || analytics.topProducts.length === 0) && (
-                <div className="text-center text-muted-foreground py-8">No sales data yet</div>
+                <div className="text-center text-muted-foreground py-8">
+                  {isAr ? 'لا توجد بيانات مبيعات بعد' : 'No sales data yet'}
+                </div>
               )}
             </div>
           </CardContent>
@@ -184,15 +197,17 @@ export default function AdminDashboard() {
         <Card className="border-destructive/50 bg-destructive/5">
           <CardHeader className="flex flex-row items-center gap-2">
             <AlertCircle className="h-5 w-5 text-destructive" />
-            <CardTitle className="text-destructive">Low Stock Alerts</CardTitle>
+            <CardTitle className="text-destructive">
+              {isAr ? 'تنبيهات المخزون المنخفض' : 'Low Stock Alerts'}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
               {analytics.lowStock.map((item: Product) => (
                 <div key={item.id} className="flex justify-between items-center bg-card p-3 rounded-md border border-destructive/20 shadow-sm">
-                  <span className="font-medium text-sm truncate pr-2">{lang === 'ar' ? item.nameAr : item.nameEn}</span>
+                  <span className="font-medium text-sm truncate pr-2">{isAr ? item.nameAr : item.nameEn}</span>
                   <span className="text-destructive font-bold text-sm bg-destructive/10 px-2 py-1 rounded">
-                    {item.stock} left
+                    {item.stock} {isAr ? 'متبقية' : 'left'}
                   </span>
                 </div>
               ))}
