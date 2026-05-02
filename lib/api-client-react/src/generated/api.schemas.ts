@@ -559,17 +559,6 @@ export interface UploadedImage {
   size: number;
 }
 
-export interface RequestUploadUrlBody {
-  name: string;
-  size: number;
-  contentType: string;
-}
-
-export interface RequestUploadUrlResponse {
-  uploadURL: string;
-  objectPath: string;
-}
-
 export type GetProductsParams = {
   search?: string;
   categoryId?: number;

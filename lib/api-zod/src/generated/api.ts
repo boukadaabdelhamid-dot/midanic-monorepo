@@ -953,22 +953,15 @@ export const CreateCustomerNoteBody = zod.object({
 });
 
 /**
- * @summary Upload an image file (multipart/form-data)
+ * @summary Serve a previously uploaded image (public, no auth required)
  */
-export const UploadImageBody = zod.object({
-  file: zod.instanceof(File),
+export const GetUploadedImageParams = zod.object({
+  id: zod.coerce.string().uuid(),
 });
 
 /**
- * @summary Request presigned upload URL (client-side direct upload)
+ * @summary Upload an image file (multipart/form-data, admin auth required)
  */
-export const RequestUploadUrlBody = zod.object({
-  name: zod.string(),
-  size: zod.number(),
-  contentType: zod.string(),
-});
-
-export const RequestUploadUrlResponse = zod.object({
-  uploadURL: zod.string(),
-  objectPath: zod.string(),
+export const UploadImageBody = zod.object({
+  file: zod.instanceof(File),
 });

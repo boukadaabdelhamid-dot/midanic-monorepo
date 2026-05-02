@@ -17,6 +17,35 @@ const upload = multer({
 });
 
 /**
+ * GET /uploads/:id
+ * Serve a previously uploaded image by its UUID — no auth required.
+ * This is the public CDN-style endpoint for product images uploaded via POST /uploads.
+ */
+router.get("/uploads/:id", async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const objectPath = `/objects/uploads/${id}`;
+    const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
+    const response = await objectStorageService.downloadObject(objectFile);
+    res.status(response.status);
+    response.headers.forEach((value, key) => res.setHeader(key, value));
+    if (response.body) {
+      const nodeStream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
+      nodeStream.pipe(res);
+    } else {
+      res.end();
+    }
+  } catch (error) {
+    if (error instanceof ObjectNotFoundError) {
+      res.status(404).json({ error: "Image not found" });
+      return;
+    }
+    req.log.error({ err: error }, "Error serving uploaded image");
+    res.status(500).json({ error: "Failed to serve image" });
+  }
+});
+
+/**
  * POST /uploads
  * Accepts a multipart/form-data request with a single "file" field.
  * Uploads it to object storage, persists metadata, and returns a public URL.

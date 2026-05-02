@@ -55,8 +55,6 @@ import type {
   ProductsResponse,
   PurchaseOrder,
   RegisterRequest,
-  RequestUploadUrlBody,
-  RequestUploadUrlResponse,
   Review,
   SuccessResponse,
   Supplier,
@@ -4120,7 +4118,94 @@ export const useCreateCustomerNote = <
 };
 
 /**
- * @summary Upload an image file (multipart/form-data)
+ * @summary Serve a previously uploaded image (public, no auth required)
+ */
+export const getGetUploadedImageUrl = (id: string) => {
+  return `/api/uploads/${id}`;
+};
+
+export const getUploadedImage = async (
+  id: string,
+  options?: RequestInit,
+): Promise<Blob> => {
+  return customFetch<Blob>(getGetUploadedImageUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetUploadedImageQueryKey = (id: string) => {
+  return [`/api/uploads/${id}`] as const;
+};
+
+export const getGetUploadedImageQueryOptions = <
+  TData = Awaited<ReturnType<typeof getUploadedImage>>,
+  TError = ErrorType<void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getUploadedImage>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetUploadedImageQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getUploadedImage>>
+  > = ({ signal }) => getUploadedImage(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getUploadedImage>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetUploadedImageQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getUploadedImage>>
+>;
+export type GetUploadedImageQueryError = ErrorType<void>;
+
+/**
+ * @summary Serve a previously uploaded image (public, no auth required)
+ */
+
+export function useGetUploadedImage<
+  TData = Awaited<ReturnType<typeof getUploadedImage>>,
+  TError = ErrorType<void>,
+>(
+  id: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getUploadedImage>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetUploadedImageQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Upload an image file (multipart/form-data, admin auth required)
  */
 export const getUploadImageUrl = () => {
   return `/api/uploads`;
@@ -4185,7 +4270,7 @@ export type UploadImageMutationBody = BodyType<UploadImageBody>;
 export type UploadImageMutationError = ErrorType<unknown>;
 
 /**
- * @summary Upload an image file (multipart/form-data)
+ * @summary Upload an image file (multipart/form-data, admin auth required)
  */
 export const useUploadImage = <
   TError = ErrorType<unknown>,
@@ -4205,90 +4290,4 @@ export const useUploadImage = <
   TContext
 > => {
   return useMutation(getUploadImageMutationOptions(options));
-};
-
-/**
- * @summary Request presigned upload URL (client-side direct upload)
- */
-export const getRequestUploadUrlUrl = () => {
-  return `/api/storage/uploads/request-url`;
-};
-
-export const requestUploadUrl = async (
-  requestUploadUrlBody: RequestUploadUrlBody,
-  options?: RequestInit,
-): Promise<RequestUploadUrlResponse> => {
-  return customFetch<RequestUploadUrlResponse>(getRequestUploadUrlUrl(), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(requestUploadUrlBody),
-  });
-};
-
-export const getRequestUploadUrlMutationOptions = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof requestUploadUrl>>,
-    TError,
-    { data: BodyType<RequestUploadUrlBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof requestUploadUrl>>,
-  TError,
-  { data: BodyType<RequestUploadUrlBody> },
-  TContext
-> => {
-  const mutationKey = ["requestUploadUrl"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof requestUploadUrl>>,
-    { data: BodyType<RequestUploadUrlBody> }
-  > = (props) => {
-    const { data } = props ?? {};
-
-    return requestUploadUrl(data, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type RequestUploadUrlMutationResult = NonNullable<
-  Awaited<ReturnType<typeof requestUploadUrl>>
->;
-export type RequestUploadUrlMutationBody = BodyType<RequestUploadUrlBody>;
-export type RequestUploadUrlMutationError = ErrorType<unknown>;
-
-/**
- * @summary Request presigned upload URL (client-side direct upload)
- */
-export const useRequestUploadUrl = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof requestUploadUrl>>,
-    TError,
-    { data: BodyType<RequestUploadUrlBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof requestUploadUrl>>,
-  TError,
-  { data: BodyType<RequestUploadUrlBody> },
-  TContext
-> => {
-  return useMutation(getRequestUploadUrlMutationOptions(options));
 };

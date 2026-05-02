@@ -1027,11 +1027,34 @@ paths:
                 $ref: "#/components/schemas/CustomerNote"
 
   # ── Storage ───────────────────────────────────────────────────────
+  /uploads/{id}:
+    get:
+      operationId: getUploadedImage
+      tags: [storage]
+      summary: Serve a previously uploaded image (public, no auth required)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Image file
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Not found
+
   /uploads:
     post:
       operationId: uploadImage
       tags: [storage]
-      summary: Upload an image file (multipart/form-data)
+      summary: Upload an image file (multipart/form-data, admin auth required)
       security:
         - bearerAuth: []
       requestBody:
@@ -1052,25 +1075,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UploadedImage"
-
-  /storage/uploads/request-url:
-    post:
-      operationId: requestUploadUrl
-      tags: [storage]
-      summary: Request presigned upload URL (client-side direct upload)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/RequestUploadUrlBody"
-      responses:
-        "200":
-          description: Upload URL
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RequestUploadUrlResponse"
 
 components:
   securitySchemes:
@@ -1843,22 +1847,3 @@ components:
           type: integer
       required: [id, url, objectPath, contentType, size]
 
-    RequestUploadUrlBody:
-      type: object
-      properties:
-        name:
-          type: string
-        size:
-          type: integer
-        contentType:
-          type: string
-      required: [name, size, contentType]
-
-    RequestUploadUrlResponse:
-      type: object
-      properties:
-        uploadURL:
-          type: string
-        objectPath:
-          type: string
-      required: [uploadURL, objectPath]

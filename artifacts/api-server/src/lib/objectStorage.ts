@@ -101,7 +101,7 @@ export class ObjectStorageService {
     const file = bucket.file(objectName);
     await file.save(buffer, { contentType, resumable: false });
     const objectPath = `/objects/uploads/${objectId}`;
-    const publicUrl = `/api/storage/objects/uploads/${objectId}`;
+    const publicUrl = `/api/uploads/${objectId}`;
     return { objectPath, publicUrl };
   }
 
