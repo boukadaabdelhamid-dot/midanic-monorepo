@@ -43,17 +43,33 @@ router.post("/orders", optionalAuth, async (req: AuthRequest, res) => {
       enrichedItems.push({ ...item, unitPrice: parseFloat(product.price), product });
     }
 
-    // Apply coupon
+    // Apply coupon — mirror the same validation rules as POST /coupons/validate
     let discountAmount = 0;
     let appliedCoupon: typeof schema.couponsTable.$inferSelect | null = null;
     if (couponCode) {
       const [coupon] = await db.select().from(schema.couponsTable)
         .where(eq(schema.couponsTable.code, couponCode.toUpperCase())).limit(1);
-      if (coupon && (!coupon.usageLimit || coupon.usedCount < coupon.usageLimit)) {
-        if (coupon.type === "percent") discountAmount = (subtotal * parseFloat(coupon.value)) / 100;
-        else discountAmount = parseFloat(coupon.value);
-        appliedCoupon = coupon;
+
+      if (!coupon) {
+        res.status(400).json({ error: "Coupon not found" });
+        return;
       }
+      if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
+        res.status(400).json({ error: "Coupon has expired" });
+        return;
+      }
+      if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {
+        res.status(400).json({ error: "Coupon usage limit reached" });
+        return;
+      }
+      if (coupon.minOrder && subtotal < parseFloat(coupon.minOrder)) {
+        res.status(400).json({ error: `Minimum order of SAR ${coupon.minOrder} required for this coupon` });
+        return;
+      }
+
+      if (coupon.type === "percent") discountAmount = (subtotal * parseFloat(coupon.value)) / 100;
+      else discountAmount = Math.min(parseFloat(coupon.value), subtotal);
+      appliedCoupon = coupon;
     }
 
     const totalAmount = Math.max(0, subtotal - discountAmount);

@@ -1,7 +1,10 @@
 import jwt from "jsonwebtoken";
 import type { Request, Response, NextFunction } from "express";
 
-const JWT_SECRET = process.env["JWT_SECRET"] || "midanic-secret-2024";
+const JWT_SECRET = process.env["JWT_SECRET"];
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required but not set. Set it before starting the server.");
+}
 
 export function signToken(payload: { id: number; email: string; role: string }) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
