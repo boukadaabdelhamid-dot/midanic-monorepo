@@ -1,6 +1,6 @@
 import React from "react";
 import { Link } from "wouter";
-import { useGetMyOrders } from "@workspace/api-client-react";
+import { useGetMyOrders, type Order } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -35,16 +35,16 @@ export default function Orders() {
         </div>
       ) : (
         <div className="space-y-4">
-          {orders.map((order) => (
+          {orders.map((order: Order) => (
             <Link key={order.id} href={`/orders/${order.id}`} className="block group">
               <div className="bg-card border rounded-lg p-6 shadow-sm hover:border-primary transition-colors flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                   <div className="font-semibold text-lg mb-1">Order #{order.id} / طلب رقم {order.id}</div>
                   <div className="text-sm text-muted-foreground">
-                    {format(new Date(order.createdAt), "MMM d, yyyy")}
+                    {order.createdAt ? format(new Date(order.createdAt), "MMM d, yyyy") : "—"}
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
                   <div className="font-bold text-lg text-primary">SAR {order.totalAmount}</div>
                   <Badge variant={order.status === 'delivered' ? 'default' : 'secondary'} className="capitalize">

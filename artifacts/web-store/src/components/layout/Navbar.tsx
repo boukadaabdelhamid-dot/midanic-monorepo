@@ -1,23 +1,27 @@
 import React from "react";
 import { Link } from "wouter";
-import { ShoppingBag, User, Menu, Search, Globe } from "lucide-react";
+import { ShoppingBag, User, Menu, Globe } from "lucide-react";
 import logoPath from "@assets/logo_des_13_midanic_1777739613232.jpeg";
 import { useAuth } from "@/hooks/use-auth";
 import { useLang } from "@/hooks/use-lang";
-import { useGetCart } from "@workspace/api-client-react";
+import { useGetCart, getGetCartQueryKey, type CartItem } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 
 export function Navbar() {
   const { user, logout } = useAuth();
   const { lang, toggleLang } = useLang();
-  
+
   const { data: cart } = useGetCart({
     query: {
       enabled: !!user,
+      queryKey: getGetCartQueryKey(),
     }
   });
 
-  const cartCount = (Array.isArray(cart) ? cart : []).reduce((acc: number, item: any) => acc + item.quantity, 0);
+  const cartCount = (Array.isArray(cart) ? cart : []).reduce(
+    (acc: number, item: CartItem) => acc + item.quantity,
+    0
+  );
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

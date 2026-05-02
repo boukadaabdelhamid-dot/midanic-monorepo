@@ -1,7 +1,10 @@
 import React, { useState } from "react";
 import {
   useGetTransactions, useCreateTransaction, useGetAccountingSummary,
-  getGetTransactionsQueryKey
+  getGetTransactionsQueryKey,
+  type CreateTransactionRequestType,
+  type CreateTransactionRequestCategory,
+  type Transaction,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,7 +31,15 @@ export default function Accounting() {
 
   const handleSave = () => {
     createTx.mutate(
-      { data: { type: form.type as any, category: form.category, amount: parseFloat(form.amount), description: form.description, date: form.date } },
+      {
+        data: {
+          type: form.type as CreateTransactionRequestType,
+          category: form.category as CreateTransactionRequestCategory,
+          amount: form.amount,
+          description: form.description,
+          date: form.date,
+        },
+      },
       { onSettled: () => { qc.invalidateQueries({ queryKey: getGetTransactionsQueryKey() }); setOpen(false); setForm(emptyForm); } }
     );
   };
@@ -45,13 +56,12 @@ export default function Accounting() {
         </Button>
       </div>
 
-      {/* Summary Cards */}
       {summary && (
         <div className="grid grid-cols-3 gap-4">
           {[
             { label: "Total Income / الدخل", value: summary.totalIncome, icon: TrendingUp, color: "text-emerald-600" },
-            { label: "Total Expenses / المصروفات", value: summary.totalExpense, icon: TrendingDown, color: "text-red-500" },
-            { label: "Net Balance / الرصيد", value: summary.netBalance, icon: DollarSign, color: (summary.netBalance ?? 0) >= 0 ? "text-primary" : "text-destructive" },
+            { label: "Total Expenses / المصروفات", value: summary.totalExpenses, icon: TrendingDown, color: "text-red-500" },
+            { label: "Net Profit / صافي الربح", value: summary.netProfit, icon: DollarSign, color: (summary.netProfit ?? 0) >= 0 ? "text-primary" : "text-destructive" },
           ].map(({ label, value, icon: Icon, color }) => (
             <Card key={label} className="border shadow-sm">
               <CardContent className="p-5">
@@ -88,7 +98,7 @@ export default function Accounting() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(transactions ?? []).map((t: any) => (
+                  {(transactions ?? []).map((t: Transaction) => (
                     <TableRow key={t.id} data-testid={`row-tx-${t.id}`}>
                       <TableCell className="text-sm text-muted-foreground">
                         {t.date ? format(new Date(t.date), "MMM d, yyyy") : "—"}
@@ -131,7 +141,14 @@ export default function Accounting() {
             </div>
             <div>
               <Label className="text-xs mb-1 block">Category</Label>
-              <Input value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} className="h-8 text-sm" placeholder="e.g. Sales, Rent..." />
+              <Select value={form.category} onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}>
+                <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select..." /></SelectTrigger>
+                <SelectContent>
+                  {["sales", "purchase", "salary", "rent", "utilities", "marketing", "other"].map((c) => (
+                    <SelectItem key={c} value={c} className="capitalize">{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <Label className="text-xs mb-1 block">Amount (SAR)</Label>

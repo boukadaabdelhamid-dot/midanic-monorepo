@@ -1,20 +1,20 @@
 import React, { useState } from "react";
 import {
   useGetErpCustomers, useGetErpCustomer, useCreateCustomerNote,
-  getGetErpCustomersQueryKey, getGetErpCustomerQueryKey
+  getGetErpCustomersQueryKey, getGetErpCustomerQueryKey,
+  type CustomerSummary, type CustomerNote,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { User, MessageSquarePlus } from "lucide-react";
 import { format } from "date-fns";
 
-function CustomerDetail({ customerId, onClose }: { customerId: number; onClose: () => void }) {
+function CustomerDetailPanel({ customerId, onClose }: { customerId: number; onClose: () => void }) {
   const qc = useQueryClient();
   const { data: customer, isLoading } = useGetErpCustomer(customerId, {
     query: { enabled: !!customerId, queryKey: getGetErpCustomerQueryKey(customerId) }
@@ -38,6 +38,9 @@ function CustomerDetail({ customerId, onClose }: { customerId: number; onClose: 
   if (isLoading) return <div className="p-6"><Skeleton className="h-40 w-full" /></div>;
   if (!customer) return <div className="p-6 text-muted-foreground">Not found</div>;
 
+  const totalOrders = customer.orders?.length ?? 0;
+  const totalSpent = (customer.orders ?? []).reduce((s, o) => s + parseFloat(o.totalAmount), 0);
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3 pb-3 border-b">
@@ -50,11 +53,11 @@ function CustomerDetail({ customerId, onClose }: { customerId: number; onClose: 
         </div>
         <div className="ml-auto flex gap-4 text-sm">
           <div className="text-center">
-            <p className="font-bold text-primary">{customer.totalOrders ?? 0}</p>
+            <p className="font-bold text-primary">{totalOrders}</p>
             <p className="text-xs text-muted-foreground">Orders</p>
           </div>
           <div className="text-center">
-            <p className="font-bold text-primary">SAR {customer.totalSpent ?? 0}</p>
+            <p className="font-bold text-primary">SAR {totalSpent.toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">Spent</p>
           </div>
         </div>
@@ -63,7 +66,7 @@ function CustomerDetail({ customerId, onClose }: { customerId: number; onClose: 
       <div>
         <h4 className="text-sm font-semibold mb-2">Notes / ملاحظات</h4>
         <div className="space-y-2 max-h-48 overflow-y-auto mb-3">
-          {(customer.notes ?? []).map((n: any) => (
+          {(customer.notes ?? []).map((n: CustomerNote) => (
             <div key={n.id} className="bg-muted/50 rounded-md p-3 text-sm">
               <p>{n.note}</p>
               <p className="text-xs text-muted-foreground mt-1">
@@ -125,12 +128,12 @@ export default function Customers() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(customers ?? []).map((c: any) => (
+                  {(customers ?? []).map((c: CustomerSummary) => (
                     <TableRow key={c.id} data-testid={`row-customer-${c.id}`}>
                       <TableCell className="font-medium">{c.name}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">{c.email}</TableCell>
-                      <TableCell>{c.totalOrders ?? 0}</TableCell>
-                      <TableCell className="font-semibold text-primary">SAR {c.totalSpent ?? 0}</TableCell>
+                      <TableCell>{c.total_orders ?? 0}</TableCell>
+                      <TableCell className="font-semibold text-primary">SAR {(c.total_spent ?? 0).toFixed(2)}</TableCell>
                       <TableCell>
                         <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setSelectedId(c.id)} data-testid={`btn-view-${c.id}`}>
                           View / عرض
@@ -151,7 +154,7 @@ export default function Customers() {
       <Dialog open={!!selectedId} onOpenChange={(v) => !v && setSelectedId(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Customer Details / تفاصيل العميل</DialogTitle></DialogHeader>
-          {selectedId && <CustomerDetail customerId={selectedId} onClose={() => setSelectedId(null)} />}
+          {selectedId && <CustomerDetailPanel customerId={selectedId} onClose={() => setSelectedId(null)} />}
         </DialogContent>
       </Dialog>
     </div>

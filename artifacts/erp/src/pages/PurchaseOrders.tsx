@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import {
   useGetPurchaseOrders, useCreatePurchaseOrder, useReceivePurchaseOrder,
   useGetSuppliers, useGetProducts,
-  getGetPurchaseOrdersQueryKey
+  getGetPurchaseOrdersQueryKey,
+  type PurchaseOrder, type Supplier, type Product,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,12 +34,12 @@ export default function PurchaseOrders() {
   const receivePO = useReceivePurchaseOrder();
   const [open, setOpen] = useState(false);
   const [supplierId, setSupplierId] = useState("");
-  const [expectedDate, setExpectedDate] = useState(new Date().toISOString().slice(0, 10));
+  const [notes, setNotes] = useState("");
   const [poItems, setPoItems] = useState<POItem[]>([{ productId: "", quantity: "1", unitCost: "" }]);
 
   const products = productsRes?.products ?? [];
   const supplierMap: Record<number, string> = {};
-  (suppliers ?? []).forEach((s: any) => { supplierMap[s.id] = s.name; });
+  (suppliers ?? []).forEach((s: Supplier) => { supplierMap[s.id] = s.name; });
 
   const addItem = () => setPoItems((items) => [...items, { productId: "", quantity: "1", unitCost: "" }]);
   const removeItem = (idx: number) => setPoItems((items) => items.filter((_, i) => i !== idx));
@@ -50,8 +51,8 @@ export default function PurchaseOrders() {
       productId: parseInt(i.productId), quantity: parseInt(i.quantity), unitCost: parseFloat(i.unitCost) || 0
     }));
     createPO.mutate(
-      { data: { supplierId: parseInt(supplierId), expectedDate, items } },
-      { onSettled: () => { qc.invalidateQueries({ queryKey: getGetPurchaseOrdersQueryKey() }); setOpen(false); } }
+      { data: { supplierId: parseInt(supplierId), notes: notes || undefined, items } },
+      { onSettled: () => { qc.invalidateQueries({ queryKey: getGetPurchaseOrdersQueryKey() }); setOpen(false); setSupplierId(""); setNotes(""); setPoItems([{ productId: "", quantity: "1", unitCost: "" }]); } }
     );
   };
 
@@ -83,24 +84,24 @@ export default function PurchaseOrders() {
                     <TableHead>PO #</TableHead>
                     <TableHead>Supplier</TableHead>
                     <TableHead>Total</TableHead>
-                    <TableHead>Expected</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Created</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(pos ?? []).map((po: any) => (
+                  {(pos ?? []).map((po: PurchaseOrder) => (
                     <TableRow key={po.id} data-testid={`row-po-${po.id}`}>
                       <TableCell className="font-medium">#{po.id}</TableCell>
                       <TableCell>{supplierMap[po.supplierId] ?? `#${po.supplierId}`}</TableCell>
                       <TableCell className="font-semibold text-primary">SAR {po.totalAmount}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {po.expectedDate ? format(new Date(po.expectedDate), "MMM d, yyyy") : "—"}
-                      </TableCell>
                       <TableCell>
                         <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_COLORS[po.status] ?? "bg-gray-100 text-gray-600"}`}>
                           {po.status}
                         </span>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {po.createdAt ? format(new Date(po.createdAt), "MMM d, yyyy") : "—"}
                       </TableCell>
                       <TableCell>
                         {po.status !== "received" && (
@@ -130,13 +131,13 @@ export default function PurchaseOrders() {
               <Select value={supplierId} onValueChange={setSupplierId}>
                 <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select supplier" /></SelectTrigger>
                 <SelectContent>
-                  {(suppliers ?? []).map((s: any) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
+                  {(suppliers ?? []).map((s: Supplier) => <SelectItem key={s.id} value={String(s.id)}>{s.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label className="text-xs mb-1 block">Expected Date</Label>
-              <Input type="date" value={expectedDate} onChange={(e) => setExpectedDate(e.target.value)} className="h-8 text-sm" />
+              <Label className="text-xs mb-1 block">Notes (optional)</Label>
+              <Input value={notes} onChange={(e) => setNotes(e.target.value)} className="h-8 text-sm" placeholder="Any notes..." />
             </div>
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -150,7 +151,7 @@ export default function PurchaseOrders() {
                       <Select value={item.productId} onValueChange={(v) => updateItem(idx, "productId", v)}>
                         <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Product" /></SelectTrigger>
                         <SelectContent>
-                          {products.map((p: any) => <SelectItem key={p.id} value={String(p.id)}>{p.nameEn}</SelectItem>)}
+                          {products.map((p: Product) => <SelectItem key={p.id} value={String(p.id)}>{p.nameEn}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>

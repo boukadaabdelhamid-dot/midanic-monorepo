@@ -2,10 +2,11 @@ import React, { useState } from "react";
 import {
   useGetProducts, useGetCategories, useCreateProduct,
   useUpdateProduct, useDeleteProduct,
-  getGetProductsQueryKey
+  getGetProductsQueryKey,
+  type Product, type Category,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,13 +42,13 @@ export default function Products() {
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
 
-  const [dialog, setDialog] = useState<{ open: boolean; editing: any | null }>({ open: false, editing: null });
+  const [dialog, setDialog] = useState<{ open: boolean; editing: Product | null }>({ open: false, editing: null });
   const [form, setForm] = useState<ProductForm>(emptyForm);
 
   const products = productsRes?.products ?? [];
 
   const openCreate = () => { setForm(emptyForm); setDialog({ open: true, editing: null }); };
-  const openEdit = (p: any) => {
+  const openEdit = (p: Product) => {
     setForm({
       nameEn: p.nameEn ?? "", nameAr: p.nameAr ?? "",
       descriptionEn: p.descriptionEn ?? "", descriptionAr: p.descriptionAr ?? "",
@@ -59,10 +60,13 @@ export default function Products() {
 
   const handleSave = () => {
     const data = {
-      nameEn: form.nameEn, nameAr: form.nameAr,
-      descriptionEn: form.descriptionEn, descriptionAr: form.descriptionAr,
-      price: parseFloat(form.price), stock: parseInt(form.stock),
-      categoryId: parseInt(form.categoryId),
+      nameEn: form.nameEn,
+      nameAr: form.nameAr,
+      descriptionEn: form.descriptionEn || undefined,
+      descriptionAr: form.descriptionAr || undefined,
+      price: form.price,
+      stock: parseInt(form.stock) || 0,
+      categoryId: form.categoryId ? parseInt(form.categoryId) : undefined,
       imageUrl: form.imageUrl || undefined,
     };
     const onSettled = () => {
@@ -116,7 +120,7 @@ export default function Products() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {products.map((p: any) => (
+                  {products.map((p: Product) => (
                     <TableRow key={p.id} data-testid={`row-product-${p.id}`}>
                       <TableCell>
                         {p.imageUrl
@@ -128,9 +132,9 @@ export default function Products() {
                       <TableCell dir="rtl" className="text-right">{p.nameAr}</TableCell>
                       <TableCell>SAR {p.price}</TableCell>
                       <TableCell>
-                        <span className={p.stock < 5 ? "text-red-600 font-semibold" : ""}>{p.stock}</span>
+                        <span className={(p.stock ?? 0) < 5 ? "text-red-600 font-semibold" : ""}>{p.stock ?? 0}</span>
                       </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">{p.categoryId}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{p.categoryId ?? "—"}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">
                           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(p)} data-testid={`btn-edit-${p.id}`}>
@@ -156,19 +160,19 @@ export default function Products() {
             <DialogTitle>{dialog.editing ? "Edit Product / تعديل" : "Add Product / إضافة منتج"}</DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-2 gap-3 py-2">
-            {[
-              { label: "Name (EN)", key: "nameEn" },
-              { label: "Name (AR)", key: "nameAr" },
-              { label: "Description (EN)", key: "descriptionEn" },
-              { label: "Description (AR)", key: "descriptionAr" },
-              { label: "Price (SAR)", key: "price" },
-              { label: "Stock", key: "stock" },
-              { label: "Image URL", key: "imageUrl" },
-            ].map(({ label, key }) => (
+            {([
+              { label: "Name (EN)", key: "nameEn" as keyof ProductForm },
+              { label: "Name (AR)", key: "nameAr" as keyof ProductForm },
+              { label: "Description (EN)", key: "descriptionEn" as keyof ProductForm },
+              { label: "Description (AR)", key: "descriptionAr" as keyof ProductForm },
+              { label: "Price (SAR)", key: "price" as keyof ProductForm },
+              { label: "Stock", key: "stock" as keyof ProductForm },
+              { label: "Image URL", key: "imageUrl" as keyof ProductForm },
+            ] as const).map(({ label, key }) => (
               <div key={key} className={key.includes("escription") ? "col-span-2" : ""}>
                 <Label className="text-xs mb-1 block">{label}</Label>
                 <Input
-                  value={(form as any)[key]}
+                  value={form[key]}
                   onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
                   type={key === "price" || key === "stock" ? "number" : "text"}
                   className="h-8 text-sm"
@@ -182,7 +186,7 @@ export default function Products() {
                   <SelectValue placeholder="Select..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {(categories ?? []).map((c: any) => (
+                  {(categories ?? []).map((c: Category) => (
                     <SelectItem key={c.id} value={String(c.id)}>{c.nameEn}</SelectItem>
                   ))}
                 </SelectContent>

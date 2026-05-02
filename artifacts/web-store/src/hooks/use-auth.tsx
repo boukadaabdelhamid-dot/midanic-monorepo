@@ -1,15 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { useGetMe, useLogin, useRegister, getGetMeQueryKey } from "@workspace/api-client-react";
+import { useGetMe, useLogin, useRegister, getGetMeQueryKey, type User } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 
-// Configure token getter
 setAuthTokenGetter(() => {
   return localStorage.getItem("midanic_token");
 });
 
 type AuthContextType = {
-  user: any;
+  user: User | undefined;
   isLoading: boolean;
   logout: () => void;
   setToken: (token: string) => void;
@@ -25,6 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     query: {
       enabled: !!token,
       retry: false,
+      queryKey: getGetMeQueryKey(),
     },
   });
 

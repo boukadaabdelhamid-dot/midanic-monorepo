@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useLocation } from "wouter";
-import { useGetCart, useCreateOrder, getGetCartQueryKey } from "@workspace/api-client-react";
+import { useGetCart, useCreateOrder, getGetCartQueryKey, type CartItem } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,11 +19,12 @@ export default function Checkout() {
   const createOrder = useCreateOrder();
 
   const [formData, setFormData] = useState({
-    shippingAddress: "",
-    phone: ""
+    customerName: "",
+    customerPhone: "",
+    customerAddress: "",
   });
 
-  const cartItems = cart ?? [];
+  const cartItems = (cart ?? []) as CartItem[];
 
   if (cartItems.length === 0) {
     setLocation("/cart");
@@ -32,28 +33,29 @@ export default function Checkout() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const items = cartItems.map((item: any) => ({
-      productId: item.productId,
-      quantity: item.quantity
+
+    const items = cartItems.map((item: CartItem) => ({
+      productId: item.product?.id ?? item.id,
+      quantity: item.quantity,
     }));
 
     createOrder.mutate(
-      { 
-        data: { 
-          items, 
-          shippingAddress: formData.shippingAddress, 
-          phone: formData.phone,
-          couponCode
-        } 
+      {
+        data: {
+          customerName: formData.customerName,
+          customerPhone: formData.customerPhone,
+          customerAddress: formData.customerAddress,
+          couponCode: couponCode ?? null,
+          items,
+        }
       },
       {
         onSuccess: (order) => {
-          queryClient.setQueryData(getGetCartQueryKey(), { items: [] });
+          queryClient.setQueryData(getGetCartQueryKey(), []);
           toast({ title: "Order Placed Successfully! / تم تقديم الطلب بنجاح!" });
           setLocation(`/orders/${order.id}`);
         },
-        onError: (err: any) => {
+        onError: (err: Error) => {
           toast({ title: "Error / خطأ", description: err.message, variant: "destructive" });
         }
       }
@@ -68,31 +70,42 @@ export default function Checkout() {
       <div className="bg-card border rounded-lg p-6 shadow-sm mb-8">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="phone">Phone Number / رقم الهاتف</Label>
-            <Input 
-              id="phone"
+            <Label htmlFor="customerName">Full Name / الاسم الكامل</Label>
+            <Input
+              id="customerName"
               required
-              value={formData.phone}
-              onChange={(e) => setFormData({...formData, phone: e.target.value})}
+              value={formData.customerName}
+              onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
+              placeholder="Your full name"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="customerPhone">Phone Number / رقم الهاتف</Label>
+            <Input
+              id="customerPhone"
+              required
+              value={formData.customerPhone}
+              onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
               placeholder="+966 50 000 0000"
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="address">Shipping Address / عنوان التوصيل</Label>
-            <Textarea 
-              id="address"
+            <Label htmlFor="customerAddress">Shipping Address / عنوان التوصيل</Label>
+            <Textarea
+              id="customerAddress"
               required
               rows={4}
-              value={formData.shippingAddress}
-              onChange={(e) => setFormData({...formData, shippingAddress: e.target.value})}
+              value={formData.customerAddress}
+              onChange={(e) => setFormData({ ...formData, customerAddress: e.target.value })}
               placeholder="City, District, Street, Building..."
             />
           </div>
 
           <div className="pt-4 border-t">
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full h-12 text-lg"
               disabled={createOrder.isPending}
               data-testid="button-place-order"

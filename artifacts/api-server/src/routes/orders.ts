@@ -29,6 +29,13 @@ router.post("/orders", optionalAuth, async (req: AuthRequest, res) => {
       }
     }
 
+    // Consolidate duplicate productIds to avoid stock check/update races on the same row
+    const consolidated = new Map<number, number>();
+    for (const item of orderItems) {
+      consolidated.set(item.productId, (consolidated.get(item.productId) ?? 0) + item.quantity);
+    }
+    orderItems = Array.from(consolidated.entries()).map(([productId, quantity]) => ({ productId, quantity }));
+
     if (req.user && orderItems.length === 0) {
       const cartItems = await db.select().from(schema.cartItemsTable)
         .where(eq(schema.cartItemsTable.userId, req.user.id));
@@ -235,7 +242,7 @@ router.get("/admin/orders", authenticate, requireAdmin, async (req: AuthRequest,
 router.put("/admin/orders/:id/status", authenticate, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const { status } = req.body;
-    const VALID_STATUSES = ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"];
+    const VALID_STATUSES = ["pending", "processing", "shipped", "delivered", "cancelled"];
     if (!VALID_STATUSES.includes(status)) {
       res.status(400).json({ error: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}` });
       return;

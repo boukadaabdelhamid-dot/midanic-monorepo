@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import {
-  useGetAdminOrders, useUpdateOrderStatus, getGetAdminOrdersQueryKey
+  useGetAdminOrders, useUpdateOrderStatus, getGetAdminOrdersQueryKey,
+  type Order, type UpdateOrderStatusRequestStatus,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/table";
 import { format } from "date-fns";
 
-const STATUS_OPTIONS = ["pending", "processing", "shipped", "delivered", "cancelled"];
+const STATUS_OPTIONS: UpdateOrderStatusRequestStatus[] = ["pending", "processing", "shipped", "delivered", "cancelled"];
 
 const statusColor = (s: string) => {
   switch (s) {
@@ -33,7 +33,7 @@ export default function Orders() {
   const updateStatus = useUpdateOrderStatus();
   const [updating, setUpdating] = useState<number | null>(null);
 
-  const handleStatusChange = (id: number, status: string) => {
+  const handleStatusChange = (id: number, status: UpdateOrderStatusRequestStatus) => {
     setUpdating(id);
     updateStatus.mutate(
       { id, data: { status } },
@@ -68,7 +68,7 @@ export default function Orders() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Order #</TableHead>
-                    <TableHead>Customer ID</TableHead>
+                    <TableHead>Customer</TableHead>
                     <TableHead>Amount</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Status / الحالة</TableHead>
@@ -76,10 +76,10 @@ export default function Orders() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(orders ?? []).map((order: any) => (
+                  {(orders ?? []).map((order: Order) => (
                     <TableRow key={order.id} data-testid={`row-order-${order.id}`}>
                       <TableCell className="font-medium">#{order.id}</TableCell>
-                      <TableCell className="text-muted-foreground">{order.userId}</TableCell>
+                      <TableCell className="text-muted-foreground">{order.customerName}</TableCell>
                       <TableCell className="font-semibold text-primary">
                         SAR {order.totalAmount}
                       </TableCell>
@@ -96,7 +96,7 @@ export default function Orders() {
                       <TableCell>
                         <Select
                           defaultValue={order.status}
-                          onValueChange={(v) => handleStatusChange(order.id, v)}
+                          onValueChange={(v) => handleStatusChange(order.id, v as UpdateOrderStatusRequestStatus)}
                           disabled={updating === order.id}
                         >
                           <SelectTrigger className="h-8 w-36 text-xs" data-testid={`select-status-${order.id}`}>
