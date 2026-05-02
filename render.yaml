@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: api-server
+    runtime: node
+    rootDir: .
+    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/api-server run build
+    startCommand: node artifacts/api-server/dist/index.mjs
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: midanic-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SESSION_SECRET
+        generateValue: true
+
+  - type: web
+    name: web-store
+    runtime: static
+    rootDir: .
+    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/web-store run build
+    staticPublishPath: artifacts/web-store/dist
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+  - type: web
+    name: erp
+    runtime: static
+    rootDir: .
+    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/erp run build
+    staticPublishPath: artifacts/erp/dist
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+databases:
+  - name: midanic-db
+    databaseName: midanic
+    user: midanic
