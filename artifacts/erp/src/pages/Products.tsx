@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   useGetProducts, useGetCategories, useCreateProduct,
   useUpdateProduct, useDeleteProduct,
@@ -21,7 +21,7 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
 } from "@/components/ui/select";
-import { Trash2, Pencil, Plus, Search, Package } from "lucide-react";
+import { Trash2, Pencil, Plus, Search, Package, ImagePlus, X, Loader2 } from "lucide-react";
 
 const CATALOGUE_TYPES = ["ARTICLE", "PRODUITS", "APPAREIL", "ACCESSOIRE", "SERVICE"];
 
@@ -40,6 +40,22 @@ const emptyForm: ProductForm = {
   reference: "", barcode: "", costPrice: "", catalogueType: "ARTICLE"
 };
 
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
+
+async function uploadImage(file: File): Promise<string> {
+  const token = localStorage.getItem("midanic_token");
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch(`${API_BASE}/uploads`, {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: fd,
+  });
+  if (!res.ok) throw new Error("Upload failed");
+  const data = await res.json() as { url: string };
+  return data.url;
+}
+
 export default function Products() {
   const qc = useQueryClient();
   const { data: productsRes, isLoading } = useGetProducts({ limit: "200" });
@@ -52,6 +68,25 @@ export default function Products() {
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImagePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadError(null);
+    try {
+      const url = await uploadImage(file);
+      setForm((f) => ({ ...f, imageUrl: url }));
+    } catch {
+      setUploadError("فشل رفع الصورة — réessayez");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const products = (productsRes?.products ?? []).filter((p) => {
     if (!search) return true;
@@ -330,8 +365,58 @@ export default function Products() {
               <Input value={form.descriptionAr} onChange={(e) => setForm((f) => ({ ...f, descriptionAr: e.target.value }))} dir="rtl" className="h-8 text-sm" />
             </div>
             <div className="col-span-2">
-              <Label className="text-xs mb-1 block">Image URL</Label>
-              <Input value={form.imageUrl} onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))} className="h-8 text-sm" />
+              <Label className="text-xs mb-1 block">صورة المنتج / Image du produit</Label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleImagePick}
+              />
+              <div className="flex items-start gap-3">
+                {form.imageUrl ? (
+                  <div className="relative w-20 h-20 rounded-lg border overflow-hidden flex-shrink-0">
+                    <img src={form.imageUrl} alt="preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, imageUrl: "" }))}
+                      className="absolute top-0.5 right-0.5 bg-black/60 hover:bg-black/80 text-white rounded-full p-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className="w-20 h-20 rounded-lg border-2 border-dashed border-muted-foreground/30 flex items-center justify-center flex-shrink-0 bg-muted/20 cursor-pointer hover:bg-muted/40 transition-colors"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <ImagePlus className="h-6 w-6 text-muted-foreground/50" />
+                  </div>
+                )}
+                <div className="flex-1 space-y-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full h-8 text-xs"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    {uploading ? (
+                      <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> جاري الرفع...</>
+                    ) : (
+                      <><ImagePlus className="h-3.5 w-3.5 mr-1.5" /> {form.imageUrl ? "تغيير الصورة / Changer" : "رفع صورة / Choisir"}</>
+                    )}
+                  </Button>
+                  {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
+                  <Input
+                    value={form.imageUrl}
+                    onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
+                    className="h-7 text-xs text-muted-foreground"
+                    placeholder="أو أدخل رابط الصورة / ou coller une URL"
+                  />
+                </div>
+              </div>
             </div>
           </div>
           <DialogFooter>
