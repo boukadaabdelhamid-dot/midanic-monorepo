@@ -1,7 +1,7 @@
+// @refresh reset
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { useGetMe, useLogin, useRegister, getGetMeQueryKey, type User } from "@workspace/api-client-react";
+import { useGetMe, getGetMeQueryKey, type User, setAuthTokenGetter } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { setAuthTokenGetter } from "@workspace/api-client-react";
 
 setAuthTokenGetter(() => {
   return localStorage.getItem("midanic_token");
