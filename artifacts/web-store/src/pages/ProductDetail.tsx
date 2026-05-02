@@ -5,7 +5,8 @@ import {
   useAddToCart, 
   useCreateReview,
   getGetCartQueryKey,
-  getGetProductQueryKey
+  getGetProductQueryKey,
+  type Review,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -58,10 +59,10 @@ export default function ProductDetail() {
             description: `${quantity}x ${lang === 'ar' ? product?.nameAr : product?.nameEn} ${lang === 'ar' ? 'تمت إضافتها إلى السلة.' : 'added to your cart.'}`
           });
         },
-        onError: (err: any) => {
+        onError: (err: Error) => {
           toast({
             title: lang === 'ar' ? 'خطأ' : 'Error',
-            description: err.message || "Could not add to cart",
+            description: err.message || (lang === 'ar' ? 'تعذّرت الإضافة إلى السلة' : 'Could not add to cart'),
             variant: "destructive"
           });
         }
@@ -86,7 +87,7 @@ export default function ProductDetail() {
           queryClient.invalidateQueries({ queryKey: getGetProductQueryKey(productId) });
           toast({ title: lang === 'ar' ? 'تمت إضافة التقييم' : 'Review Added' });
         },
-        onError: (err: any) => {
+        onError: (err: Error) => {
           toast({ title: lang === 'ar' ? 'خطأ' : 'Error', description: err.message, variant: "destructive" });
         }
       }
@@ -233,7 +234,7 @@ export default function ProductDetail() {
                 </p>
               </div>
             ) : (
-              product.reviews.map((review: any) => (
+              product.reviews.map((review: Review) => (
                 <div key={review.id} className="pb-8 border-b border-border/40 last:border-0 last:pb-0">
                   <div className="flex items-center justify-between mb-3">
                     <span className="font-semibold text-lg">{review.userName || (lang === 'ar' ? 'مجهول' : 'Anonymous')}</span>
@@ -243,7 +244,7 @@ export default function ProductDetail() {
                       ))}
                     </div>
                   </div>
-                  <p className="text-muted-foreground leading-relaxed text-lg" dir={lang === 'ar' && /[\u0600-\u06FF]/.test(review.comment) ? 'rtl' : 'ltr'}>
+                  <p className="text-muted-foreground leading-relaxed text-lg" dir={lang === 'ar' && /[\u0600-\u06FF]/.test(review.comment ?? '') ? 'rtl' : 'ltr'}>
                     {review.comment}
                   </p>
                 </div>

@@ -42,10 +42,10 @@ export function ProductCard({ product }: ProductCardProps) {
             description: `${lang === 'ar' ? product.nameAr : product.nameEn} added to your cart.`
           });
         },
-        onError: (err: any) => {
+        onError: (err: Error) => {
           toast({
-            title: "Error / خطأ",
-            description: err.message || "Could not add to cart",
+            title: lang === 'ar' ? 'خطأ' : 'Error',
+            description: err.message || (lang === 'ar' ? 'تعذّرت الإضافة إلى السلة' : 'Could not add to cart'),
             variant: "destructive"
           });
         }

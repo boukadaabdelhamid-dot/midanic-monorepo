@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { useLang } from "@/hooks/use-lang";
 import { Edit, Trash2, Plus, ArrowLeft } from "lucide-react";
 
 const categorySchema = z.object({
@@ -32,6 +33,7 @@ type CategoryFormValues = z.infer<typeof categorySchema>;
 
 export default function AdminCategories() {
   const { toast } = useToast();
+  const { lang } = useLang();
   const queryClient = useQueryClient();
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -106,25 +108,33 @@ export default function AdminCategories() {
     }
   };
 
+  const isAr = lang === 'ar';
+
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="flex items-center gap-4 mb-8 border-b pb-4">
         <Link href="/admin">
           <Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-serif font-bold">Manage Categories</h1>
+          <h1 className="text-3xl font-serif font-bold">
+            {isAr ? 'إدارة الفئات' : 'Manage Categories'}
+          </h1>
         </div>
         <div className="ml-auto">
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={handleOpenCreate} className="gap-2">
-                <Plus className="h-4 w-4" /> New Category
+                <Plus className="h-4 w-4" /> {isAr ? 'فئة جديدة' : 'New Category'}
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
-                <DialogTitle>{editingId ? "Edit Category" : "Create Category"}</DialogTitle>
+                <DialogTitle>
+                  {editingId
+                    ? (isAr ? 'تعديل الفئة' : 'Edit Category')
+                    : (isAr ? 'إنشاء فئة' : 'Create Category')}
+                </DialogTitle>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
@@ -133,9 +143,9 @@ export default function AdminCategories() {
                     name="nameEn"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Name (English)</FormLabel>
+                        <FormLabel>{isAr ? 'الاسم (إنجليزي)' : 'Name (English)'}</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g. Fragrances" {...field} />
+                          <Input placeholder="e.g. Fragrances" dir="ltr" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -146,9 +156,9 @@ export default function AdminCategories() {
                     name="nameAr"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Name (Arabic)</FormLabel>
+                        <FormLabel>{isAr ? 'الاسم (عربي)' : 'Name (Arabic)'}</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g. عطور" dir="rtl" {...field} />
+                          <Input placeholder="مثال: عطور" dir="rtl" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -159,16 +169,18 @@ export default function AdminCategories() {
                     name="imageUrl"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Image URL (Optional)</FormLabel>
+                        <FormLabel>{isAr ? 'رابط الصورة (اختياري)' : 'Image URL (Optional)'}</FormLabel>
                         <FormControl>
-                          <Input placeholder="https://..." {...field} value={field.value || ""} />
+                          <Input placeholder="https://..." dir="ltr" {...field} value={field.value || ""} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
                   <Button type="submit" className="w-full mt-4" disabled={createCategory.isPending || updateCategory.isPending}>
-                    {createCategory.isPending || updateCategory.isPending ? "Saving..." : "Save"}
+                    {createCategory.isPending || updateCategory.isPending
+                      ? (isAr ? 'جاري الحفظ...' : 'Saving...')
+                      : (isAr ? 'حفظ' : 'Save')}
                   </Button>
                 </form>
               </Form>
@@ -189,16 +201,16 @@ export default function AdminCategories() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[80px]">ID</TableHead>
-                <TableHead>Name (EN)</TableHead>
-                <TableHead className="text-right">Name (AR)</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{isAr ? 'الاسم (إنجليزي)' : 'Name (EN)'}</TableHead>
+                <TableHead>{isAr ? 'الاسم (عربي)' : 'Name (AR)'}</TableHead>
+                <TableHead className="text-right">{isAr ? 'الإجراءات' : 'Actions'}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {!categories || categories.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                    No categories found
+                    {isAr ? 'لا توجد فئات' : 'No categories found'}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -206,7 +218,7 @@ export default function AdminCategories() {
                   <TableRow key={category.id}>
                     <TableCell className="font-medium">{category.id}</TableCell>
                     <TableCell>{category.nameEn}</TableCell>
-                    <TableCell className="text-right">{category.nameAr}</TableCell>
+                    <TableCell dir="rtl">{category.nameAr}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(category)}>

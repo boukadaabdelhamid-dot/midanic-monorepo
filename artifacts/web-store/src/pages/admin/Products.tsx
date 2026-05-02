@@ -25,6 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useLang } from "@/hooks/use-lang";
 import { Edit, Trash2, Plus, ArrowLeft, Image as ImageIcon, Loader2 } from "lucide-react";
 
 const productSchema = z.object({
@@ -42,6 +43,7 @@ type ProductFormValues = z.infer<typeof productSchema>;
 
 export default function AdminProducts() {
   const { toast } = useToast();
+  const { lang } = useLang();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -155,60 +157,69 @@ export default function AdminProducts() {
   };
 
   const products = productsRes?.products || [];
+  const isAr = lang === 'ar';
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="flex items-center gap-4 mb-8 border-b pb-4">
         <Link href="/admin">
           <Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-serif font-bold">Manage Products</h1>
+          <h1 className="text-3xl font-serif font-bold">
+            {isAr ? 'إدارة المنتجات' : 'Manage Products'}
+          </h1>
         </div>
         <div className="ml-auto">
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={handleOpenCreate} className="gap-2">
-                <Plus className="h-4 w-4" /> New Product
+                <Plus className="h-4 w-4" /> {isAr ? 'منتج جديد' : 'New Product'}
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
               <DialogHeader>
-                <DialogTitle>{editingId ? "Edit Product" : "Create Product"}</DialogTitle>
+                <DialogTitle>
+                  {editingId
+                    ? (isAr ? 'تعديل المنتج' : 'Edit Product')
+                    : (isAr ? 'إنشاء منتج' : 'Create Product')}
+                </DialogTitle>
               </DialogHeader>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="nameEn" render={({ field }) => (
-                      <FormItem><FormLabel>Name (English)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>{isAr ? 'الاسم (إنجليزي)' : 'Name (English)'}</FormLabel><FormControl><Input dir="ltr" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="nameAr" render={({ field }) => (
-                      <FormItem><FormLabel>Name (Arabic)</FormLabel><FormControl><Input dir="rtl" {...field} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>{isAr ? 'الاسم (عربي)' : 'Name (Arabic)'}</FormLabel><FormControl><Input dir="rtl" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="price" render={({ field }) => (
-                      <FormItem><FormLabel>Price (SAR)</FormLabel><FormControl><Input type="number" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>{isAr ? 'السعر (ريال)' : 'Price (SAR)'}</FormLabel><FormControl><Input type="number" step="0.01" dir="ltr" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="stock" render={({ field }) => (
-                      <FormItem><FormLabel>Stock Quantity</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>{isAr ? 'الكمية' : 'Stock Quantity'}</FormLabel><FormControl><Input type="number" dir="ltr" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                   </div>
 
                   <FormField control={form.control} name="categoryId" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Category</FormLabel>
+                      <FormLabel>{isAr ? 'الفئة' : 'Category'}</FormLabel>
                       <Select 
                         value={field.value ? field.value.toString() : ""} 
                         onValueChange={(val) => field.onChange(val ? parseInt(val) : null)}
                       >
                         <FormControl>
-                          <SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger>
+                          <SelectTrigger><SelectValue placeholder={isAr ? 'اختر فئة' : 'Select a category'} /></SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           {categories?.map((cat) => (
-                            <SelectItem key={cat.id} value={cat.id.toString()}>{cat.nameEn}</SelectItem>
+                            <SelectItem key={cat.id} value={cat.id.toString()}>
+                              {isAr ? cat.nameAr : cat.nameEn}
+                            </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -218,19 +229,20 @@ export default function AdminProducts() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="descriptionEn" render={({ field }) => (
-                      <FormItem><FormLabel>Description (English)</FormLabel><FormControl><Textarea rows={3} {...field} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>{isAr ? 'الوصف (إنجليزي)' : 'Description (English)'}</FormLabel><FormControl><Textarea rows={3} dir="ltr" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="descriptionAr" render={({ field }) => (
-                      <FormItem><FormLabel>Description (Arabic)</FormLabel><FormControl><Textarea rows={3} dir="rtl" {...field} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>{isAr ? 'الوصف (عربي)' : 'Description (Arabic)'}</FormLabel><FormControl><Textarea rows={3} dir="rtl" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                   </div>
 
                   <FormField control={form.control} name="imageUrl" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Product Image</FormLabel>
+                      <FormLabel>{isAr ? 'صورة المنتج' : 'Product Image'}</FormLabel>
                       <div className="flex gap-2 items-center">
                         <Input 
-                          placeholder="Image URL or upload" 
+                          placeholder={isAr ? 'رابط الصورة أو ارفع ملفاً' : 'Image URL or upload'}
+                          dir="ltr"
                           {...field} 
                           value={field.value || ""} 
                         />
@@ -261,7 +273,9 @@ export default function AdminProducts() {
                   )} />
 
                   <Button type="submit" className="w-full mt-4" disabled={createProduct.isPending || updateProduct.isPending}>
-                    {createProduct.isPending || updateProduct.isPending ? "Saving..." : "Save Product"}
+                    {createProduct.isPending || updateProduct.isPending
+                      ? (isAr ? 'جاري الحفظ...' : 'Saving...')
+                      : (isAr ? 'حفظ المنتج' : 'Save Product')}
                   </Button>
                 </form>
               </Form>
@@ -281,18 +295,18 @@ export default function AdminProducts() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[80px]">Image</TableHead>
-                <TableHead>Name (EN)</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Stock</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="w-[80px]">{isAr ? 'الصورة' : 'Image'}</TableHead>
+                <TableHead>{isAr ? 'الاسم' : 'Name'}</TableHead>
+                <TableHead>{isAr ? 'السعر' : 'Price'}</TableHead>
+                <TableHead>{isAr ? 'المخزون' : 'Stock'}</TableHead>
+                <TableHead className="text-right">{isAr ? 'الإجراءات' : 'Actions'}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {!products || products.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                    No products found
+                    {isAr ? 'لا توجد منتجات' : 'No products found'}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -308,9 +322,11 @@ export default function AdminProducts() {
                       </div>
                     </TableCell>
                     <TableCell className="font-medium">
-                      {product.nameEn}
+                      {isAr ? product.nameAr : product.nameEn}
                       {product.stock < 5 && (
-                        <Badge variant="destructive" className="ml-2 text-[10px] py-0 px-1.5 h-4">Low Stock</Badge>
+                        <Badge variant="destructive" className="ml-2 text-[10px] py-0 px-1.5 h-4">
+                          {isAr ? 'مخزون منخفض' : 'Low Stock'}
+                        </Badge>
                       )}
                     </TableCell>
                     <TableCell>SAR {product.price}</TableCell>

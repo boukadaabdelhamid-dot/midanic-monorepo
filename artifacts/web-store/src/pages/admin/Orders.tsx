@@ -15,11 +15,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useLang } from "@/hooks/use-lang";
 import { ArrowLeft, Eye } from "lucide-react";
 import { format } from "date-fns";
 
 export default function AdminOrders() {
   const { toast } = useToast();
+  const { lang } = useLang();
   const queryClient = useQueryClient();
   
   const { data: orders, isLoading } = useGetAdminOrders();
@@ -52,14 +54,30 @@ export default function AdminOrders() {
     }
   };
 
+  const isAr = lang === 'ar';
+
+  const statusLabel = (status: OrderStatus) => {
+    if (!isAr) return status;
+    const map: Record<OrderStatus, string> = {
+      pending: 'قيد الانتظار',
+      processing: 'قيد التجهيز',
+      shipped: 'تم الشحن',
+      delivered: 'تم التوصيل',
+      cancelled: 'ملغي',
+    };
+    return map[status] ?? status;
+  };
+
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8" dir={isAr ? 'rtl' : 'ltr'}>
       <div className="flex items-center gap-4 mb-8 border-b pb-4">
         <Link href="/admin">
           <Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-serif font-bold">Manage Orders</h1>
+          <h1 className="text-3xl font-serif font-bold">
+            {isAr ? 'إدارة الطلبات' : 'Manage Orders'}
+          </h1>
         </div>
       </div>
 
@@ -74,20 +92,20 @@ export default function AdminOrders() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[100px]">Order ID</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Current Status</TableHead>
-                <TableHead className="w-[200px]">Update Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="w-[100px]">{isAr ? 'رقم الطلب' : 'Order ID'}</TableHead>
+                <TableHead>{isAr ? 'العميل' : 'Customer'}</TableHead>
+                <TableHead>{isAr ? 'التاريخ' : 'Date'}</TableHead>
+                <TableHead>{isAr ? 'الإجمالي' : 'Total'}</TableHead>
+                <TableHead>{isAr ? 'الحالة الحالية' : 'Current Status'}</TableHead>
+                <TableHead className="w-[200px]">{isAr ? 'تحديث الحالة' : 'Update Status'}</TableHead>
+                <TableHead className="text-right">{isAr ? 'الإجراءات' : 'Actions'}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {!orders || orders.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                    No orders found
+                    {isAr ? 'لا توجد طلبات' : 'No orders found'}
                   </TableCell>
                 </TableRow>
               ) : (
@@ -102,7 +120,7 @@ export default function AdminOrders() {
                     <TableCell className="font-bold text-primary">SAR {order.totalAmount}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={`capitalize ${getStatusColor(order.status)}`}>
-                        {order.status}
+                        {statusLabel(order.status)}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -112,14 +130,14 @@ export default function AdminOrders() {
                         disabled={updateStatus.isPending}
                       >
                         <SelectTrigger className="w-[140px] h-8 text-xs">
-                          <SelectValue placeholder="Status" />
+                          <SelectValue placeholder={isAr ? 'الحالة' : 'Status'} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="processing">Processing</SelectItem>
-                          <SelectItem value="shipped">Shipped</SelectItem>
-                          <SelectItem value="delivered">Delivered</SelectItem>
-                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                          <SelectItem value="pending">{isAr ? 'قيد الانتظار' : 'Pending'}</SelectItem>
+                          <SelectItem value="processing">{isAr ? 'قيد التجهيز' : 'Processing'}</SelectItem>
+                          <SelectItem value="shipped">{isAr ? 'تم الشحن' : 'Shipped'}</SelectItem>
+                          <SelectItem value="delivered">{isAr ? 'تم التوصيل' : 'Delivered'}</SelectItem>
+                          <SelectItem value="cancelled">{isAr ? 'ملغي' : 'Cancelled'}</SelectItem>
                         </SelectContent>
                       </Select>
                     </TableCell>
