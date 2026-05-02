@@ -3,7 +3,7 @@ import { eq, desc, sql, lt } from "drizzle-orm";
 import { db, schema } from "../lib/db";
 import { authenticate, requireAdmin, optionalAuth, type AuthRequest } from "../lib/auth";
 import { broadcastToAdmins } from "../lib/ws";
-import { sendOrderConfirmationSMS, sendAdminOrderAlertSMS } from "../lib/sms";
+
 
 const router = Router();
 
@@ -167,9 +167,6 @@ router.post("/orders", optionalAuth, async (req: AuthRequest, res) => {
       order: { id: result.order.id, customerName, customerPhone, customerAddress, totalAmount: result.totalAmount, createdAt: result.order.createdAt },
     });
 
-    // Send SMS notifications (fire-and-forget, never blocks the response)
-    sendOrderConfirmationSMS(customerPhone, result.order.id, result.totalAmount, customerName).catch(() => {});
-    sendAdminOrderAlertSMS(result.order.id, customerName, result.totalAmount).catch(() => {});
     for (const item of result.enrichedItems) {
       if (item.product.stock < 5) {
         broadcastToAdmins({ type: "low_stock", product: { id: item.productId, nameEn: item.product.nameEn, nameAr: item.product.nameAr, stock: item.product.stock } });

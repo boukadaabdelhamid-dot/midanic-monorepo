@@ -25,7 +25,6 @@ import type {
   AuthResponse,
   CartItem,
   Category,
-  CheckoutSessionResponse,
   CouponValidationResponse,
   CreateAttendanceRequest,
   CreateCategoryRequest,
@@ -33,7 +32,6 @@ import type {
   CreateEmployeeRequest,
   CreateLeaveRequest,
   CreateOrderRequest,
-  CreatePaymentIntentRequest,
   CreateProductRequest,
   CreatePurchaseOrderRequest,
   CreateReviewRequest,
@@ -43,7 +41,6 @@ import type {
   CustomerNote,
   CustomerSummary,
   Employee,
-  ErrorResponse,
   GetAttendanceParams,
   GetLowStockParams,
   GetProductsParams,
@@ -53,14 +50,12 @@ import type {
   LoginRequest,
   Order,
   OrderDetail,
-  PaymentIntentResponse,
   Product,
   ProductDetail,
   ProductsResponse,
   PurchaseOrder,
   RegisterRequest,
   Review,
-  StripeWebhookBody,
   SuccessResponse,
   Supplier,
   Transaction,
@@ -4120,266 +4115,6 @@ export const useCreateCustomerNote = <
   TContext
 > => {
   return useMutation(getCreateCustomerNoteMutationOptions(options));
-};
-
-/**
- * @summary Create a Stripe PaymentIntent for an order (web checkout)
- */
-export const getCreatePaymentIntentUrl = () => {
-  return `/api/payments/create-intent`;
-};
-
-export const createPaymentIntent = async (
-  createPaymentIntentRequest: CreatePaymentIntentRequest,
-  options?: RequestInit,
-): Promise<PaymentIntentResponse> => {
-  return customFetch<PaymentIntentResponse>(getCreatePaymentIntentUrl(), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(createPaymentIntentRequest),
-  });
-};
-
-export const getCreatePaymentIntentMutationOptions = <
-  TError = ErrorType<ErrorResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createPaymentIntent>>,
-    TError,
-    { data: BodyType<CreatePaymentIntentRequest> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof createPaymentIntent>>,
-  TError,
-  { data: BodyType<CreatePaymentIntentRequest> },
-  TContext
-> => {
-  const mutationKey = ["createPaymentIntent"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createPaymentIntent>>,
-    { data: BodyType<CreatePaymentIntentRequest> }
-  > = (props) => {
-    const { data } = props ?? {};
-
-    return createPaymentIntent(data, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type CreatePaymentIntentMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createPaymentIntent>>
->;
-export type CreatePaymentIntentMutationBody =
-  BodyType<CreatePaymentIntentRequest>;
-export type CreatePaymentIntentMutationError = ErrorType<ErrorResponse>;
-
-/**
- * @summary Create a Stripe PaymentIntent for an order (web checkout)
- */
-export const useCreatePaymentIntent = <
-  TError = ErrorType<ErrorResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createPaymentIntent>>,
-    TError,
-    { data: BodyType<CreatePaymentIntentRequest> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof createPaymentIntent>>,
-  TError,
-  { data: BodyType<CreatePaymentIntentRequest> },
-  TContext
-> => {
-  return useMutation(getCreatePaymentIntentMutationOptions(options));
-};
-
-/**
- * @summary Create a Stripe Checkout Session URL (mobile / redirect flow)
- */
-export const getCreateCheckoutSessionUrl = () => {
-  return `/api/payments/checkout-session`;
-};
-
-export const createCheckoutSession = async (
-  createPaymentIntentRequest: CreatePaymentIntentRequest,
-  options?: RequestInit,
-): Promise<CheckoutSessionResponse> => {
-  return customFetch<CheckoutSessionResponse>(getCreateCheckoutSessionUrl(), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(createPaymentIntentRequest),
-  });
-};
-
-export const getCreateCheckoutSessionMutationOptions = <
-  TError = ErrorType<ErrorResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createCheckoutSession>>,
-    TError,
-    { data: BodyType<CreatePaymentIntentRequest> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof createCheckoutSession>>,
-  TError,
-  { data: BodyType<CreatePaymentIntentRequest> },
-  TContext
-> => {
-  const mutationKey = ["createCheckoutSession"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createCheckoutSession>>,
-    { data: BodyType<CreatePaymentIntentRequest> }
-  > = (props) => {
-    const { data } = props ?? {};
-
-    return createCheckoutSession(data, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type CreateCheckoutSessionMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createCheckoutSession>>
->;
-export type CreateCheckoutSessionMutationBody =
-  BodyType<CreatePaymentIntentRequest>;
-export type CreateCheckoutSessionMutationError = ErrorType<ErrorResponse>;
-
-/**
- * @summary Create a Stripe Checkout Session URL (mobile / redirect flow)
- */
-export const useCreateCheckoutSession = <
-  TError = ErrorType<ErrorResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createCheckoutSession>>,
-    TError,
-    { data: BodyType<CreatePaymentIntentRequest> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof createCheckoutSession>>,
-  TError,
-  { data: BodyType<CreatePaymentIntentRequest> },
-  TContext
-> => {
-  return useMutation(getCreateCheckoutSessionMutationOptions(options));
-};
-
-/**
- * @summary Stripe webhook handler — updates order status on payment events
- */
-export const getStripeWebhookUrl = () => {
-  return `/api/payments/webhook`;
-};
-
-export const stripeWebhook = async (
-  stripeWebhookBody: StripeWebhookBody,
-  options?: RequestInit,
-): Promise<SuccessResponse> => {
-  return customFetch<SuccessResponse>(getStripeWebhookUrl(), {
-    ...options,
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...options?.headers },
-    body: JSON.stringify(stripeWebhookBody),
-  });
-};
-
-export const getStripeWebhookMutationOptions = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof stripeWebhook>>,
-    TError,
-    { data: BodyType<StripeWebhookBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof stripeWebhook>>,
-  TError,
-  { data: BodyType<StripeWebhookBody> },
-  TContext
-> => {
-  const mutationKey = ["stripeWebhook"];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation &&
-      "mutationKey" in options.mutation &&
-      options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof stripeWebhook>>,
-    { data: BodyType<StripeWebhookBody> }
-  > = (props) => {
-    const { data } = props ?? {};
-
-    return stripeWebhook(data, requestOptions);
-  };
-
-  return { mutationFn, ...mutationOptions };
-};
-
-export type StripeWebhookMutationResult = NonNullable<
-  Awaited<ReturnType<typeof stripeWebhook>>
->;
-export type StripeWebhookMutationBody = BodyType<StripeWebhookBody>;
-export type StripeWebhookMutationError = ErrorType<unknown>;
-
-/**
- * @summary Stripe webhook handler — updates order status on payment events
- */
-export const useStripeWebhook = <
-  TError = ErrorType<unknown>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof stripeWebhook>>,
-    TError,
-    { data: BodyType<StripeWebhookBody> },
-    TContext
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseMutationResult<
-  Awaited<ReturnType<typeof stripeWebhook>>,
-  TError,
-  { data: BodyType<StripeWebhookBody> },
-  TContext
-> => {
-  return useMutation(getStripeWebhookMutationOptions(options));
 };
 
 /**

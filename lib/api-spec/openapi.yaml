@@ -16,7 +16,6 @@ tags:
   - name: orders
   - name: admin
   - name: erp
-  - name: payments
   - name: storage
 
 paths:
@@ -1027,78 +1026,6 @@ paths:
               schema:
                 $ref: "#/components/schemas/CustomerNote"
 
-  # ── Payments ──────────────────────────────────────────────────────
-  /payments/create-intent:
-    post:
-      operationId: createPaymentIntent
-      tags: [payments]
-      summary: Create a Stripe PaymentIntent for an order (web checkout)
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreatePaymentIntentRequest"
-      responses:
-        "200":
-          description: PaymentIntent created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PaymentIntentResponse"
-        "503":
-          description: Payment processing not configured
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-
-  /payments/checkout-session:
-    post:
-      operationId: createCheckoutSession
-      tags: [payments]
-      summary: Create a Stripe Checkout Session URL (mobile / redirect flow)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CreatePaymentIntentRequest"
-      responses:
-        "200":
-          description: Checkout session URL
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CheckoutSessionResponse"
-        "503":
-          description: Payment processing not configured
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorResponse"
-
-  /payments/webhook:
-    post:
-      operationId: stripeWebhook
-      tags: [payments]
-      summary: Stripe webhook handler — updates order status on payment events
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-      responses:
-        "200":
-          description: Webhook received
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SuccessResponse"
-
   # ── Storage ───────────────────────────────────────────────────────
   /uploads/{id}:
     get:
@@ -1903,30 +1830,6 @@ components:
         createdAt:
           type: string
       required: [id, userId, note]
-
-    # Payments
-    CreatePaymentIntentRequest:
-      type: object
-      properties:
-        orderId:
-          type: integer
-      required: [orderId]
-
-    PaymentIntentResponse:
-      type: object
-      properties:
-        clientSecret:
-          type: string
-        paymentIntentId:
-          type: string
-      required: [clientSecret, paymentIntentId]
-
-    CheckoutSessionResponse:
-      type: object
-      properties:
-        url:
-          type: string
-      required: [url]
 
     ErrorResponse:
       type: object

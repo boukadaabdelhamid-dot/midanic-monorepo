@@ -953,38 +953,6 @@ export const CreateCustomerNoteBody = zod.object({
 });
 
 /**
- * @summary Create a Stripe PaymentIntent for an order (web checkout)
- */
-export const CreatePaymentIntentBody = zod.object({
-  orderId: zod.number(),
-});
-
-export const CreatePaymentIntentResponse = zod.object({
-  clientSecret: zod.string(),
-  paymentIntentId: zod.string(),
-});
-
-/**
- * @summary Create a Stripe Checkout Session URL (mobile / redirect flow)
- */
-export const CreateCheckoutSessionBody = zod.object({
-  orderId: zod.number(),
-});
-
-export const CreateCheckoutSessionResponse = zod.object({
-  url: zod.string(),
-});
-
-/**
- * @summary Stripe webhook handler — updates order status on payment events
- */
-export const StripeWebhookBody = zod.object({}).passthrough();
-
-export const StripeWebhookResponse = zod.object({
-  success: zod.boolean(),
-});
-
-/**
  * @summary Serve a previously uploaded image (public, no auth required)
  */
 export const GetUploadedImageParams = zod.object({
