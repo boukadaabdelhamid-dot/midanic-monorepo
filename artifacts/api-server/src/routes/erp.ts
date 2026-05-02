@@ -144,6 +144,8 @@ router.put("/erp/purchase-orders/:id/receive", authenticate, requireAdmin, async
       .set({ status: "received", receivedAt: new Date() })
       .where(eq(schema.purchaseOrdersTable.id, poId)).returning();
 
+    if (!po) { res.status(404).json({ error: "Purchase order not found" }); return; }
+
     const items = await db.select().from(schema.purchaseItemsTable)
       .where(eq(schema.purchaseItemsTable.purchaseOrderId, poId));
 
