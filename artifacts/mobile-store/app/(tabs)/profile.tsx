@@ -128,7 +128,7 @@ export default function ProfileScreen() {
       >
         <View style={[styles.avatarLarge, { backgroundColor: "rgba(255,255,255,0.2)" }]}>
           <Text style={styles.avatarInitial}>
-            {user.name.charAt(0).toUpperCase()}
+            {user.name?.[0]?.toUpperCase() ?? "?"}
           </Text>
         </View>
         <Text style={styles.userName}>{user.name}</Text>
