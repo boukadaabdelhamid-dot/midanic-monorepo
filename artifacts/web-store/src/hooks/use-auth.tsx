@@ -1,0 +1,62 @@
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { useGetMe, useLogin, useRegister, getGetMeQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { setAuthTokenGetter } from "@workspace/api-client-react";
+
+// Configure token getter
+setAuthTokenGetter(() => {
+  return localStorage.getItem("midanic_token");
+});
+
+type AuthContextType = {
+  user: any;
+  isLoading: boolean;
+  logout: () => void;
+  setToken: (token: string) => void;
+};
+
+const AuthContext = createContext<AuthContextType | null>(null);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
+  const [token, setTokenState] = useState<string | null>(localStorage.getItem("midanic_token"));
+
+  const { data: user, isLoading } = useGetMe({
+    query: {
+      enabled: !!token,
+      retry: false,
+    },
+  });
+
+  const setToken = (newToken: string) => {
+    localStorage.setItem("midanic_token", newToken);
+    setTokenState(newToken);
+    queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+  };
+
+  const logout = () => {
+    localStorage.removeItem("midanic_token");
+    setTokenState(null);
+    queryClient.setQueryData(getGetMeQueryKey(), null);
+  };
+
+  useEffect(() => {
+    if (token) {
+      localStorage.setItem("midanic_token", token);
+    } else {
+      localStorage.removeItem("midanic_token");
+    }
+  }, [token]);
+
+  return (
+    <AuthContext.Provider value={{ user, isLoading, logout, setToken }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth must be used within AuthProvider");
+  return context;
+}
