@@ -242,6 +242,17 @@ export const UpdateCategoryResponse = zod.object({
 });
 
 /**
+ * @summary Delete category (admin)
+ */
+export const DeleteCategoryParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteCategoryResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
  * @summary Get cart items
  */
 export const GetCartResponseItem = zod.object({
@@ -493,6 +504,34 @@ export const GetAnalyticsResponse = zod.object({
     )
     .optional(),
 });
+
+/**
+ * @summary Get low-stock products (admin)
+ */
+export const getLowStockQueryThresholdDefault = 5;
+
+export const GetLowStockQueryParams = zod.object({
+  threshold: zod.coerce
+    .number()
+    .default(getLowStockQueryThresholdDefault)
+    .describe("Stock level below which a product is considered low-stock"),
+});
+
+export const GetLowStockResponseItem = zod.object({
+  id: zod.number(),
+  nameAr: zod.string(),
+  nameEn: zod.string(),
+  descriptionAr: zod.string().optional(),
+  descriptionEn: zod.string().optional(),
+  price: zod.string(),
+  imageUrl: zod.string().nullish(),
+  stock: zod.number(),
+  categoryId: zod.number().nullish(),
+  rating: zod.string(),
+  reviewCount: zod.number(),
+  createdAt: zod.string().optional(),
+});
+export const GetLowStockResponse = zod.array(GetLowStockResponseItem);
 
 /**
  * @summary List employees
@@ -914,7 +953,14 @@ export const CreateCustomerNoteBody = zod.object({
 });
 
 /**
- * @summary Request presigned upload URL
+ * @summary Upload an image file (multipart/form-data)
+ */
+export const UploadImageBody = zod.object({
+  file: zod.instanceof(File),
+});
+
+/**
+ * @summary Request presigned upload URL (client-side direct upload)
  */
 export const RequestUploadUrlBody = zod.object({
   name: zod.string(),

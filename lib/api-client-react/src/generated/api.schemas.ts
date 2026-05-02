@@ -551,6 +551,14 @@ export interface CustomerDetail {
   notes?: CustomerNote[];
 }
 
+export interface UploadedImage {
+  id: number;
+  url: string;
+  objectPath: string;
+  contentType: string;
+  size: number;
+}
+
 export interface RequestUploadUrlBody {
   name: string;
   size: number;
@@ -567,6 +575,13 @@ export type GetProductsParams = {
   categoryId?: number;
   page?: number;
   limit?: number;
+};
+
+export type GetLowStockParams = {
+  /**
+   * Stock level below which a product is considered low-stock
+   */
+  threshold?: number;
 };
 
 export type GetAttendanceParams = {
@@ -587,4 +602,8 @@ export type UpdateLeaveStatusBody = {
 
 export type CreateCustomerNoteBody = {
   note: string;
+};
+
+export type UploadImageBody = {
+  file: Blob;
 };

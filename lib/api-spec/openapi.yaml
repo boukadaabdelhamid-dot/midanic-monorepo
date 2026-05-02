@@ -289,6 +289,25 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Category"
+    delete:
+      operationId: deleteCategory
+      tags: [categories]
+      summary: Delete category (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
 
   # ── Cart ──────────────────────────────────────────────────────────
   /cart:
@@ -507,6 +526,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Analytics"
+
+  /admin/low-stock:
+    get:
+      operationId: getLowStock
+      tags: [admin]
+      summary: Get low-stock products (admin)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: threshold
+          required: false
+          schema:
+            type: integer
+            default: 5
+          description: Stock level below which a product is considered low-stock
+      responses:
+        "200":
+          description: Low-stock products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
 
   # ── ERP: Employees ───────────────────────────────────────────────
   /erp/employees:
@@ -983,11 +1027,37 @@ paths:
                 $ref: "#/components/schemas/CustomerNote"
 
   # ── Storage ───────────────────────────────────────────────────────
+  /uploads:
+    post:
+      operationId: uploadImage
+      tags: [storage]
+      summary: Upload an image file (multipart/form-data)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+              required: [file]
+      responses:
+        "201":
+          description: Uploaded image record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadedImage"
+
   /storage/uploads/request-url:
     post:
       operationId: requestUploadUrl
       tags: [storage]
-      summary: Request presigned upload URL
+      summary: Request presigned upload URL (client-side direct upload)
       requestBody:
         required: true
         content:
@@ -1758,6 +1828,21 @@ components:
       required: [id, userId, note]
 
     # Storage
+    UploadedImage:
+      type: object
+      properties:
+        id:
+          type: integer
+        url:
+          type: string
+        objectPath:
+          type: string
+        contentType:
+          type: string
+        size:
+          type: integer
+      required: [id, url, objectPath, contentType, size]
+
     RequestUploadUrlBody:
       type: object
       properties:

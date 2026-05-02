@@ -42,6 +42,7 @@ import type {
   CustomerSummary,
   Employee,
   GetAttendanceParams,
+  GetLowStockParams,
   GetProductsParams,
   HealthStatus,
   InventoryMovement,
@@ -63,6 +64,8 @@ import type {
   UpdateCartRequest,
   UpdateLeaveStatusBody,
   UpdateOrderStatusRequest,
+  UploadImageBody,
+  UploadedImage,
   User,
   ValidateCouponRequest,
 } from "./api.schemas";
@@ -1160,6 +1163,90 @@ export const useUpdateCategory = <
 };
 
 /**
+ * @summary Delete category (admin)
+ */
+export const getDeleteCategoryUrl = (id: number) => {
+  return `/api/categories/${id}`;
+};
+
+export const deleteCategory = async (
+  id: number,
+  options?: RequestInit,
+): Promise<SuccessResponse> => {
+  return customFetch<SuccessResponse>(getDeleteCategoryUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteCategoryMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteCategory>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteCategory>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteCategory"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteCategory>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteCategory(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteCategoryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteCategory>>
+>;
+
+export type DeleteCategoryMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete category (admin)
+ */
+export const useDeleteCategory = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteCategory>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteCategory>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteCategoryMutationOptions(options));
+};
+
+/**
  * @summary Get cart items
  */
 export const getGetCartUrl = () => {
@@ -2040,6 +2127,100 @@ export function useGetAnalytics<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetAnalyticsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get low-stock products (admin)
+ */
+export const getGetLowStockUrl = (params?: GetLowStockParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/admin/low-stock?${stringifiedParams}`
+    : `/api/admin/low-stock`;
+};
+
+export const getLowStock = async (
+  params?: GetLowStockParams,
+  options?: RequestInit,
+): Promise<Product[]> => {
+  return customFetch<Product[]>(getGetLowStockUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetLowStockQueryKey = (params?: GetLowStockParams) => {
+  return [`/api/admin/low-stock`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetLowStockQueryOptions = <
+  TData = Awaited<ReturnType<typeof getLowStock>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetLowStockParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLowStock>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetLowStockQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getLowStock>>> = ({
+    signal,
+  }) => getLowStock(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getLowStock>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetLowStockQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getLowStock>>
+>;
+export type GetLowStockQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get low-stock products (admin)
+ */
+
+export function useGetLowStock<
+  TData = Awaited<ReturnType<typeof getLowStock>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetLowStockParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getLowStock>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetLowStockQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;
@@ -3939,7 +4120,95 @@ export const useCreateCustomerNote = <
 };
 
 /**
- * @summary Request presigned upload URL
+ * @summary Upload an image file (multipart/form-data)
+ */
+export const getUploadImageUrl = () => {
+  return `/api/uploads`;
+};
+
+export const uploadImage = async (
+  uploadImageBody: UploadImageBody,
+  options?: RequestInit,
+): Promise<UploadedImage> => {
+  const formData = new FormData();
+  formData.append(`file`, uploadImageBody.file);
+
+  return customFetch<UploadedImage>(getUploadImageUrl(), {
+    ...options,
+    method: "POST",
+    body: formData,
+  });
+};
+
+export const getUploadImageMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadImage>>,
+    TError,
+    { data: BodyType<UploadImageBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof uploadImage>>,
+  TError,
+  { data: BodyType<UploadImageBody> },
+  TContext
+> => {
+  const mutationKey = ["uploadImage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof uploadImage>>,
+    { data: BodyType<UploadImageBody> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return uploadImage(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UploadImageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof uploadImage>>
+>;
+export type UploadImageMutationBody = BodyType<UploadImageBody>;
+export type UploadImageMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Upload an image file (multipart/form-data)
+ */
+export const useUploadImage = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadImage>>,
+    TError,
+    { data: BodyType<UploadImageBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof uploadImage>>,
+  TError,
+  { data: BodyType<UploadImageBody> },
+  TContext
+> => {
+  return useMutation(getUploadImageMutationOptions(options));
+};
+
+/**
+ * @summary Request presigned upload URL (client-side direct upload)
  */
 export const getRequestUploadUrlUrl = () => {
   return `/api/storage/uploads/request-url`;
@@ -4002,7 +4271,7 @@ export type RequestUploadUrlMutationBody = BodyType<RequestUploadUrlBody>;
 export type RequestUploadUrlMutationError = ErrorType<unknown>;
 
 /**
- * @summary Request presigned upload URL
+ * @summary Request presigned upload URL (client-side direct upload)
  */
 export const useRequestUploadUrl = <
   TError = ErrorType<unknown>,
