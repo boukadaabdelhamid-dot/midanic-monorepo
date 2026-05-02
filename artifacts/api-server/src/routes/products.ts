@@ -5,8 +5,11 @@ import { authenticate, requireAdmin, type AuthRequest } from "../lib/auth";
 
 const router = Router();
 
-const pid = (req: { params: Record<string, string | string[]> }, key: string): number =>
-  parseInt(req.params[key] as string);
+const pid = (req: { params: Record<string, string | string[]> }, key: string): number => {
+  const n = parseInt(req.params[key] as string);
+  if (isNaN(n)) throw Object.assign(new Error("Invalid numeric id"), { statusCode: 400 });
+  return n;
+};
 
 // GET /products
 router.get("/products", async (req, res) => {
@@ -147,9 +150,20 @@ router.put("/categories/:id", authenticate, requireAdmin, async (req: AuthReques
 // DELETE /categories/:id (admin)
 router.delete("/categories/:id", authenticate, requireAdmin, async (req: AuthRequest, res) => {
   try {
-    await db.delete(schema.categoriesTable).where(eq(schema.categoriesTable.id, pid(req, "id")));
+    const id = pid(req, "id");
+    await db.delete(schema.categoriesTable).where(eq(schema.categoriesTable.id, id));
     res.json({ success: true });
-  } catch (err) {
+  } catch (err: unknown) {
+    const e = err as { statusCode?: number; code?: string; message?: string };
+    if (e.statusCode === 400) {
+      res.status(400).json({ error: e.message ?? "Bad request" });
+      return;
+    }
+    // PostgreSQL FK violation code 23503
+    if (e.code === "23503") {
+      res.status(409).json({ error: "Cannot delete category: products are assigned to it. Reassign or delete those products first." });
+      return;
+    }
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
   }

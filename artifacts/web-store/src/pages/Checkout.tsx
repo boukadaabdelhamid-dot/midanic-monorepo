@@ -34,8 +34,13 @@ export default function Checkout() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    const missingProduct = cartItems.find((item: CartItem) => !item.product?.id);
+    if (missingProduct) {
+      toast({ title: "Error / خطأ", description: "One or more cart items are missing product information. Please refresh and try again.", variant: "destructive" });
+      return;
+    }
     const items = cartItems.map((item: CartItem) => ({
-      productId: item.product?.id ?? item.id,
+      productId: item.product!.id as number,
       quantity: item.quantity,
     }));
 

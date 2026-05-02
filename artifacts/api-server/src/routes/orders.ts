@@ -6,8 +6,11 @@ import { broadcastToAdmins } from "../lib/ws";
 
 const router = Router();
 
-const pid = (req: { params: Record<string, string | string[]> }, key: string): number =>
-  parseInt(req.params[key] as string);
+const pid = (req: { params: Record<string, string | string[]> }, key: string): number => {
+  const n = parseInt(req.params[key] as string);
+  if (isNaN(n)) throw Object.assign(new Error("Invalid numeric id"), { statusCode: 400 });
+  return n;
+};
 
 // POST /orders — atomic checkout wrapped in a DB transaction
 router.post("/orders", optionalAuth, async (req: AuthRequest, res) => {
@@ -262,7 +265,8 @@ router.put("/admin/orders/:id/status", authenticate, requireAdmin, async (req: A
 // GET /admin/low-stock — dedicated low-stock alert endpoint
 router.get("/admin/low-stock", authenticate, requireAdmin, async (req: AuthRequest, res) => {
   try {
-    const threshold = parseInt((req.query["threshold"] as string) || "5");
+    const raw = parseInt((req.query["threshold"] as string) || "5");
+    const threshold = isNaN(raw) ? 5 : Math.max(0, raw);
     const lowStock = await db.select().from(schema.productsTable)
       .where(lt(schema.productsTable.stock, threshold))
       .orderBy(schema.productsTable.stock);

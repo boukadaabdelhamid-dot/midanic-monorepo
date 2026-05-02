@@ -85,9 +85,9 @@ router.get("/storage/public-objects/*filePath", async (req: Request, res: Respon
 
 /**
  * GET /storage/objects/*
- * Serve private objects from PRIVATE_OBJECT_DIR.
+ * Serve private objects from PRIVATE_OBJECT_DIR — requires authentication.
  */
-router.get("/storage/objects/*path", async (req: Request, res: Response) => {
+router.get("/storage/objects/*path", authenticate, async (req: Request, res: Response) => {
   try {
     const raw = req.params.path;
     const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
