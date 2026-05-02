@@ -8,6 +8,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
+import { I18nManager } from "react-native";
 
 export type Lang = "ar" | "en";
 
@@ -25,13 +26,16 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     AsyncStorage.getItem("midanic_lang").then((stored) => {
-      if (stored === "ar" || stored === "en") setLang(stored);
+      const l: Lang = stored === "ar" || stored === "en" ? stored : "ar";
+      setLang(l);
+      I18nManager.forceRTL(l === "ar");
     });
   }, []);
 
   const toggleLang = useCallback(async () => {
     const next: Lang = lang === "ar" ? "en" : "ar";
     setLang(next);
+    I18nManager.forceRTL(next === "ar");
     await AsyncStorage.setItem("midanic_lang", next);
   }, [lang]);
 

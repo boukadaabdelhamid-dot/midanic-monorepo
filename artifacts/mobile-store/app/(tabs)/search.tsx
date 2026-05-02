@@ -1,11 +1,12 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useAddToCart, useGetProducts } from "@workspace/api-client-react";
+import { useAddToCart, useGetCategories, useGetProducts } from "@workspace/api-client-react";
 import React, { useState } from "react";
 import {
   ActivityIndicator,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -13,6 +14,7 @@ import {
 } from "react-native";
 import { FlatList } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { CategoryChip } from "@/components/CategoryChip";
 import { ProductCard } from "@/components/ProductCard";
 import { useAuth } from "@/context/AuthContext";
 import { useLang } from "@/context/LanguageContext";
@@ -28,6 +30,7 @@ export default function SearchScreen() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [selectedCategoryId, setSelectedCategoryId] = useState<number | undefined>(undefined);
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleQueryChange = (text: string) => {
@@ -36,15 +39,16 @@ export default function SearchScreen() {
     debounceRef.current = setTimeout(() => setDebouncedQuery(text), 350);
   };
 
+  const { data: categoriesData } = useGetCategories();
   const { data, isLoading } = useGetProducts({
     search: debouncedQuery || undefined,
+    categoryId: selectedCategoryId,
     limit: 40,
   });
 
   const addToCart = useAddToCart();
-
+  const categories = categoriesData ?? [];
   const products = data?.products ?? [];
-
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
 
   const handleAddToCart = (product: Product) => {
@@ -91,6 +95,30 @@ export default function SearchScreen() {
             </Pressable>
           )}
         </View>
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.categories}
+          contentContainerStyle={styles.categoriesContent}
+        >
+          <CategoryChip
+            label={t("الكل", "All")}
+            selected={selectedCategoryId === undefined}
+            onPress={() => setSelectedCategoryId(undefined)}
+          />
+          {categories.map((cat) => (
+            <CategoryChip
+              key={cat.id}
+              label={t(cat.nameAr, cat.nameEn)}
+              selected={selectedCategoryId === cat.id}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setSelectedCategoryId(cat.id);
+              }}
+            />
+          ))}
+        </ScrollView>
       </View>
 
       {isLoading ? (
@@ -101,7 +129,7 @@ export default function SearchScreen() {
         <View style={styles.center}>
           <Feather name="search" size={48} color={colors.mutedForeground} />
           <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
-            {debouncedQuery
+            {debouncedQuery || selectedCategoryId
               ? t("لا توجد نتائج", "No results found")
               : t("ابدأ البحث", "Start searching")}
           </Text>
@@ -130,7 +158,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   header: {
     paddingHorizontal: 16,
-    paddingBottom: 12,
+    paddingBottom: 8,
     borderBottomWidth: 1,
   },
   searchBar: {
@@ -148,6 +176,8 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_400Regular",
     padding: 0,
   },
+  categories: { marginTop: 10 },
+  categoriesContent: { paddingRight: 8, gap: 6 },
   center: {
     flex: 1,
     alignItems: "center",

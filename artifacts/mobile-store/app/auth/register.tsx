@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
+import { Image } from "expo-image";
 import { useRouter } from "expo-router";
 import { useRegister } from "@workspace/api-client-react";
 import React, { useState } from "react";
@@ -76,6 +77,16 @@ export default function RegisterScreen() {
         >
           <Feather name="arrow-left" size={18} color={colors.foreground} />
         </Pressable>
+
+        <View style={styles.logoWrap}>
+          <Image
+            source={require("../../assets/midanic-logo.jpg")}
+            style={styles.logo}
+            contentFit="contain"
+          />
+          <Text style={[styles.brand, { color: colors.primary }]}>MIDANIC</Text>
+          <Text style={[styles.brandAr, { color: colors.mutedForeground }]}>ميدانيك</Text>
+        </View>
 
         <Text style={[styles.title, { color: colors.foreground }]}>
           {t("إنشاء حساب", "Create Account")}
@@ -162,6 +173,10 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { padding: 24, gap: 14 },
   backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", borderWidth: 1, marginBottom: 16 },
+  logoWrap: { alignItems: "center", marginBottom: 4, gap: 4 },
+  logo: { width: 70, height: 70, borderRadius: 14 },
+  brand: { fontSize: 22, fontFamily: "Inter_700Bold", letterSpacing: 2 },
+  brandAr: { fontSize: 13, fontFamily: "Inter_400Regular" },
   title: { fontSize: 28, fontFamily: "Inter_700Bold" },
   subtitle: { fontSize: 15, fontFamily: "Inter_400Regular", marginBottom: 6 },
   field: { flexDirection: "row", alignItems: "center", borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 13, gap: 10 },
