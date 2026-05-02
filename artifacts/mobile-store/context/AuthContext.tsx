@@ -36,10 +36,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ]);
         if (storedToken && storedUser) {
           setToken(storedToken);
-          setUser(JSON.parse(storedUser));
+          setUser(JSON.parse(storedUser) as User);
         }
-      } catch {}
-      setIsLoading(false);
+      } catch (err) {
+        console.warn("[AuthContext] Failed to restore session:", err);
+      } finally {
+        setIsLoading(false);
+      }
     };
     load();
   }, []);

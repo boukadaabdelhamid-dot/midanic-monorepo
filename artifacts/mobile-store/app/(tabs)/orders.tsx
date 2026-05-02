@@ -98,7 +98,12 @@ export default function OrdersScreen() {
   const router = useRouter();
 
   const { data: orders = [], isLoading } = useGetMyOrders({
-    query: { enabled: !!user && !isAdmin, queryKey: getGetMyOrdersQueryKey() },
+    query: {
+      enabled: !!user && !isAdmin,
+      queryKey: getGetMyOrdersQueryKey(),
+      refetchInterval: 30_000,
+      refetchOnWindowFocus: true,
+    },
   });
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);

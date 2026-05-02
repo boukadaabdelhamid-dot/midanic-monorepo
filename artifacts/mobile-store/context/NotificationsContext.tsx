@@ -40,54 +40,72 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bannerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const pushNotif = useCallback((notif: WsNotification) => {
+    setNotifications((prev) => [notif, ...prev]);
+    setLatestBanner(notif);
+    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+    bannerTimerRef.current = setTimeout(() => setLatestBanner(null), 4000);
+  }, []);
+
   const connect = useCallback(() => {
     if (!isAdmin || !token) return;
     const domain = process.env.EXPO_PUBLIC_DOMAIN;
-    if (!domain) return;
+    if (!domain) {
+      console.warn("[NotificationsContext] EXPO_PUBLIC_DOMAIN not set — WebSocket disabled");
+      return;
+    }
     try {
       const ws = new WebSocket(`wss://${domain}/ws?token=${token}`);
       wsRef.current = ws;
 
       ws.onmessage = (event) => {
+        let data: Record<string, unknown>;
         try {
-          const data = JSON.parse(event.data as string);
-          let notif: WsNotification | null = null;
-          if (data.type === "new_order") {
-            notif = {
-              id: Date.now().toString() + Math.random().toString(36).substr(2, 6),
-              type: "new_order",
-              title: "طلب جديد / New Order",
-              body: `${data.customerName} · SAR ${Number(data.totalAmount).toFixed(2)}`,
-              timestamp: Date.now(),
-              read: false,
-            };
-          } else if (data.type === "low_stock") {
-            notif = {
-              id: Date.now().toString() + Math.random().toString(36).substr(2, 6),
-              type: "low_stock",
-              title: "تحذير مخزون / Low Stock",
-              body: `${data.productName} · ${data.stock} متبقي / remaining`,
-              timestamp: Date.now(),
-              read: false,
-            };
-          }
-          if (notif) {
-            const n = notif;
-            setNotifications((prev) => [n, ...prev]);
-            setLatestBanner(n);
-            if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
-            bannerTimerRef.current = setTimeout(() => setLatestBanner(null), 4000);
-          }
-        } catch {}
+          data = JSON.parse(event.data as string) as Record<string, unknown>;
+        } catch (err) {
+          console.warn("[NotificationsContext] Failed to parse WS message:", err);
+          return;
+        }
+        let notif: WsNotification | null = null;
+        if (data.type === "new_order") {
+          const phone = data.customerPhone ? ` · ${data.customerPhone}` : "";
+          notif = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            type: "new_order",
+            title: "طلب جديد / New Order",
+            body: `${data.customerName}${phone} · SAR ${Number(data.totalAmount).toFixed(2)}`,
+            timestamp: Date.now(),
+            read: false,
+          };
+        } else if (data.type === "low_stock") {
+          notif = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            type: "low_stock",
+            title: "تحذير مخزون / Low Stock",
+            body: `${data.productName} · ${data.stock} متبقي / remaining`,
+            timestamp: Date.now(),
+            read: false,
+          };
+        }
+        if (notif) pushNotif(notif);
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         wsRef.current = null;
-        reconnectRef.current = setTimeout(() => connect(), 5000);
+        if (event.code !== 1000) {
+          console.info(`[NotificationsContext] WS closed (code ${event.code}), reconnecting in 5s`);
+          reconnectRef.current = setTimeout(() => connect(), 5000);
+        }
       };
-      ws.onerror = () => ws.close();
-    } catch {}
-  }, [isAdmin, token]);
+
+      ws.onerror = (event) => {
+        console.warn("[NotificationsContext] WS error:", event);
+        ws.close();
+      };
+    } catch (err) {
+      console.error("[NotificationsContext] Failed to open WebSocket:", err);
+    }
+  }, [isAdmin, token, pushNotif]);
 
   useEffect(() => {
     if (isAdmin && token) {
