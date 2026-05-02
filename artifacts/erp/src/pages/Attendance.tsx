@@ -53,7 +53,7 @@ export default function Attendance() {
   };
 
   const empMap: Record<number, string> = {};
-  (employees ?? []).forEach((e: any) => { empMap[e.id] = e.nameEn; });
+  (employees ?? []).forEach((e: any) => { empMap[e.id] = e.name; });
 
   return (
     <div className="space-y-4">
@@ -118,7 +118,7 @@ export default function Attendance() {
               <Select value={form.employeeId} onValueChange={(v) => setForm((f) => ({ ...f, employeeId: v }))}>
                 <SelectTrigger className="h-8 text-sm" data-testid="select-employee"><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
-                  {(employees ?? []).map((e: any) => <SelectItem key={e.id} value={String(e.id)}>{e.nameEn}</SelectItem>)}
+                  {(employees ?? []).map((e: any) => <SelectItem key={e.id} value={String(e.id)}>{e.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

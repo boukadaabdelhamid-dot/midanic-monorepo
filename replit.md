@@ -2,7 +2,7 @@
 
 ## Overview
 
-pnpm workspace monorepo. Full-stack bilingual (AR/EN) beauty brand platform: web store + ERP management dashboard + backend API.
+pnpm workspace monorepo. Full-stack bilingual (AR/EN) beauty brand platform: web store + ERP management dashboard + Express API + Expo mobile app.
 
 ## Stack
 
@@ -15,8 +15,8 @@ pnpm workspace monorepo. Full-stack bilingual (AR/EN) beauty brand platform: web
 - **Validation**: Zod, drizzle-zod
 - **API codegen**: Orval (OpenAPI → React hooks + Zod schemas)
 - **Frontend**: React 18 + Vite + TailwindCSS v4 + shadcn/ui
+- **Mobile**: Expo (React Native)
 - **Charts**: Recharts
-- **Build**: esbuild (API server)
 
 ## Brand
 
@@ -30,8 +30,9 @@ pnpm workspace monorepo. Full-stack bilingual (AR/EN) beauty brand platform: web
 | Artifact | Path | Port | Description |
 |---|---|---|---|
 | `artifacts/api-server` | `/api/` | 8080 | Express REST API + WebSocket |
-| `artifacts/web-store` | `/` | 23733 | Customer-facing e-commerce store |
-| `artifacts/erp` | `/erp/` | 18996 | Internal ERP management dashboard |
+| `artifacts/web-store` | `/` | dynamic | Customer-facing e-commerce store (React+Vite) |
+| `artifacts/erp` | `/erp/` | dynamic | Internal ERP management dashboard (React+Vite) |
+| `artifacts/mobile-store` | `/mobile/` | dynamic | Customer mobile app (Expo) |
 
 ## Key Packages
 
@@ -55,7 +56,7 @@ pnpm workspace monorepo. Full-stack bilingual (AR/EN) beauty brand platform: web
 - JWT stored in `localStorage` as `midanic_token`
 - Admin credentials: `admin@midanic.com` / `admin123`
 - ERP and web store both use `setAuthTokenGetter(() => localStorage.getItem("midanic_token"))` from `@workspace/api-client-react`
-- JWT secret: `midanic-secret-2024` (move to env var for production)
+- `use-auth.tsx` in web-store has `// @refresh reset` at top — keep this to avoid HMR context loss
 
 ## API Structure
 
@@ -85,31 +86,48 @@ const items = cart ?? [];
 - 4 categories, 16 products, 1 admin user, 2 coupons
 - Admin: `admin@midanic.com` / `admin123`
 
-## Payment & SMS Integration (Task #4 — COMPLETED)
+## Payment & Checkout
 
-- **Stripe backend**: `POST /api/payments/create-intent` (PaymentIntent for web), `POST /api/payments/checkout-session` (Checkout Session URL for mobile), `POST /api/payments/webhook` (event handler)
-- **Stripe frontend (web)**: Stripe Elements in Checkout page with payment method selector (Cash on Delivery | Pay with Card). Requires `VITE_STRIPE_PUBLISHABLE_KEY` env var.
-- **Stripe mobile**: Payment method selector in Expo checkout; "Pay Online" opens a Stripe Checkout Session via `expo-web-browser`. Requires `STRIPE_SECRET_KEY`.
-- **SMS**: Twilio integration in `artifacts/api-server/src/lib/sms.ts`. Customer SMS + admin SMS sent fire-and-forget after order creation. Requires `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`.
-- **Graceful degradation**: All payment/SMS features silently degrade if env vars not set — existing cash-on-delivery flow always works.
+- **COD-only**: All checkout flows (web + mobile) are cash-on-delivery only
+- Stripe and Twilio have been fully removed — do NOT re-add them
+- No payment secrets required
 
-## Required Secrets (for payment/SMS features)
+## ERP Management System
 
-| Secret | Purpose |
-|---|---|
-| `STRIPE_SECRET_KEY` | Stripe backend (PaymentIntent, webhook) |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signature verification |
-| `TWILIO_ACCOUNT_SID` | Twilio SMS |
-| `TWILIO_AUTH_TOKEN` | Twilio SMS |
-| `TWILIO_PHONE_NUMBER` | Twilio from-number |
+All 11 modules fully implemented at `/erp/`:
 
-## Env Vars (frontend)
+| Module | Route | Features |
+|---|---|---|
+| Dashboard | `/erp/dashboard` | KPIs, daily sales chart, top products, financial overview |
+| Orders | `/erp/orders` | List all orders, update status inline |
+| Products | `/erp/products` | Full CRUD, bilingual name/description, category, stock |
+| Employees | `/erp/employees` | CRUD, status badges (active/inactive/on_leave/terminated) |
+| Attendance | `/erp/attendance` | Record check-in/out per employee per day |
+| Leaves | `/erp/leaves` | Request leave, approve/reject with WS broadcast |
+| Suppliers | `/erp/suppliers` | CRUD supplier network |
+| Purchase Orders | `/erp/purchase-orders` | Create POs with line items, mark received (updates stock + WS) |
+| Inventory | `/erp/inventory` | Stock movement log, manual adjustments |
+| Accounting | `/erp/accounting` | Income/expense transactions, financial summary |
+| Customers | `/erp/customers` | CRM — view order history, add notes |
 
-| Var | Purpose |
-|---|---|
-| `VITE_STRIPE_PUBLISHABLE_KEY` | Web store Stripe Elements |
+## Mobile Notifications (WebSocket)
 
-## Pending Tasks
+`artifacts/mobile-store/context/NotificationsContext.tsx` handles 4 event types for admin users:
+- `new_order` — new customer order placed
+- `low_stock` — product stock below threshold
+- `purchase_received` — PO received (enriched with supplier name + total)
+- `leave_status_changed` — leave approved/rejected (enriched with employee name + type)
 
-- ERP Management System
-- GitHub integration
+Admin sees notifications tab instead of orders tab (bell icon with badge count).
+
+## CSS Variables
+
+Space-separated HSL values (no `hsl()` wrapper in `:root`):
+```css
+:root { --primary: 219 53% 22%; }
+```
+Usage: `background-color: hsl(var(--primary));`
+
+## Employee Fields
+
+Employees have `name` (not `nameEn`/`nameAr`). Products have `nameEn`/`nameAr`.

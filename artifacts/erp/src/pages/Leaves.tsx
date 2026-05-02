@@ -36,7 +36,7 @@ export default function Leaves() {
   });
 
   const empMap: Record<number, string> = {};
-  (employees ?? []).forEach((e: any) => { empMap[e.id] = e.nameEn; });
+  (employees ?? []).forEach((e: any) => { empMap[e.id] = e.name; });
 
   const handleSave = () => {
     createLeave.mutate(
@@ -133,7 +133,7 @@ export default function Leaves() {
               <Select value={form.employeeId} onValueChange={(v) => setForm((f) => ({ ...f, employeeId: v }))}>
                 <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Select employee" /></SelectTrigger>
                 <SelectContent>
-                  {(employees ?? []).map((e: any) => <SelectItem key={e.id} value={String(e.id)}>{e.nameEn}</SelectItem>)}
+                  {(employees ?? []).map((e: any) => <SelectItem key={e.id} value={String(e.id)}>{e.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

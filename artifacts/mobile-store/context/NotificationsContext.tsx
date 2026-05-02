@@ -12,7 +12,7 @@ import { useAuth } from "./AuthContext";
 
 export interface WsNotification {
   id: string;
-  type: "new_order" | "low_stock";
+  type: "new_order" | "low_stock" | "purchase_received" | "leave_status_changed";
   title: string;
   body: string;
   timestamp: number;
@@ -83,6 +83,26 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
             type: "low_stock",
             title: "تحذير مخزون / Low Stock",
             body: `${data.productName} · ${data.stock} متبقي / remaining`,
+            timestamp: Date.now(),
+            read: false,
+          };
+        } else if (data.type === "purchase_received") {
+          notif = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            type: "purchase_received",
+            title: "استلام مشتريات / Purchase Received",
+            body: `PO #${data.purchaseOrderId} · ${data.supplierName ?? "Supplier"} · SAR ${Number(data.totalAmount ?? 0).toFixed(2)}`,
+            timestamp: Date.now(),
+            read: false,
+          };
+        } else if (data.type === "leave_status_changed") {
+          const statusAr = data.status === "approved" ? "موافق عليها" : "مرفوضة";
+          const statusEn = data.status === "approved" ? "Approved" : "Rejected";
+          notif = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            type: "leave_status_changed",
+            title: `إجازة ${statusAr} / Leave ${statusEn}`,
+            body: `${data.employeeName ?? "Employee"} · ${data.leaveType ?? "Leave"} (${data.startDate ?? ""} – ${data.endDate ?? ""})`,
             timestamp: Date.now(),
             read: false,
           };

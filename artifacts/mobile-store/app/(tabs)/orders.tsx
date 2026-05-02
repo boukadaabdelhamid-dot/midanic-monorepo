@@ -19,9 +19,19 @@ import { useNotifications, type WsNotification } from "@/context/NotificationsCo
 import { useColors } from "@/hooks/useColors";
 import type { Order } from "@workspace/api-client-react";
 
+function notifMeta(type: WsNotification["type"], colors: ReturnType<typeof useColors>): { icon: React.ComponentProps<typeof Feather>["name"]; color: string; bg: string } {
+  switch (type) {
+    case "new_order":       return { icon: "shopping-bag",  color: colors.primary,   bg: colors.primary + "22" };
+    case "low_stock":       return { icon: "alert-triangle", color: colors.warning,   bg: colors.warning + "22" };
+    case "purchase_received": return { icon: "package",      color: "#10b981",        bg: "#10b98122" };
+    case "leave_status_changed": return { icon: "calendar", color: "#8b5cf6",        bg: "#8b5cf622" };
+    default:                return { icon: "bell",           color: colors.primary,   bg: colors.primary + "22" };
+  }
+}
+
 function NotificationItem({ notif }: { notif: WsNotification }) {
   const colors = useColors();
-  const isOrder = notif.type === "new_order";
+  const meta = notifMeta(notif.type, colors);
   return (
     <View
       style={[
@@ -32,13 +42,13 @@ function NotificationItem({ notif }: { notif: WsNotification }) {
       <View
         style={[
           styles.notifIcon,
-          { backgroundColor: isOrder ? colors.primary + "22" : colors.warning + "22" },
+          { backgroundColor: meta.bg },
         ]}
       >
         <Feather
-          name={isOrder ? "shopping-bag" : "alert-triangle"}
+          name={meta.icon}
           size={18}
-          color={isOrder ? colors.primary : colors.warning}
+          color={meta.color}
         />
       </View>
       <View style={styles.notifContent}>

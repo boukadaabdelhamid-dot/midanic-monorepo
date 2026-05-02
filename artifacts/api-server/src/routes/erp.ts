@@ -79,7 +79,16 @@ router.put("/erp/leaves/:id/status", authenticate, requireAdmin, async (req, res
     const [leave] = await db.update(schema.leavesTable).set({ status: req.body.status })
       .where(eq(schema.leavesTable.id, pid(req, "id"))).returning();
     if (!leave) { res.status(404).json({ error: "Not found" }); return; }
-    broadcastToAdmins({ type: "leave_status_changed", leave });
+    const [employee] = await db.select({ name: schema.employeesTable.name })
+      .from(schema.employeesTable).where(eq(schema.employeesTable.id, leave.employeeId)).limit(1);
+    broadcastToAdmins({
+      type: "leave_status_changed",
+      status: leave.status,
+      employeeName: employee?.name ?? `Employee #${leave.employeeId}`,
+      leaveType: leave.type,
+      startDate: leave.startDate,
+      endDate: leave.endDate,
+    });
     res.json(leave);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
@@ -149,7 +158,14 @@ router.put("/erp/purchase-orders/:id/receive", authenticate, requireAdmin, async
       }
     }
 
-    broadcastToAdmins({ type: "purchase_received", purchaseOrderId: poId });
+    const [supplier] = await db.select({ name: schema.suppliersTable.name })
+      .from(schema.suppliersTable).where(eq(schema.suppliersTable.id, po.supplierId)).limit(1);
+    broadcastToAdmins({
+      type: "purchase_received",
+      purchaseOrderId: poId,
+      supplierName: supplier?.name ?? `Supplier #${po.supplierId}`,
+      totalAmount: po.totalAmount,
+    });
     res.json(po);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
