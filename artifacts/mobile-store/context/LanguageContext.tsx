@@ -8,7 +8,7 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import { I18nManager } from "react-native";
+import { Alert, I18nManager, Platform } from "react-native";
 
 export type Lang = "ar" | "en";
 
@@ -34,9 +34,19 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const toggleLang = useCallback(async () => {
     const next: Lang = lang === "ar" ? "en" : "ar";
+    const directionChanges = (next === "ar") !== I18nManager.isRTL;
     setLang(next);
     I18nManager.forceRTL(next === "ar");
     await AsyncStorage.setItem("midanic_lang", next);
+    if (directionChanges && Platform.OS !== "web") {
+      Alert.alert(
+        next === "ar" ? "تغيير الاتجاه" : "Direction Changed",
+        next === "ar"
+          ? "أعد تشغيل التطبيق لتطبيق الاتجاه الجديد بالكامل."
+          : "Please restart the app to fully apply the new layout direction.",
+        [{ text: next === "ar" ? "حسناً" : "OK" }]
+      );
+    }
   }, [lang]);
 
   const t = useCallback(

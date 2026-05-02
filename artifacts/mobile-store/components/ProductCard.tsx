@@ -64,6 +64,14 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
         >
           {name}
         </Text>
+        {(() => {
+          const desc = t(product.descriptionAr ?? "", product.descriptionEn ?? "").trim();
+          return desc.length > 0 ? (
+            <Text style={[styles.desc, { color: colors.mutedForeground }]} numberOfLines={2}>
+              {desc}
+            </Text>
+          ) : null;
+        })()}
         <View style={styles.row}>
           <Text style={[styles.price, { color: colors.primary }]}>
             {t(`${price} ر.س`, `SAR ${price}`)}
@@ -136,6 +144,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: "Inter_500Medium",
     lineHeight: 18,
+  },
+  desc: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    lineHeight: 15,
   },
   row: {
     flexDirection: "row",

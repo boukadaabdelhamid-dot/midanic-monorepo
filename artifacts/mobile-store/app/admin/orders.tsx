@@ -2,7 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 import { useGetAdminOrders, useUpdateOrderStatus } from "@workspace/api-client-react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -16,6 +16,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { OrderStatusBadge } from "@/components/OrderStatusBadge";
+import { useAuth } from "@/context/AuthContext";
 import { useLang } from "@/context/LanguageContext";
 import { useColors } from "@/hooks/useColors";
 import type { Order, UpdateOrderStatusRequestStatus } from "@workspace/api-client-react";
@@ -33,7 +34,14 @@ export default function AdminOrdersScreen() {
   const insets = useSafeAreaInsets();
   const { t } = useLang();
   const router = useRouter();
+  const { isAdmin, isLoading: authLoading } = useAuth();
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+
+  useEffect(() => {
+    if (!authLoading && !isAdmin) {
+      router.replace("/");
+    }
+  }, [isAdmin, authLoading, router]);
 
   const { data: orders = [], isLoading, refetch, isRefetching } = useGetAdminOrders();
   const updateStatus = useUpdateOrderStatus();
