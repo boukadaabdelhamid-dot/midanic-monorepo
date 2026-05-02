@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, lt } from "drizzle-orm";
 import { db, schema } from "../lib/db";
 import { authenticate, requireAdmin, optionalAuth, type AuthRequest } from "../lib/auth";
 import { broadcastToAdmins } from "../lib/ws";
@@ -9,7 +9,7 @@ const router = Router();
 const pid = (req: { params: Record<string, string | string[]> }, key: string): number =>
   parseInt(req.params[key] as string);
 
-// POST /orders
+// POST /orders — atomic checkout wrapped in a DB transaction
 router.post("/orders", optionalAuth, async (req: AuthRequest, res) => {
   try {
     const { customerName, customerPhone, customerAddress, items, couponCode } = req.body;
@@ -20,6 +20,14 @@ router.post("/orders", optionalAuth, async (req: AuthRequest, res) => {
     }
 
     let orderItems: { productId: number; quantity: number }[] = items || [];
+
+    // Validate each item quantity before anything else
+    for (const item of orderItems) {
+      if (!Number.isInteger(item.quantity) || item.quantity < 1) {
+        res.status(400).json({ error: `Invalid quantity for product ${item.productId}: must be a positive integer` });
+        return;
+      }
+    }
 
     if (req.user && orderItems.length === 0) {
       const cartItems = await db.select().from(schema.cartItemsTable)
@@ -32,109 +40,137 @@ router.post("/orders", optionalAuth, async (req: AuthRequest, res) => {
       return;
     }
 
-    let subtotal = 0;
-    const enrichedItems: { productId: number; quantity: number; unitPrice: number; product: typeof schema.productsTable.$inferSelect }[] = [];
+    // Run the entire checkout atomically
+    const result = await db.transaction(async (tx) => {
+      let subtotal = 0;
+      const enrichedItems: { productId: number; quantity: number; unitPrice: number; product: typeof schema.productsTable.$inferSelect }[] = [];
 
-    for (const item of orderItems) {
-      const [product] = await db.select().from(schema.productsTable)
-        .where(eq(schema.productsTable.id, item.productId)).limit(1);
-      if (!product) { res.status(400).json({ error: `Product ${item.productId} not found` }); return; }
-      if (product.stock < item.quantity) { res.status(400).json({ error: `Insufficient stock for ${product.nameEn}` }); return; }
-      subtotal += parseFloat(product.price) * item.quantity;
-      enrichedItems.push({ ...item, unitPrice: parseFloat(product.price), product });
-    }
+      for (const item of orderItems) {
+        // Lock the product row to prevent concurrent stock overwrites
+        const [product] = await tx.select().from(schema.productsTable)
+          .where(eq(schema.productsTable.id, item.productId))
+          .for("update")
+          .limit(1);
 
-    // Apply coupon — validates expiry, minOrder, and usage limit atomically
-    let discountAmount = 0;
-    let appliedCoupon: typeof schema.couponsTable.$inferSelect | null = null;
-    if (couponCode) {
-      const [coupon] = await db.select().from(schema.couponsTable)
-        .where(eq(schema.couponsTable.code, couponCode.toUpperCase())).limit(1);
-
-      if (!coupon) {
-        res.status(400).json({ error: "Coupon not found" });
-        return;
-      }
-      if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
-        res.status(400).json({ error: "Coupon has expired" });
-        return;
-      }
-      if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {
-        res.status(400).json({ error: "Coupon usage limit reached" });
-        return;
-      }
-      if (coupon.minOrder && subtotal < parseFloat(coupon.minOrder)) {
-        res.status(400).json({ error: `Minimum order of SAR ${coupon.minOrder} required for this coupon` });
-        return;
+        if (!product) throw Object.assign(new Error(`Product ${item.productId} not found`), { status: 400 });
+        if (product.stock < item.quantity) {
+          throw Object.assign(
+            new Error(`Insufficient stock for ${product.nameEn}: ${product.stock} available`),
+            { status: 400 }
+          );
+        }
+        subtotal += parseFloat(product.price) * item.quantity;
+        enrichedItems.push({ ...item, unitPrice: parseFloat(product.price), product });
       }
 
-      if (coupon.type === "percent") discountAmount = (subtotal * parseFloat(coupon.value)) / 100;
-      else discountAmount = Math.min(parseFloat(coupon.value), subtotal);
-      appliedCoupon = coupon;
-    }
+      // Validate and apply coupon
+      let discountAmount = 0;
+      let appliedCoupon: typeof schema.couponsTable.$inferSelect | null = null;
+      if (couponCode) {
+        const [coupon] = await tx.select().from(schema.couponsTable)
+          .where(eq(schema.couponsTable.code, (couponCode as string).toUpperCase()))
+          .for("update")
+          .limit(1);
 
-    const totalAmount = Math.max(0, subtotal - discountAmount);
+        if (!coupon) throw Object.assign(new Error("Coupon not found"), { status: 400 });
+        if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
+          throw Object.assign(new Error("Coupon has expired"), { status: 400 });
+        }
+        if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {
+          throw Object.assign(new Error("Coupon usage limit reached"), { status: 400 });
+        }
+        if (coupon.minOrder && subtotal < parseFloat(coupon.minOrder)) {
+          throw Object.assign(
+            new Error(`Minimum order of SAR ${coupon.minOrder} required for this coupon`),
+            { status: 400 }
+          );
+        }
 
-    const [order] = await db.insert(schema.ordersTable).values({
-      userId: req.user?.id || null,
-      customerName, customerPhone, customerAddress,
-      totalAmount: totalAmount.toFixed(2),
-      discountAmount: discountAmount.toFixed(2),
-      couponCode: appliedCoupon?.code || null,
-    }).returning();
+        if (coupon.type === "percent") discountAmount = (subtotal * parseFloat(coupon.value)) / 100;
+        else discountAmount = Math.min(parseFloat(coupon.value), subtotal);
+        appliedCoupon = coupon;
+      }
 
-    for (const item of enrichedItems) {
-      await db.insert(schema.orderItemsTable).values({
-        orderId: order.id,
-        productId: item.productId,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice.toFixed(2),
-      });
+      const totalAmount = Math.max(0, subtotal - discountAmount);
 
-      const newStock = item.product.stock - item.quantity;
-      await db.update(schema.productsTable)
-        .set({ stock: newStock })
-        .where(eq(schema.productsTable.id, item.productId));
+      const [order] = await tx.insert(schema.ordersTable).values({
+        userId: req.user?.id ?? null,
+        customerName, customerPhone, customerAddress,
+        totalAmount: totalAmount.toFixed(2),
+        discountAmount: discountAmount.toFixed(2),
+        couponCode: appliedCoupon?.code ?? null,
+      }).returning();
 
-      await db.insert(schema.inventoryMovementsTable).values({
-        productId: item.productId,
-        type: "out",
-        quantity: item.quantity,
-        reason: "Sale",
+      for (const item of enrichedItems) {
+        await tx.insert(schema.orderItemsTable).values({
+          orderId: order.id,
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice.toFixed(2),
+        });
+
+        const newStock = item.product.stock - item.quantity;
+        await tx.update(schema.productsTable)
+          .set({ stock: newStock })
+          .where(eq(schema.productsTable.id, item.productId));
+
+        await tx.insert(schema.inventoryMovementsTable).values({
+          productId: item.productId,
+          type: "out",
+          quantity: item.quantity,
+          reason: "Sale",
+          reference: `ORDER-${order.id}`,
+        });
+
+        // Collect low-stock items for post-commit broadcast
+        if (newStock < 5) {
+          enrichedItems.find(e => e.productId === item.productId)!.product = { ...item.product, stock: newStock };
+        }
+      }
+
+      if (appliedCoupon) {
+        await tx.update(schema.couponsTable)
+          .set({ usedCount: appliedCoupon.usedCount + 1 })
+          .where(eq(schema.couponsTable.id, appliedCoupon.id));
+      }
+
+      if (req.user) {
+        await tx.delete(schema.cartItemsTable).where(eq(schema.cartItemsTable.userId, req.user.id));
+      }
+
+      await tx.insert(schema.transactionsTable).values({
+        type: "income",
+        category: "sales",
+        amount: totalAmount.toFixed(2),
+        description: `Order #${order.id} - ${customerName}`,
+        date: new Date().toISOString().split("T")[0],
         reference: `ORDER-${order.id}`,
       });
 
-      if (newStock < 5) {
-        broadcastToAdmins({ type: "low_stock", product: { id: item.productId, nameEn: item.product.nameEn, nameAr: item.product.nameAr, stock: newStock } });
+      return { order, enrichedItems, totalAmount };
+    });
+
+    // Broadcast after transaction commits successfully
+    broadcastToAdmins({
+      type: "new_order",
+      order: { id: result.order.id, customerName, customerPhone, customerAddress, totalAmount: result.totalAmount, createdAt: result.order.createdAt },
+    });
+    for (const item of result.enrichedItems) {
+      if (item.product.stock < 5) {
+        broadcastToAdmins({ type: "low_stock", product: { id: item.productId, nameEn: item.product.nameEn, nameAr: item.product.nameAr, stock: item.product.stock } });
       }
     }
 
-    if (appliedCoupon) {
-      await db.update(schema.couponsTable)
-        .set({ usedCount: appliedCoupon.usedCount + 1 })
-        .where(eq(schema.couponsTable.id, appliedCoupon.id));
-    }
-
-    if (req.user) {
-      await db.delete(schema.cartItemsTable).where(eq(schema.cartItemsTable.userId, req.user.id));
-    }
-
-    await db.insert(schema.transactionsTable).values({
-      type: "income",
-      category: "sales",
-      amount: totalAmount.toFixed(2),
-      description: `Order #${order.id} - ${customerName}`,
-      date: new Date().toISOString().split("T")[0],
-      reference: `ORDER-${order.id}`,
+    res.status(201).json({
+      ...result.order,
+      items: result.enrichedItems.map(i => ({ productId: i.productId, quantity: i.quantity, unitPrice: i.unitPrice })),
     });
-
-    broadcastToAdmins({
-      type: "new_order",
-      order: { id: order.id, customerName, customerPhone, customerAddress, totalAmount, createdAt: order.createdAt },
-    });
-
-    res.status(201).json({ ...order, items: enrichedItems.map(i => ({ productId: i.productId, quantity: i.quantity, unitPrice: i.unitPrice })) });
   } catch (err) {
+    const e = err as { status?: number; message?: string };
+    if (e.status === 400) {
+      res.status(400).json({ error: e.message });
+      return;
+    }
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
   }
@@ -199,12 +235,31 @@ router.get("/admin/orders", authenticate, requireAdmin, async (req: AuthRequest,
 router.put("/admin/orders/:id/status", authenticate, requireAdmin, async (req: AuthRequest, res) => {
   try {
     const { status } = req.body;
+    const VALID_STATUSES = ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"];
+    if (!VALID_STATUSES.includes(status)) {
+      res.status(400).json({ error: `Invalid status. Must be one of: ${VALID_STATUSES.join(", ")}` });
+      return;
+    }
     const [order] = await db.update(schema.ordersTable)
       .set({ status, updatedAt: new Date() })
       .where(eq(schema.ordersTable.id, pid(req, "id")))
       .returning();
     if (!order) { res.status(404).json({ error: "Order not found" }); return; }
     res.json(order);
+  } catch (err) {
+    req.log.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// GET /admin/low-stock — dedicated low-stock alert endpoint
+router.get("/admin/low-stock", authenticate, requireAdmin, async (req: AuthRequest, res) => {
+  try {
+    const threshold = parseInt((req.query["threshold"] as string) || "5");
+    const lowStock = await db.select().from(schema.productsTable)
+      .where(lt(schema.productsTable.stock, threshold))
+      .orderBy(schema.productsTable.stock);
+    res.json(lowStock);
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
@@ -239,7 +294,7 @@ router.get("/admin/analytics", authenticate, requireAdmin, async (req: AuthReque
     `);
 
     const lowStock = await db.select().from(schema.productsTable)
-      .where(sql`${schema.productsTable.stock} < 5`).orderBy(schema.productsTable.stock);
+      .where(lt(schema.productsTable.stock, 5)).orderBy(schema.productsTable.stock);
 
     res.json({
       totalOrders: Number(totalOrders),

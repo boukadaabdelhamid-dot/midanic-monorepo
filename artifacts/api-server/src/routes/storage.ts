@@ -48,7 +48,7 @@ router.post(
         .returning();
 
       res.status(201).json({ id: record.id, url: publicUrl, objectPath, contentType: record.contentType, size: record.size });
-    } catch (err: any) {
+    } catch (err) {
       req.log.error({ err }, "Upload failed");
       res.status(500).json({ error: "Upload failed" });
     }

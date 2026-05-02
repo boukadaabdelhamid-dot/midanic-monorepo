@@ -34,6 +34,10 @@ router.get("/cart", authenticate, async (req: AuthRequest, res) => {
 router.post("/cart", authenticate, async (req: AuthRequest, res) => {
   try {
     const { productId, quantity = 1 } = req.body;
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      res.status(400).json({ error: "quantity must be a positive integer" });
+      return;
+    }
     const existing = await db.select().from(schema.cartItemsTable)
       .where(and(eq(schema.cartItemsTable.userId, req.user!.id), eq(schema.cartItemsTable.productId, productId)))
       .limit(1);
@@ -60,15 +64,20 @@ router.post("/cart", authenticate, async (req: AuthRequest, res) => {
 router.put("/cart/:productId", authenticate, async (req: AuthRequest, res) => {
   try {
     const { quantity } = req.body;
+    const productId = parseInt(req.params["productId"] as string);
     if (quantity <= 0) {
       await db.delete(schema.cartItemsTable)
-        .where(and(eq(schema.cartItemsTable.userId, req.user!.id), eq(schema.cartItemsTable.productId, parseInt(req.params["productId"] as string))));
+        .where(and(eq(schema.cartItemsTable.userId, req.user!.id), eq(schema.cartItemsTable.productId, productId)));
       res.json({ success: true });
+      return;
+    }
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      res.status(400).json({ error: "quantity must be a positive integer" });
       return;
     }
     const [item] = await db.update(schema.cartItemsTable)
       .set({ quantity })
-      .where(and(eq(schema.cartItemsTable.userId, req.user!.id), eq(schema.cartItemsTable.productId, parseInt(req.params["productId"] as string))))
+      .where(and(eq(schema.cartItemsTable.userId, req.user!.id), eq(schema.cartItemsTable.productId, productId)))
       .returning();
     res.json(item);
   } catch (err) {
@@ -94,25 +103,22 @@ router.post("/coupons/validate", async (req, res) => {
   try {
     const { code, orderTotal } = req.body;
     const [coupon] = await db.select().from(schema.couponsTable)
-      .where(eq(schema.couponsTable.code, code.toUpperCase())).limit(1);
+      .where(eq(schema.couponsTable.code, (code as string).toUpperCase())).limit(1);
 
     if (!coupon) { res.status(404).json({ error: "Coupon not found" }); return; }
     if (coupon.expiresAt && new Date(coupon.expiresAt) < new Date()) {
       res.status(400).json({ error: "Coupon expired" }); return;
     }
-    if (coupon.usageLimit && coupon.usedCount >= coupon.usageLimit) {
+    if (coupon.usageLimit !== null && coupon.usedCount >= coupon.usageLimit) {
       res.status(400).json({ error: "Coupon usage limit reached" }); return;
     }
     if (orderTotal < parseFloat(coupon.minOrder)) {
       res.status(400).json({ error: `Minimum order: ${coupon.minOrder}` }); return;
     }
 
-    let discount = 0;
-    if (coupon.type === "percent") {
-      discount = (orderTotal * parseFloat(coupon.value)) / 100;
-    } else {
-      discount = parseFloat(coupon.value);
-    }
+    const discount = coupon.type === "percent"
+      ? (orderTotal * parseFloat(coupon.value)) / 100
+      : parseFloat(coupon.value);
 
     res.json({ valid: true, code: coupon.code, type: coupon.type, value: coupon.value, discount: discount.toFixed(2) });
   } catch (err) {
