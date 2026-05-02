@@ -85,9 +85,31 @@ const items = cart ?? [];
 - 4 categories, 16 products, 1 admin user, 2 coupons
 - Admin: `admin@midanic.com` / `admin123`
 
+## Payment & SMS Integration (Task #4 — COMPLETED)
+
+- **Stripe backend**: `POST /api/payments/create-intent` (PaymentIntent for web), `POST /api/payments/checkout-session` (Checkout Session URL for mobile), `POST /api/payments/webhook` (event handler)
+- **Stripe frontend (web)**: Stripe Elements in Checkout page with payment method selector (Cash on Delivery | Pay with Card). Requires `VITE_STRIPE_PUBLISHABLE_KEY` env var.
+- **Stripe mobile**: Payment method selector in Expo checkout; "Pay Online" opens a Stripe Checkout Session via `expo-web-browser`. Requires `STRIPE_SECRET_KEY`.
+- **SMS**: Twilio integration in `artifacts/api-server/src/lib/sms.ts`. Customer SMS + admin SMS sent fire-and-forget after order creation. Requires `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`.
+- **Graceful degradation**: All payment/SMS features silently degrade if env vars not set — existing cash-on-delivery flow always works.
+
+## Required Secrets (for payment/SMS features)
+
+| Secret | Purpose |
+|---|---|
+| `STRIPE_SECRET_KEY` | Stripe backend (PaymentIntent, webhook) |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signature verification |
+| `TWILIO_ACCOUNT_SID` | Twilio SMS |
+| `TWILIO_AUTH_TOKEN` | Twilio SMS |
+| `TWILIO_PHONE_NUMBER` | Twilio from-number |
+
+## Env Vars (frontend)
+
+| Var | Purpose |
+|---|---|
+| `VITE_STRIPE_PUBLISHABLE_KEY` | Web store Stripe Elements |
+
 ## Pending Tasks
 
-- Expo mobile app with real-time WebSocket order notifications for admin
-- Payment gateway integration (Stripe/PayTabs)
-- SMS integration (Twilio/Unifonic)
+- ERP Management System
 - GitHub integration

@@ -551,6 +551,23 @@ export interface CustomerDetail {
   notes?: CustomerNote[];
 }
 
+export interface CreatePaymentIntentRequest {
+  orderId: number;
+}
+
+export interface PaymentIntentResponse {
+  clientSecret: string;
+  paymentIntentId: string;
+}
+
+export interface CheckoutSessionResponse {
+  url: string;
+}
+
+export interface ErrorResponse {
+  error: string;
+}
+
 export interface UploadedImage {
   id: number;
   url: string;
@@ -592,6 +609,8 @@ export type UpdateLeaveStatusBody = {
 export type CreateCustomerNoteBody = {
   note: string;
 };
+
+export type StripeWebhookBody = { [key: string]: unknown };
 
 export type UploadImageBody = {
   file: Blob;
