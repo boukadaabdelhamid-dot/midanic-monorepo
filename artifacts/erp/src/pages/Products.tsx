@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   useGetProducts, useGetCategories, useCreateProduct,
   useUpdateProduct, useDeleteProduct,
@@ -25,7 +25,68 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Trash2, Pencil, Plus, Search, Package, ImagePlus, X, Loader2,
   Smartphone, DollarSign, LayoutGrid, Image as ImageIcon, Eye, EyeOff,
+  Columns3,
 } from "lucide-react";
+
+// ── Column definitions ──────────────────────────────────────────────────
+type ColKey =
+  | "id" | "image" | "reference" | "catalogueType" | "designation"
+  | "barcode" | "brand" | "model" | "color" | "categoryId"
+  | "colisage" | "weight"
+  | "catalogue1" | "catalogue2" | "catalogue3" | "catalogue4" | "catalogue5" | "catalogue6"
+  | "description" | "createdAt"
+  | "isExposed" | "isActive"
+  | "price" | "priceGros" | "priceSemiGros" | "priceMin" | "costPrice"
+  | "stock" | "vitrine" | "actions";
+
+const ALL_COLUMNS: { key: ColKey; label: string }[] = [
+  { key: "id",           label: "Id #" },
+  { key: "image",        label: "Image" },
+  { key: "reference",    label: "Réf." },
+  { key: "catalogueType",label: "Catalogue" },
+  { key: "designation",  label: "Désignation" },
+  { key: "description",  label: "Description" },
+  { key: "barcode",      label: "Code" },
+  { key: "brand",        label: "Marque" },
+  { key: "model",        label: "Modèle" },
+  { key: "color",        label: "Couleur" },
+  { key: "categoryId",   label: "Famille" },
+  { key: "colisage",     label: "Colisage" },
+  { key: "weight",       label: "Poids" },
+  { key: "catalogue1",   label: "Catalogue1" },
+  { key: "catalogue2",   label: "Catalogue2" },
+  { key: "catalogue3",   label: "Catalogue3" },
+  { key: "catalogue4",   label: "Catalogue4" },
+  { key: "catalogue5",   label: "Catalogue5" },
+  { key: "catalogue6",   label: "Catalogue6" },
+  { key: "createdAt",    label: "Création" },
+  { key: "isExposed",    label: "Exposé" },
+  { key: "isActive",     label: "Etat" },
+  { key: "price",        label: "PU Détail" },
+  { key: "priceGros",    label: "PU Gros" },
+  { key: "priceSemiGros",label: "PU S.Gros" },
+  { key: "priceMin",     label: "Prix Min" },
+  { key: "costPrice",    label: "Coût" },
+  { key: "stock",        label: "Stock" },
+  { key: "vitrine",      label: "Vitrine" },
+  { key: "actions",      label: "Actions" },
+];
+
+const DEFAULT_VISIBLE: ColKey[] = [
+  "reference", "catalogueType", "designation", "barcode",
+  "price", "costPrice", "stock", "vitrine", "actions",
+];
+
+function loadVisibleCols(): Set<ColKey> {
+  try {
+    const raw = localStorage.getItem("erp_product_cols");
+    if (raw) return new Set(JSON.parse(raw) as ColKey[]);
+  } catch { /* ignore */ }
+  return new Set(DEFAULT_VISIBLE);
+}
+function saveVisibleCols(cols: Set<ColKey>) {
+  localStorage.setItem("erp_product_cols", JSON.stringify([...cols]));
+}
 
 const CATALOGUE_TYPES = ["ARTICLE", "PRODUITS", "APPAREIL", "ACCESSOIRE", "SERVICE", "Vrac"];
 const NONE_VAL = "__none__";
@@ -107,6 +168,29 @@ export default function Products() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(() => loadVisibleCols());
+  const [colsOpen, setColsOpen] = useState(false);
+  const colsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (colsRef.current && !colsRef.current.contains(e.target as Node)) {
+        setColsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const toggleCol = (key: ColKey) => {
+    setVisibleCols((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      saveVisibleCols(next);
+      return next;
+    });
+  };
+  const col = (key: ColKey) => visibleCols.has(key);
 
   const handleImagePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -274,6 +358,53 @@ export default function Products() {
         {selected.size > 0 && (
           <span className="text-sm text-muted-foreground">{selected.size} sélectionné(s)</span>
         )}
+        {/* Column visibility button */}
+        <div ref={colsRef} className="relative ml-auto">
+          <Button
+            variant="outline" size="sm" className="h-9 gap-2"
+            onClick={() => setColsOpen((v) => !v)}
+          >
+            <Columns3 className="h-4 w-4" />
+            Colonnes
+          </Button>
+          {colsOpen && (
+            <div className="absolute right-0 top-10 z-50 bg-white border rounded-md shadow-lg w-56 p-2 overflow-y-auto" style={{ maxHeight: 420 }}>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-2 py-1 mb-1">
+                Afficher / إظهار الأعمدة
+              </p>
+              <div className="space-y-0.5">
+                {ALL_COLUMNS.map((c) => (
+                  <label
+                    key={c.key}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded hover:bg-muted/50 cursor-pointer select-none"
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[#1B3057] cursor-pointer"
+                      checked={visibleCols.has(c.key)}
+                      onChange={() => toggleCol(c.key)}
+                    />
+                    <span className="text-sm">{c.label}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="border-t mt-2 pt-2 flex gap-1">
+                <button
+                  className="flex-1 h-7 text-xs rounded hover:bg-muted/50 transition-colors"
+                  onClick={() => { const s = new Set(ALL_COLUMNS.map(c => c.key) as ColKey[]); setVisibleCols(s); saveVisibleCols(s); }}
+                >
+                  Tout afficher
+                </button>
+                <button
+                  className="flex-1 h-7 text-xs rounded hover:bg-muted/50 transition-colors"
+                  onClick={() => { const s = new Set(DEFAULT_VISIBLE); setVisibleCols(s); saveVisibleCols(s); }}
+                >
+                  Réinitialiser
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <Card className="border shadow-sm">
@@ -288,26 +419,44 @@ export default function Products() {
                 <TableHeader>
                   <TableRow className="bg-muted/40">
                     <TableHead className="w-10 px-3">
-                      <Checkbox
-                        checked={selected.size === products.length && products.length > 0}
-                        onCheckedChange={toggleAll}
-                      />
+                      <Checkbox checked={selected.size === products.length && products.length > 0} onCheckedChange={toggleAll} />
                     </TableHead>
-                    <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-28">Réf.</TableHead>
-                    <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-28">Catalogue</TableHead>
-                    <TableHead className="text-xs font-semibold uppercase text-muted-foreground">Désignation</TableHead>
-                    <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-36">Code</TableHead>
-                    <TableHead className="text-xs font-semibold uppercase text-muted-foreground text-right w-28">PU Détail</TableHead>
-                    <TableHead className="text-xs font-semibold uppercase text-muted-foreground text-right w-28">Coût</TableHead>
-                    <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-20">Stock</TableHead>
-                    <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-20 text-center">Vitrine</TableHead>
-                    <TableHead className="w-20"></TableHead>
+                    {col("id")           && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-16">Id #</TableHead>}
+                    {col("image")        && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-14">Image</TableHead>}
+                    {col("reference")    && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-28">Réf.</TableHead>}
+                    {col("catalogueType")&& <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-28">Catalogue</TableHead>}
+                    {col("designation")  && <TableHead className="text-xs font-semibold uppercase text-muted-foreground">Désignation</TableHead>}
+                    {col("description")  && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-40">Description</TableHead>}
+                    {col("barcode")      && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-36">Code</TableHead>}
+                    {col("brand")        && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-28">Marque</TableHead>}
+                    {col("model")        && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-28">Modèle</TableHead>}
+                    {col("color")        && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-24">Couleur</TableHead>}
+                    {col("categoryId")   && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-28">Famille</TableHead>}
+                    {col("colisage")     && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-20">Colisage</TableHead>}
+                    {col("weight")       && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-20">Poids</TableHead>}
+                    {col("catalogue1")   && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-24">Cat.1</TableHead>}
+                    {col("catalogue2")   && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-24">Cat.2</TableHead>}
+                    {col("catalogue3")   && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-24">Cat.3</TableHead>}
+                    {col("catalogue4")   && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-24">Cat.4</TableHead>}
+                    {col("catalogue5")   && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-24">Cat.5</TableHead>}
+                    {col("catalogue6")   && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-24">Cat.6</TableHead>}
+                    {col("createdAt")    && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-28">Création</TableHead>}
+                    {col("isExposed")    && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-20">Exposé</TableHead>}
+                    {col("isActive")     && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-20">Etat</TableHead>}
+                    {col("price")        && <TableHead className="text-xs font-semibold uppercase text-muted-foreground text-right w-28">PU Détail</TableHead>}
+                    {col("priceGros")    && <TableHead className="text-xs font-semibold uppercase text-muted-foreground text-right w-24">PU Gros</TableHead>}
+                    {col("priceSemiGros")&& <TableHead className="text-xs font-semibold uppercase text-muted-foreground text-right w-24">PU S.Gros</TableHead>}
+                    {col("priceMin")     && <TableHead className="text-xs font-semibold uppercase text-muted-foreground text-right w-24">Prix Min</TableHead>}
+                    {col("costPrice")    && <TableHead className="text-xs font-semibold uppercase text-muted-foreground text-right w-28">Coût</TableHead>}
+                    {col("stock")        && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-20">Stock</TableHead>}
+                    {col("vitrine")      && <TableHead className="text-xs font-semibold uppercase text-muted-foreground w-20 text-center">Vitrine</TableHead>}
+                    {col("actions")      && <TableHead className="w-20"></TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {products.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
+                      <TableCell colSpan={visibleCols.size + 1} className="text-center py-12 text-muted-foreground">
                         <Package className="h-8 w-8 mx-auto mb-2 opacity-30" />
                         Aucun article trouvé
                       </TableCell>
@@ -322,58 +471,128 @@ export default function Products() {
                       <TableCell className="px-3">
                         <Checkbox checked={selected.has(p.id)} onCheckedChange={() => toggleSelect(p.id)} />
                       </TableCell>
-                      <TableCell className="font-mono text-sm text-muted-foreground">{p.reference ?? "—"}</TableCell>
-                      <TableCell>
-                        <span className={`text-xs px-2 py-0.5 rounded font-medium ${catalogueTypeColor(p.catalogueType)}`}>
-                          {p.catalogueType ?? "ARTICLE"}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          {p.imageUrl && (
-                            <img src={p.imageUrl} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0 border" />
-                          )}
-                          <div>
-                            <p className="font-medium text-sm leading-tight">{p.nameEn}</p>
-                            {p.nameAr && <p className="text-xs text-muted-foreground" dir="rtl">{p.nameAr}</p>}
+                      {col("id")           && <TableCell className="text-xs text-muted-foreground font-mono">{p.id}</TableCell>}
+                      {col("image")        && (
+                        <TableCell>
+                          {p.imageUrl
+                            ? <img src={p.imageUrl} alt="" className="w-8 h-8 rounded object-cover border" />
+                            : <div className="w-8 h-8 rounded bg-muted flex items-center justify-center"><ImageIcon className="h-3.5 w-3.5 text-muted-foreground/40" /></div>
+                          }
+                        </TableCell>
+                      )}
+                      {col("reference")    && <TableCell className="font-mono text-sm text-muted-foreground">{p.reference ?? "—"}</TableCell>}
+                      {col("catalogueType")&& (
+                        <TableCell>
+                          <span className={`text-xs px-2 py-0.5 rounded font-medium ${catalogueTypeColor(p.catalogueType)}`}>
+                            {p.catalogueType ?? "ARTICLE"}
+                          </span>
+                        </TableCell>
+                      )}
+                      {col("designation")  && (
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {!col("image") && p.imageUrl && (
+                              <img src={p.imageUrl} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0 border" />
+                            )}
+                            <div>
+                              <p className="font-medium text-sm leading-tight">{p.nameEn}</p>
+                              {p.nameAr && <p className="text-xs text-muted-foreground" dir="rtl">{p.nameAr}</p>}
+                            </div>
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs text-muted-foreground">{p.barcode ?? "—"}</TableCell>
-                      <TableCell className="text-right font-bold text-sm">
-                        {p.price ? `${parseFloat(p.price).toLocaleString("fr-DZ", { minimumFractionDigits: 2 })} دج` : "—"}
-                      </TableCell>
-                      <TableCell className="text-right text-sm text-muted-foreground">
-                        {p.costPrice ? `${parseFloat(p.costPrice).toLocaleString("fr-DZ", { minimumFractionDigits: 2 })} دج` : "—"}
-                      </TableCell>
-                      <TableCell>
-                        <span className={`text-sm font-semibold ${(p.stock ?? 0) === 0 ? "text-red-600" : (p.stock ?? 0) < 5 ? "text-amber-600" : "text-emerald-600"}`}>
-                          {p.stock ?? 0}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <button
-                          onClick={() => toggleVisibility(p)}
-                          title={p.isExposed ? "مرئي في المتجر — cliquer pour masquer" : "مخفي — cliquer pour afficher"}
-                          className={`inline-flex items-center justify-center w-7 h-7 rounded-full transition-colors ${
-                            p.isExposed
-                              ? "bg-emerald-100 text-emerald-600 hover:bg-emerald-200"
-                              : "bg-gray-100 text-gray-400 hover:bg-gray-200"
-                          }`}
-                        >
-                          {p.isExposed ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                        </button>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-1">
-                          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(p)} data-testid={`btn-edit-${p.id}`}>
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(p.id)} data-testid={`btn-delete-${p.id}`}>
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
+                        </TableCell>
+                      )}
+                      {col("description")  && <TableCell className="text-xs text-muted-foreground max-w-[160px] truncate">{p.descriptionEn ?? "—"}</TableCell>}
+                      {col("barcode")      && <TableCell className="font-mono text-xs text-muted-foreground">{p.barcode ?? "—"}</TableCell>}
+                      {col("brand")        && <TableCell className="text-sm">{p.brand ?? "—"}</TableCell>}
+                      {col("model")        && <TableCell className="text-sm">{p.model ?? "—"}</TableCell>}
+                      {col("color")        && <TableCell className="text-sm">{p.color ?? "—"}</TableCell>}
+                      {col("categoryId")   && <TableCell className="text-sm">{categoryName(p.categoryId)}</TableCell>}
+                      {col("colisage")     && <TableCell className="text-sm text-center">{p.colisage ?? 1}</TableCell>}
+                      {col("weight")       && <TableCell className="text-sm">{p.weight ? `${p.weight} kg` : "—"}</TableCell>}
+                      {col("catalogue1")   && <TableCell className="text-xs">{p.catalogue1 ?? "—"}</TableCell>}
+                      {col("catalogue2")   && <TableCell className="text-xs">{p.catalogue2 ?? "—"}</TableCell>}
+                      {col("catalogue3")   && <TableCell className="text-xs">{p.catalogue3 ?? "—"}</TableCell>}
+                      {col("catalogue4")   && <TableCell className="text-xs">{p.catalogue4 ?? "—"}</TableCell>}
+                      {col("catalogue5")   && <TableCell className="text-xs">{p.catalogue5 ?? "—"}</TableCell>}
+                      {col("catalogue6")   && <TableCell className="text-xs">{p.catalogue6 ?? "—"}</TableCell>}
+                      {col("createdAt")    && (
+                        <TableCell className="text-xs text-muted-foreground">
+                          {p.createdAt ? new Date(p.createdAt).toLocaleDateString("fr-DZ") : "—"}
+                        </TableCell>
+                      )}
+                      {col("isExposed")    && (
+                        <TableCell className="text-center">
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${p.isExposed ? "bg-emerald-100 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
+                            {p.isExposed ? "Oui" : "Non"}
+                          </span>
+                        </TableCell>
+                      )}
+                      {col("isActive")     && (
+                        <TableCell className="text-center">
+                          <span className={`text-xs px-1.5 py-0.5 rounded ${p.isActive !== false ? "bg-sky-100 text-sky-700" : "bg-red-100 text-red-600"}`}>
+                            {p.isActive !== false ? "Actif" : "Inactif"}
+                          </span>
+                        </TableCell>
+                      )}
+                      {col("price")        && (
+                        <TableCell className="text-right font-bold text-sm">
+                          {p.price ? `${parseFloat(p.price).toLocaleString("fr-DZ", { minimumFractionDigits: 2 })} دج` : "—"}
+                        </TableCell>
+                      )}
+                      {col("priceGros")    && (
+                        <TableCell className="text-right text-sm text-muted-foreground">
+                          {p.priceGros ? `${parseFloat(p.priceGros).toLocaleString("fr-DZ", { minimumFractionDigits: 2 })} دج` : "—"}
+                        </TableCell>
+                      )}
+                      {col("priceSemiGros")&& (
+                        <TableCell className="text-right text-sm text-muted-foreground">
+                          {p.priceSemiGros ? `${parseFloat(p.priceSemiGros).toLocaleString("fr-DZ", { minimumFractionDigits: 2 })} دج` : "—"}
+                        </TableCell>
+                      )}
+                      {col("priceMin")     && (
+                        <TableCell className="text-right text-sm text-muted-foreground">
+                          {p.priceMin ? `${parseFloat(p.priceMin).toLocaleString("fr-DZ", { minimumFractionDigits: 2 })} دج` : "—"}
+                        </TableCell>
+                      )}
+                      {col("costPrice")    && (
+                        <TableCell className="text-right text-sm text-muted-foreground">
+                          {p.costPrice ? `${parseFloat(p.costPrice).toLocaleString("fr-DZ", { minimumFractionDigits: 2 })} دج` : "—"}
+                        </TableCell>
+                      )}
+                      {col("stock")        && (
+                        <TableCell>
+                          <span className={`text-sm font-semibold ${(p.stock ?? 0) === 0 ? "text-red-600" : (p.stock ?? 0) < 5 ? "text-amber-600" : "text-emerald-600"}`}>
+                            {p.stock ?? 0}
+                          </span>
+                        </TableCell>
+                      )}
+                      {col("vitrine")      && (
+                        <TableCell className="text-center">
+                          <button
+                            onClick={() => toggleVisibility(p)}
+                            title={p.isExposed ? "مرئي — cliquer pour masquer" : "مخفي — cliquer pour afficher"}
+                            className={`inline-flex items-center justify-center w-7 h-7 rounded-full transition-colors ${
+                              p.isExposed
+                                ? "bg-emerald-100 text-emerald-600 hover:bg-emerald-200"
+                                : "bg-gray-100 text-gray-400 hover:bg-gray-200"
+                            }`}
+                          >
+                            {p.isExposed ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                          </button>
+                        </TableCell>
+                      )}
+                      {col("actions")      && (
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(p)} data-testid={`btn-edit-${p.id}`}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(p.id)} data-testid={`btn-delete-${p.id}`}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
