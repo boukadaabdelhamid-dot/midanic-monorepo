@@ -1,0 +1,174 @@
+import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { useRouter } from "expo-router";
+import { useRegister } from "@workspace/api-client-react";
+import React, { useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "@/context/AuthContext";
+import { useLang } from "@/context/LanguageContext";
+import { useColors } from "@/hooks/useColors";
+
+export default function RegisterScreen() {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const { t, isRTL, lang } = useLang();
+  const { login } = useAuth();
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPass, setShowPass] = useState(false);
+
+  const registerMutation = useRegister();
+
+  const handleRegister = () => {
+    if (!name.trim() || !email.trim() || !password.trim()) {
+      Alert.alert(t("خطأ", "Error"), t("يرجى ملء جميع الحقول", "Please fill all fields"));
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert(t("خطأ", "Error"), t("كلمة المرور يجب أن تكون 6 أحرف على الأقل", "Password must be at least 6 characters"));
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    registerMutation.mutate(
+      { name: name.trim(), email: email.trim(), password, preferredLang: lang },
+      {
+        onSuccess: async (data) => {
+          await login(data.token, data.user);
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          router.replace("/(tabs)/index");
+        },
+        onError: () => {
+          Alert.alert(t("خطأ", "Error"), t("فشل في إنشاء الحساب، البريد مستخدم بالفعل", "Registration failed. Email may already be in use."));
+        },
+      }
+    );
+  };
+
+  const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
+  const bottomPad = insets.bottom + (Platform.OS === "web" ? 34 : 0);
+
+  return (
+    <KeyboardAvoidingView
+      style={[styles.container, { backgroundColor: colors.background }]}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingTop: topPad + 20, paddingBottom: bottomPad + 20 }]}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Pressable
+          style={[styles.backBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => router.back()}
+        >
+          <Feather name="arrow-left" size={18} color={colors.foreground} />
+        </Pressable>
+
+        <Text style={[styles.title, { color: colors.foreground }]}>
+          {t("إنشاء حساب", "Create Account")}
+        </Text>
+        <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+          {t("انضم إلى ميدانيك", "Join Midanic")}
+        </Text>
+
+        <View style={[styles.field, { borderColor: colors.border, backgroundColor: colors.card }]}>
+          <Feather name="user" size={16} color={colors.mutedForeground} />
+          <TextInput
+            style={[styles.input, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}
+            placeholder={t("الاسم الكامل", "Full Name")}
+            placeholderTextColor={colors.mutedForeground}
+            value={name}
+            onChangeText={setName}
+            autoCapitalize="words"
+          />
+        </View>
+
+        <View style={[styles.field, { borderColor: colors.border, backgroundColor: colors.card }]}>
+          <Feather name="mail" size={16} color={colors.mutedForeground} />
+          <TextInput
+            testID="reg-email-input"
+            style={[styles.input, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}
+            placeholder={t("البريد الإلكتروني", "Email")}
+            placeholderTextColor={colors.mutedForeground}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+          />
+        </View>
+
+        <View style={[styles.field, { borderColor: colors.border, backgroundColor: colors.card }]}>
+          <Feather name="lock" size={16} color={colors.mutedForeground} />
+          <TextInput
+            testID="reg-password-input"
+            style={[styles.input, { color: colors.foreground, textAlign: isRTL ? "right" : "left" }]}
+            placeholder={t("كلمة المرور (6 أحرف على الأقل)", "Password (min. 6 chars)")}
+            placeholderTextColor={colors.mutedForeground}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPass}
+          />
+          <Pressable onPress={() => setShowPass(!showPass)}>
+            <Feather name={showPass ? "eye-off" : "eye"} size={16} color={colors.mutedForeground} />
+          </Pressable>
+        </View>
+
+        <Pressable
+          testID="register-btn"
+          style={({ pressed }) => [
+            styles.submitBtn,
+            { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
+          ]}
+          onPress={handleRegister}
+          disabled={registerMutation.isPending}
+        >
+          {registerMutation.isPending ? (
+            <ActivityIndicator color={colors.primaryForeground} />
+          ) : (
+            <Text style={[styles.submitBtnText, { color: colors.primaryForeground }]}>
+              {t("إنشاء الحساب", "Create Account")}
+            </Text>
+          )}
+        </Pressable>
+
+        <Pressable onPress={() => router.push("/auth/login")} style={styles.switchRow}>
+          <Text style={[styles.switchText, { color: colors.mutedForeground }]}>
+            {t("لديك حساب؟", "Already have an account?")}
+          </Text>
+          <Text style={[styles.switchLink, { color: colors.primary }]}>
+            {t("تسجيل الدخول", "Sign In")}
+          </Text>
+        </Pressable>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  scroll: { padding: 24, gap: 14 },
+  backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", borderWidth: 1, marginBottom: 16 },
+  title: { fontSize: 28, fontFamily: "Inter_700Bold" },
+  subtitle: { fontSize: 15, fontFamily: "Inter_400Regular", marginBottom: 6 },
+  field: { flexDirection: "row", alignItems: "center", borderRadius: 12, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 13, gap: 10 },
+  input: { flex: 1, fontSize: 15, fontFamily: "Inter_400Regular", padding: 0 },
+  submitBtn: { borderRadius: 12, paddingVertical: 15, alignItems: "center", marginTop: 4 },
+  submitBtnText: { fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  switchRow: { flexDirection: "row", justifyContent: "center", gap: 6 },
+  switchText: { fontSize: 14, fontFamily: "Inter_400Regular" },
+  switchLink: { fontSize: 14, fontFamily: "Inter_600SemiBold" },
+});
