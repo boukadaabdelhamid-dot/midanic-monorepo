@@ -91,7 +91,7 @@ function OrderItem({ order, onPress }: { order: Order; onPress: () => void }) {
       </Text>
       <View style={styles.orderFooter}>
         <Text style={[styles.orderTotal, { color: colors.primary }]}>
-          {t(`${Number(order.totalAmount).toFixed(2)} ر.س`, `SAR ${Number(order.totalAmount).toFixed(2)}`)}
+          {t(`${Number(order.totalAmount).toFixed(2)} دج`, `دج ${Number(order.totalAmount).toFixed(2)}`)}
         </Text>
         <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
       </View>

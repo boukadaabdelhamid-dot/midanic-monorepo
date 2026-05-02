@@ -94,7 +94,7 @@ export default function PurchaseOrders() {
                     <TableRow key={po.id} data-testid={`row-po-${po.id}`}>
                       <TableCell className="font-medium">#{po.id}</TableCell>
                       <TableCell>{supplierMap[po.supplierId] ?? `#${po.supplierId}`}</TableCell>
-                      <TableCell className="font-semibold text-primary">SAR {po.totalAmount}</TableCell>
+                      <TableCell className="font-semibold text-primary">دج {po.totalAmount}</TableCell>
                       <TableCell>
                         <span className={`text-xs px-2 py-0.5 rounded font-medium ${STATUS_COLORS[po.status] ?? "bg-gray-100 text-gray-600"}`}>
                           {po.status}

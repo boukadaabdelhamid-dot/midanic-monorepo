@@ -81,7 +81,7 @@ export default function Orders() {
                       <TableCell className="font-medium">#{order.id}</TableCell>
                       <TableCell className="text-muted-foreground">{order.customerName}</TableCell>
                       <TableCell className="font-semibold text-primary">
-                        SAR {order.totalAmount}
+                        دج {order.totalAmount}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {order.createdAt

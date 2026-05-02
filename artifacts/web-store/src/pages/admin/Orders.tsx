@@ -117,7 +117,7 @@ export default function AdminOrders() {
                       <div className="text-xs text-muted-foreground">{order.customerPhone}</div>
                     </TableCell>
                     <TableCell>{order.createdAt ? format(new Date(order.createdAt), "MMM d, yyyy") : "—"}</TableCell>
-                    <TableCell className="font-bold text-primary">SAR {order.totalAmount}</TableCell>
+                    <TableCell className="font-bold text-primary">دج {order.totalAmount}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={`capitalize ${getStatusColor(order.status)}`}>
                         {statusLabel(order.status)}

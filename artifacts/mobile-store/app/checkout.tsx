@@ -221,8 +221,8 @@ export default function CheckoutScreen() {
             </Text>
             <Text style={[styles.totalValue, { color: colors.primary }]}>
               {t(
-                `${subtotal.toFixed(2)} ر.س`,
-                `SAR ${subtotal.toFixed(2)}`
+                `${subtotal.toFixed(2)} دج`,
+                `دج ${subtotal.toFixed(2)}`
               )}
             </Text>
           </View>

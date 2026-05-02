@@ -89,7 +89,7 @@ export default function OrderDetailScreen() {
               {t("الإجمالي", "Total")}
             </Text>
             <Text style={[styles.cardValueBold, { color: colors.primary }]}>
-              {t(`${Number(order.totalAmount).toFixed(2)} ر.س`, `SAR ${Number(order.totalAmount).toFixed(2)}`)}
+              {t(`${Number(order.totalAmount).toFixed(2)} دج`, `دج ${Number(order.totalAmount).toFixed(2)}`)}
             </Text>
           </View>
         </View>
@@ -122,7 +122,7 @@ export default function OrderDetailScreen() {
                     {t(item.product?.nameAr ?? "", item.product?.nameEn ?? "")}
                   </Text>
                   <Text style={[styles.itemQty, { color: colors.mutedForeground }]}>
-                    ×{item.quantity} · {t(`${Number(item.unitPrice ?? 0).toFixed(2)} ر.س`, `SAR ${Number(item.unitPrice ?? 0).toFixed(2)}`)}
+                    ×{item.quantity} · {t(`${Number(item.unitPrice ?? 0).toFixed(2)} دج`, `دج ${Number(item.unitPrice ?? 0).toFixed(2)}`)}
                   </Text>
                 </View>
               </View>

@@ -26,7 +26,7 @@ export default function Dashboard() {
   const stats = [
     {
       labelEn: "Total Revenue", labelAr: "إجمالي الإيرادات",
-      value: `SAR ${(analytics?.totalRevenue ?? 0).toLocaleString()}`,
+      value: `دج ${(analytics?.totalRevenue ?? 0).toLocaleString()}`,
       icon: TrendingUp, color: "text-emerald-600"
     },
     {
@@ -41,7 +41,7 @@ export default function Dashboard() {
     },
     {
       labelEn: "Net Profit", labelAr: "صافي الربح",
-      value: `SAR ${(analytics?.netProfit ?? 0).toLocaleString()}`,
+      value: `دج ${(analytics?.netProfit ?? 0).toLocaleString()}`,
       icon: DollarSign, color: "text-purple-600"
     },
   ];
@@ -83,7 +83,7 @@ export default function Dashboard() {
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(v: string) => v.slice(5)} />
                 <YAxis tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(v: number) => [`SAR ${v}`, "Revenue"]} />
+                <Tooltip formatter={(v: number) => [`دج ${v}`, "Revenue"]} />
                 <Line type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
@@ -124,16 +124,16 @@ export default function Dashboard() {
             <div className="grid grid-cols-3 gap-6 mb-4">
               <div className="text-center">
                 <p className="text-sm text-muted-foreground">Income / الدخل</p>
-                <p className="text-xl font-bold text-emerald-600">SAR {summary.totalIncome?.toLocaleString()}</p>
+                <p className="text-xl font-bold text-emerald-600">دج {summary.totalIncome?.toLocaleString()}</p>
               </div>
               <div className="text-center">
                 <p className="text-sm text-muted-foreground">Expenses / المصروفات</p>
-                <p className="text-xl font-bold text-red-500">SAR {summary.totalExpenses?.toLocaleString()}</p>
+                <p className="text-xl font-bold text-red-500">دج {summary.totalExpenses?.toLocaleString()}</p>
               </div>
               <div className="text-center">
                 <p className="text-sm text-muted-foreground">Net Profit / صافي الربح</p>
                 <p className={`text-xl font-bold ${(summary.netProfit ?? 0) >= 0 ? "text-primary" : "text-destructive"}`}>
-                  SAR {summary.netProfit?.toLocaleString()}
+                  دج {summary.netProfit?.toLocaleString()}
                 </p>
               </div>
             </div>

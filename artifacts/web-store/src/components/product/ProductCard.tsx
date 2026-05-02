@@ -94,7 +94,7 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
 
         <div className="mt-auto font-bold text-primary">
-          SAR {product.price}
+          دج {product.price}
         </div>
       </div>
     </Link>

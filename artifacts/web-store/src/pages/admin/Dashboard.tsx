@@ -82,7 +82,7 @@ export default function AdminDashboard() {
             <DollarSign className="h-4 w-4 opacity-80" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">SAR {Number(analytics.totalRevenue || 0).toLocaleString()}</div>
+            <div className="text-2xl font-bold">دج {Number(analytics.totalRevenue || 0).toLocaleString()}</div>
           </CardContent>
         </Card>
         
@@ -92,7 +92,7 @@ export default function AdminDashboard() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">SAR {Number(analytics.netProfit || 0).toLocaleString()}</div>
+            <div className="text-2xl font-bold text-green-600">دج {Number(analytics.netProfit || 0).toLocaleString()}</div>
           </CardContent>
         </Card>
 
@@ -145,7 +145,7 @@ export default function AdminDashboard() {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                   <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `SAR ${value}`} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `دج ${value}`} />
                   <RechartsTooltip 
                     contentStyle={{ backgroundColor: "hsl(var(--card))", borderRadius: "8px", border: "1px solid hsl(var(--border))" }}
                     itemStyle={{ color: "hsl(var(--foreground))" }}
@@ -178,7 +178,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <div className="font-semibold text-primary">
-                    SAR {Number(product.revenue || 0).toLocaleString()}
+                    دج {Number(product.revenue || 0).toLocaleString()}
                   </div>
                 </div>
               ))}

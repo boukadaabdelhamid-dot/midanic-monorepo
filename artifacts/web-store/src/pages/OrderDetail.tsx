@@ -99,11 +99,11 @@ export default function OrderDetail() {
                     {lang === 'ar' ? item.product?.nameAr : item.product?.nameEn}
                   </div>
                   <div className="text-sm text-muted-foreground font-medium">
-                    SAR {item.unitPrice} × {item.quantity ?? 0}
+                    دج {item.unitPrice} × {item.quantity ?? 0}
                   </div>
                 </div>
                 <div className="font-bold text-lg text-primary shrink-0 whitespace-nowrap">
-                  SAR {(parseFloat(item.unitPrice ?? "0") * (item.quantity ?? 0)).toFixed(2)}
+                  دج {(parseFloat(item.unitPrice ?? "0") * (item.quantity ?? 0)).toFixed(2)}
                 </div>
               </div>
             ))}
@@ -112,12 +112,12 @@ export default function OrderDetail() {
             {order.discountAmount && parseFloat(order.discountAmount) > 0 && (
               <div className="flex justify-between text-muted-foreground">
                 <span>{lang === 'ar' ? 'الخصم' : 'Discount'}</span>
-                <span className="text-green-600">- SAR {order.discountAmount}</span>
+                <span className="text-green-600">- دج {order.discountAmount}</span>
               </div>
             )}
             <div className="flex justify-between items-center font-bold text-xl pt-2">
               <span>{lang === 'ar' ? 'الإجمالي' : 'Total'}</span>
-              <span className="text-primary text-2xl">SAR {order.totalAmount}</span>
+              <span className="text-primary text-2xl">دج {order.totalAmount}</span>
             </div>
           </div>
         </div>

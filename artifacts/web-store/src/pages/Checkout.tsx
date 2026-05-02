@@ -222,11 +222,11 @@ export default function Checkout() {
                           : item.product?.nameEn}
                       </p>
                       <p className="text-muted-foreground text-xs mt-1">
-                        {item.quantity} x SAR {item.product?.price}
+                        {item.quantity} x دج {item.product?.price}
                       </p>
                     </div>
                     <div className="font-bold text-sm shrink-0">
-                      SAR{" "}
+                      دج{" "}
                       {(
                         parseFloat(item.product?.price ?? "0") * item.quantity
                       ).toFixed(2)}
@@ -241,7 +241,7 @@ export default function Checkout() {
               >
                 <div className="flex justify-between text-muted-foreground">
                   <span>{lang === "ar" ? "المجموع الفرعي" : "Subtotal"}</span>
-                  <span>SAR {subtotal.toFixed(2)}</span>
+                  <span>دج {subtotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-muted-foreground">
                   <span>{lang === "ar" ? "التوصيل" : "Shipping"}</span>
@@ -261,7 +261,7 @@ export default function Checkout() {
                 )}
                 <div className="flex justify-between font-bold text-xl pt-4 border-t mt-4 text-primary">
                   <span>{lang === "ar" ? "الإجمالي" : "Total"}</span>
-                  <span>SAR {subtotal.toFixed(2)}</span>
+                  <span>دج {subtotal.toFixed(2)}</span>
                 </div>
               </div>
 

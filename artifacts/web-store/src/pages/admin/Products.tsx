@@ -198,7 +198,7 @@ export default function AdminProducts() {
                   
                   <div className="grid grid-cols-2 gap-4">
                     <FormField control={form.control} name="price" render={({ field }) => (
-                      <FormItem><FormLabel>{isAr ? 'السعر (ريال)' : 'Price (SAR)'}</FormLabel><FormControl><Input type="number" step="0.01" dir="ltr" {...field} /></FormControl><FormMessage /></FormItem>
+                      <FormItem><FormLabel>{isAr ? 'السعر (ريال)' : 'السعر (دج)'}</FormLabel><FormControl><Input type="number" step="0.01" dir="ltr" {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <FormField control={form.control} name="stock" render={({ field }) => (
                       <FormItem><FormLabel>{isAr ? 'الكمية' : 'Stock Quantity'}</FormLabel><FormControl><Input type="number" dir="ltr" {...field} /></FormControl><FormMessage /></FormItem>
@@ -329,7 +329,7 @@ export default function AdminProducts() {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell>SAR {product.price}</TableCell>
+                    <TableCell>دج {product.price}</TableCell>
                     <TableCell>
                       <span className={product.stock < 5 ? "text-destructive font-bold" : ""}>
                         {product.stock}

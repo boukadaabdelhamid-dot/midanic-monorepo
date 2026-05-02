@@ -128,7 +128,7 @@ export default function ProductDetailScreen() {
             </Text>
           </View>
           <Text style={[styles.price, { color: colors.primary }]}>
-            {t(`${(price * qty).toFixed(2)} ر.س`, `SAR ${(price * qty).toFixed(2)}`)}
+            {t(`${(price * qty).toFixed(2)} دج`, `${(price * qty).toFixed(2)} دج`)}
           </Text>
           <Text style={[styles.stockText, { color: inStock ? colors.success : colors.destructive }]}>
             {inStock ? t(`متوفر · ${product.stock} قطعة`, `In Stock · ${product.stock} left`) : t("غير متوفر", "Out of Stock")}

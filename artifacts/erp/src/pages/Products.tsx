@@ -130,7 +130,7 @@ export default function Products() {
                       </TableCell>
                       <TableCell className="font-medium">{p.nameEn}</TableCell>
                       <TableCell dir="rtl" className="text-right">{p.nameAr}</TableCell>
-                      <TableCell>SAR {p.price}</TableCell>
+                      <TableCell>دج {p.price}</TableCell>
                       <TableCell>
                         <span className={(p.stock ?? 0) < 5 ? "text-red-600 font-semibold" : ""}>{p.stock ?? 0}</span>
                       </TableCell>
@@ -165,7 +165,7 @@ export default function Products() {
               { label: "Name (AR)", key: "nameAr" as keyof ProductForm },
               { label: "Description (EN)", key: "descriptionEn" as keyof ProductForm },
               { label: "Description (AR)", key: "descriptionAr" as keyof ProductForm },
-              { label: "Price (SAR)", key: "price" as keyof ProductForm },
+              { label: "السعر (دج)", key: "price" as keyof ProductForm },
               { label: "Stock", key: "stock" as keyof ProductForm },
               { label: "Image URL", key: "imageUrl" as keyof ProductForm },
             ] as const).map(({ label, key }) => (

@@ -129,7 +129,7 @@ export default function AdminOrdersScreen() {
               </Text>
               <View style={styles.orderFooter}>
                 <Text style={[styles.orderTotal, { color: colors.primary }]}>
-                  {t(`${Number(item.totalAmount).toFixed(2)} ر.س`, `SAR ${Number(item.totalAmount).toFixed(2)}`)}
+                  {t(`${Number(item.totalAmount).toFixed(2)} دج`, `دج ${Number(item.totalAmount).toFixed(2)}`)}
                 </Text>
                 <Text style={[styles.orderDate, { color: colors.mutedForeground }]}>
                   {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : ""}

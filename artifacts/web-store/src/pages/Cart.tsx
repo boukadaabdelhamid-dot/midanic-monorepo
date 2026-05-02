@@ -146,7 +146,7 @@ export default function Cart() {
                     <Link href={`/products/${item.product?.id}`} className="font-serif font-bold text-lg leading-tight hover:text-primary transition-colors line-clamp-2 mb-1" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
                       {lang === 'ar' ? item.product?.nameAr : item.product?.nameEn}
                     </Link>
-                    <div className="text-muted-foreground font-medium mb-3">SAR {item.product?.price}</div>
+                    <div className="text-muted-foreground font-medium mb-3">دج {item.product?.price}</div>
                     <button 
                       onClick={() => handleRemove(item.product?.id ?? item.id)}
                       disabled={removeItem.isPending}
@@ -183,7 +183,7 @@ export default function Cart() {
                 {/* Total */}
                 <div className="col-span-3 flex justify-between md:justify-end w-full font-bold text-lg text-primary pt-4 border-t md:border-0 md:pt-0">
                   <span className="md:hidden text-muted-foreground">{lang === 'ar' ? 'المجموع:' : 'Total:'}</span>
-                  SAR {(parseFloat(item.product?.price ?? "0") * item.quantity).toFixed(2)}
+                  دج {(parseFloat(item.product?.price ?? "0") * item.quantity).toFixed(2)}
                 </div>
               </div>
             ))}
@@ -199,19 +199,19 @@ export default function Cart() {
             <div className="space-y-4 text-base mb-8">
               <div className="flex justify-between text-muted-foreground" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
                 <span>{lang === 'ar' ? 'المجموع الفرعي' : 'Subtotal'}</span>
-                <span className="font-medium text-foreground">SAR {subtotal.toFixed(2)}</span>
+                <span className="font-medium text-foreground">دج {subtotal.toFixed(2)}</span>
               </div>
               
               {discountAmount > 0 && (
                 <div className="flex justify-between text-green-600 font-medium" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
                   <span>{lang === 'ar' ? 'الخصم' : 'Discount'} ({discount?.code})</span>
-                  <span>- SAR {discountAmount.toFixed(2)}</span>
+                  <span>- دج {discountAmount.toFixed(2)}</span>
                 </div>
               )}
               
               <div className="flex justify-between font-bold text-2xl pt-4 border-t mt-4" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
                 <span>{lang === 'ar' ? 'الإجمالي' : 'Total'}</span>
-                <span className="text-primary">SAR {total.toFixed(2)}</span>
+                <span className="text-primary">دج {total.toFixed(2)}</span>
               </div>
               <p className="text-xs text-muted-foreground text-center mt-2" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
                 {lang === 'ar' ? 'شامل ضريبة القيمة المضافة' : 'Includes VAT'}

@@ -68,7 +68,7 @@ export default function Accounting() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">{label}</p>
-                    <p className={`text-xl font-bold ${color}`}>SAR {(value ?? 0).toLocaleString()}</p>
+                    <p className={`text-xl font-bold ${color}`}>دج {(value ?? 0).toLocaleString()}</p>
                   </div>
                   <Icon className={`h-6 w-6 ${color} opacity-70`} />
                 </div>
@@ -111,7 +111,7 @@ export default function Accounting() {
                       <TableCell className="text-sm">{t.category}</TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{t.description}</TableCell>
                       <TableCell className={`font-semibold ${t.type === "income" ? "text-emerald-600" : "text-red-600"}`}>
-                        {t.type === "income" ? "+" : "-"} SAR {t.amount}
+                        {t.type === "income" ? "+" : "-"} دج {t.amount}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -151,7 +151,7 @@ export default function Accounting() {
               </Select>
             </div>
             <div>
-              <Label className="text-xs mb-1 block">Amount (SAR)</Label>
+              <Label className="text-xs mb-1 block">المبلغ (دج)</Label>
               <Input type="number" value={form.amount} onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))} className="h-8 text-sm" />
             </div>
             <div>

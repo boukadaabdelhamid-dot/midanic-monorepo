@@ -165,7 +165,7 @@ export default function CartScreen() {
                       {productName}
                     </Text>
                     <Text style={[styles.cartPrice, { color: colors.primary }]}>
-                      {t(`${(price * item.quantity).toFixed(2)} ر.س`, `SAR ${(price * item.quantity).toFixed(2)}`)}
+                      {t(`${(price * item.quantity).toFixed(2)} دج`, `دج ${(price * item.quantity).toFixed(2)}`)}
                     </Text>
                   </View>
                   <View style={styles.qtyControls}>
@@ -218,7 +218,7 @@ export default function CartScreen() {
 
             {appliedCoupon && (
               <Text style={[styles.couponApplied, { color: colors.success }]}>
-                {t(`وفرت ${Number(appliedCoupon.discount).toFixed(2)} ر.س`, `Saved SAR ${Number(appliedCoupon.discount).toFixed(2)}`)}
+                {t(`وفرت ${Number(appliedCoupon.discount).toFixed(2)} دج`, `Saved دج ${Number(appliedCoupon.discount).toFixed(2)}`)}
               </Text>
             )}
           </ScrollView>
@@ -238,21 +238,21 @@ export default function CartScreen() {
                 {t("المجموع الفرعي", "Subtotal")}
               </Text>
               <Text style={[styles.summaryValue, { color: colors.foreground }]}>
-                {t(`${subtotal.toFixed(2)} ر.س`, `SAR ${subtotal.toFixed(2)}`)}
+                {t(`${subtotal.toFixed(2)} دج`, `دج ${subtotal.toFixed(2)}`)}
               </Text>
             </View>
             {discountNum > 0 && (
               <View style={styles.summaryRow}>
                 <Text style={[styles.summaryLabel, { color: colors.success }]}>{t("الخصم", "Discount")}</Text>
                 <Text style={[styles.summaryValue, { color: colors.success }]}>
-                  -{t(`${discountNum.toFixed(2)} ر.س`, `SAR ${discountNum.toFixed(2)}`)}
+                  -{t(`${discountNum.toFixed(2)} دج`, `دج ${discountNum.toFixed(2)}`)}
                 </Text>
               </View>
             )}
             <View style={styles.summaryRow}>
               <Text style={[styles.totalLabel, { color: colors.foreground }]}>{t("الإجمالي", "Total")}</Text>
               <Text style={[styles.totalValue, { color: colors.primary }]}>
-                {t(`${total.toFixed(2)} ر.س`, `SAR ${total.toFixed(2)}`)}
+                {t(`${total.toFixed(2)} دج`, `دج ${total.toFixed(2)}`)}
               </Text>
             </View>
             <Pressable

@@ -144,7 +144,7 @@ export default function ProductDetail() {
           </div>
           
           <div className="text-3xl font-bold mb-8 text-primary">
-            SAR {product.price}
+            دج {product.price}
           </div>
 
           <div className="mb-10 text-muted-foreground leading-relaxed text-lg" dir={lang === 'ar' ? 'rtl' : 'ltr'}>

@@ -101,7 +101,7 @@ export default function Employees() {
                     <TableHead>Name</TableHead>
                     <TableHead>Position</TableHead>
                     <TableHead>Phone</TableHead>
-                    <TableHead>Salary (SAR)</TableHead>
+                    <TableHead>الراتب (دج)</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -112,7 +112,7 @@ export default function Employees() {
                       <TableCell className="font-medium">{e.name}</TableCell>
                       <TableCell>{e.position}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">{e.phone ?? "—"}</TableCell>
-                      <TableCell>SAR {e.salary}</TableCell>
+                      <TableCell>دج {e.salary}</TableCell>
                       <TableCell>
                         <span className={`text-xs px-2 py-0.5 rounded font-medium ${statusBadge(e.status)}`}>{e.status}</span>
                       </TableCell>
@@ -142,7 +142,7 @@ export default function Employees() {
               { label: "Position", key: "position" as keyof EmpForm, type: "text" },
               { label: "Email", key: "email" as keyof EmpForm, type: "email" },
               { label: "Phone", key: "phone" as keyof EmpForm, type: "text" },
-              { label: "Salary (SAR)", key: "salary" as keyof EmpForm, type: "number" },
+              { label: "الراتب (دج)", key: "salary" as keyof EmpForm, type: "number" },
               { label: "Hire Date", key: "hireDate" as keyof EmpForm, type: "date" },
             ] as const).map(({ label, key, type }) => (
               <div key={key}>

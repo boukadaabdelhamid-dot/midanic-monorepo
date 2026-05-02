@@ -57,7 +57,7 @@ function CustomerDetailPanel({ customerId, onClose }: { customerId: number; onCl
             <p className="text-xs text-muted-foreground">Orders</p>
           </div>
           <div className="text-center">
-            <p className="font-bold text-primary">SAR {totalSpent.toFixed(2)}</p>
+            <p className="font-bold text-primary">دج {totalSpent.toFixed(2)}</p>
             <p className="text-xs text-muted-foreground">Spent</p>
           </div>
         </div>
@@ -133,7 +133,7 @@ export default function Customers() {
                       <TableCell className="font-medium">{c.name}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">{c.email}</TableCell>
                       <TableCell>{c.total_orders ?? 0}</TableCell>
-                      <TableCell className="font-semibold text-primary">SAR {(c.total_spent ?? 0).toFixed(2)}</TableCell>
+                      <TableCell className="font-semibold text-primary">دج {(c.total_spent ?? 0).toFixed(2)}</TableCell>
                       <TableCell>
                         <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setSelectedId(c.id)} data-testid={`btn-view-${c.id}`}>
                           View / عرض

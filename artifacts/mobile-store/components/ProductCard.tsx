@@ -74,7 +74,7 @@ export function ProductCard({ product, onAddToCart }: ProductCardProps) {
         })()}
         <View style={styles.row}>
           <Text style={[styles.price, { color: colors.primary }]}>
-            {t(`${price} ر.س`, `SAR ${price}`)}
+            {t(`${price} دج`, `${price} دج`)}
           </Text>
           {product.reviewCount > 0 && (
             <View style={styles.ratingRow}>

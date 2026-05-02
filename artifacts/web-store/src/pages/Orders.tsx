@@ -97,7 +97,7 @@ export default function Orders() {
                       <span className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
                         {lang === 'ar' ? 'الإجمالي' : 'Total'}
                       </span>
-                      <div className="font-bold text-xl text-primary">SAR {order.totalAmount}</div>
+                      <div className="font-bold text-xl text-primary">دج {order.totalAmount}</div>
                     </div>
                     <div className="flex items-center gap-4">
                       <Badge variant="outline" className={`px-3 py-1 capitalize text-sm border ${getStatusColor(order.status)}`}>
