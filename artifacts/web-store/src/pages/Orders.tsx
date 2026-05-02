@@ -3,53 +3,108 @@ import { Link } from "wouter";
 import { useGetMyOrders, type Order } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { useLang } from "@/hooks/use-lang";
 import { format } from "date-fns";
+import { Package, ChevronRight, ChevronLeft } from "lucide-react";
 
 export default function Orders() {
+  const { lang } = useLang();
   const { data: orders, isLoading } = useGetMyOrders();
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'pending': return 'bg-yellow-500/10 text-yellow-700 border-yellow-200';
+      case 'processing': return 'bg-blue-500/10 text-blue-700 border-blue-200';
+      case 'shipped': return 'bg-purple-500/10 text-purple-700 border-purple-200';
+      case 'delivered': return 'bg-green-500/10 text-green-700 border-green-200';
+      case 'cancelled': return 'bg-destructive/10 text-destructive border-destructive/20';
+      default: return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    if (lang !== 'ar') return status;
+    switch (status) {
+      case 'pending': return 'قيد الانتظار';
+      case 'processing': return 'قيد التجهيز';
+      case 'shipped': return 'تم الشحن';
+      case 'delivered': return 'تم التوصيل';
+      case 'cancelled': return 'ملغي';
+      default: return status;
+    }
+  };
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <Skeleton className="h-10 w-48 mb-8" />
-        <div className="space-y-4">
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-24 w-full" />
-          <Skeleton className="h-24 w-full" />
+      <div className="container mx-auto px-4 py-12 md:py-20 max-w-4xl">
+        <Skeleton className="h-12 w-64 mb-10" />
+        <div className="space-y-6">
+          <Skeleton className="h-32 w-full rounded-xl" />
+          <Skeleton className="h-32 w-full rounded-xl" />
+          <Skeleton className="h-32 w-full rounded-xl" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 md:py-12 max-w-4xl">
-      <h1 className="text-3xl font-serif font-bold mb-2">My Orders</h1>
-      <h1 className="text-3xl font-serif font-bold mb-8" dir="rtl">طلباتي</h1>
+    <div className="container mx-auto px-4 py-12 md:py-20 max-w-4xl">
+      <div className="mb-12">
+        <h1 className="text-4xl font-serif font-bold text-foreground" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+          {lang === 'ar' ? 'طلباتي' : 'My Orders'}
+        </h1>
+      </div>
 
       {!orders || orders.length === 0 ? (
-        <div className="text-center py-12 bg-muted/30 rounded-lg">
-          <p className="text-lg text-muted-foreground mb-4">You haven't placed any orders yet. / لم تقم بأي طلبات بعد.</p>
-          <Link href="/products" className="text-primary hover:underline">
-            Start Shopping / ابدأ التسوق
+        <div className="text-center py-20 bg-muted/10 border border-border/50 rounded-2xl flex flex-col items-center">
+          <div className="w-24 h-24 bg-muted/50 rounded-full flex items-center justify-center mb-6">
+            <Package className="h-10 w-10 text-muted-foreground opacity-60" />
+          </div>
+          <p className="text-xl font-serif text-foreground mb-6" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+            {lang === 'ar' ? 'لم تقم بأي طلبات بعد.' : "You haven't placed any orders yet."}
+          </p>
+          <Link href="/products">
+            <Button size="lg" className="rounded-full px-8">
+              {lang === 'ar' ? 'ابدأ التسوق' : 'Start Shopping'}
+            </Button>
           </Link>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {orders.map((order: Order) => (
             <Link key={order.id} href={`/orders/${order.id}`} className="block group">
-              <div className="bg-card border rounded-lg p-6 shadow-sm hover:border-primary transition-colors flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                  <div className="font-semibold text-lg mb-1">Order #{order.id} / طلب رقم {order.id}</div>
-                  <div className="text-sm text-muted-foreground">
-                    {order.createdAt ? format(new Date(order.createdAt), "MMM d, yyyy") : "—"}
+              <div className="bg-card border border-border/60 rounded-xl p-6 sm:p-8 shadow-sm hover:shadow-md hover:border-primary/40 transition-all duration-300">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 bg-primary/5 rounded-full flex items-center justify-center shrink-0">
+                      <Package className="h-6 w-6 text-primary" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-lg mb-1 group-hover:text-primary transition-colors">
+                        {lang === 'ar' ? `طلب رقم #${order.id}` : `Order #${order.id}`}
+                      </div>
+                      <div className="text-sm text-muted-foreground font-medium">
+                        {order.createdAt ? format(new Date(order.createdAt), "MMMM d, yyyy") : "—"}
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                  <div className="font-bold text-lg text-primary">SAR {order.totalAmount}</div>
-                  <Badge variant={order.status === 'delivered' ? 'default' : 'secondary'} className="capitalize">
-                    {order.status}
-                  </Badge>
+                  <div className="flex items-center gap-6 w-full sm:w-auto justify-between sm:justify-end border-t sm:border-0 pt-4 sm:pt-0">
+                    <div className="flex flex-col items-start sm:items-end">
+                      <span className="text-xs text-muted-foreground uppercase tracking-wider mb-1">
+                        {lang === 'ar' ? 'الإجمالي' : 'Total'}
+                      </span>
+                      <div className="font-bold text-xl text-primary">SAR {order.totalAmount}</div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Badge variant="outline" className={`px-3 py-1 capitalize text-sm border ${getStatusColor(order.status)}`}>
+                        {getStatusText(order.status)}
+                      </Badge>
+                      <div className="hidden sm:flex text-muted-foreground group-hover:text-primary transition-colors group-hover:translate-x-1 duration-300">
+                        {lang === 'ar' ? <ChevronLeft className="h-5 w-5" /> : <ChevronRight className="h-5 w-5" />}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </Link>
@@ -58,4 +113,11 @@ export default function Orders() {
       )}
     </div>
   );
+}
+
+// Inline Button component
+function Button({ children, className = "", size = "default", variant = "default" }: { children: React.ReactNode, className?: string, size?: string, variant?: string }) {
+  const sizeClasses = size === "lg" ? "h-11 px-8" : "h-10 px-4 py-2";
+  const variantClasses = variant === "default" ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-transparent hover:bg-muted text-foreground";
+  return <span className={`inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 cursor-pointer ${variantClasses} ${sizeClasses} ${className}`}>{children}</span>;
 }

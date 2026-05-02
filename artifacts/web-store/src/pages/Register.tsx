@@ -16,6 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import logoPath from "@assets/logo_des_13_midanic_1777739613232.jpeg";
 
 const registerSchema = z.object({
   name: z.string().min(2),
@@ -56,15 +57,16 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-card border rounded-lg p-8 shadow-sm">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-serif font-bold text-primary mb-2">Create Account</h1>
-          <h1 className="text-3xl font-serif font-bold text-primary" dir="rtl">إنشاء حساب</h1>
+    <div className="min-h-[80vh] flex items-center justify-center p-4 bg-muted/10">
+      <div className="w-full max-w-md bg-card border border-border/50 rounded-xl p-8 shadow-sm">
+        <div className="flex flex-col items-center mb-8">
+          <img src={logoPath} alt="Midanic Logo" className="h-16 w-auto mb-6" />
+          <h1 className="text-3xl font-serif font-bold text-primary mb-2 text-center">Create Account</h1>
+          <h1 className="text-3xl font-serif font-bold text-primary text-center" dir="rtl">إنشاء حساب</h1>
         </div>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
             <FormField
               control={form.control}
               name="name"
@@ -106,7 +108,7 @@ export default function Register() {
             />
             <Button 
               type="submit" 
-              className="w-full h-12" 
+              className="w-full h-12 mt-2 text-lg font-medium" 
               disabled={registerMutation.isPending}
             >
               {registerMutation.isPending ? "Creating account..." : "Register / تسجيل"}
@@ -114,9 +116,9 @@ export default function Register() {
           </form>
         </Form>
 
-        <div className="mt-6 text-center text-sm text-muted-foreground">
+        <div className="mt-8 pt-6 border-t text-center text-sm text-muted-foreground">
           Already have an account? / لديك حساب بالفعل؟{" "}
-          <Link href="/auth/login" className="text-primary hover:underline font-medium">
+          <Link href="/auth/login" className="text-primary hover:text-primary/80 hover:underline font-semibold ml-1">
             Login / تسجيل الدخول
           </Link>
         </div>

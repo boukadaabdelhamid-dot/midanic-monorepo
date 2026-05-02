@@ -7,12 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useLang } from "@/hooks/use-lang";
+import { CreditCard, ShieldCheck } from "lucide-react";
 
 export default function Checkout() {
   const [, setLocation] = useLocation();
   const searchParams = new URLSearchParams(window.location.search);
   const couponCode = searchParams.get("coupon") || undefined;
   const { toast } = useToast();
+  const { lang } = useLang();
   const queryClient = useQueryClient();
 
   const { data: cart } = useGetCart();
@@ -31,12 +34,17 @@ export default function Checkout() {
     return null;
   }
 
+  const subtotal = cartItems.reduce(
+    (sum, item) => sum + parseFloat(item.product?.price ?? "0") * item.quantity,
+    0
+  );
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     const missingProduct = cartItems.find((item: CartItem) => !item.product?.id);
     if (missingProduct) {
-      toast({ title: "Error / خطأ", description: "One or more cart items are missing product information. Please refresh and try again.", variant: "destructive" });
+      toast({ title: lang === 'ar' ? 'خطأ' : 'Error', description: "One or more cart items are missing product information. Please refresh and try again.", variant: "destructive" });
       return;
     }
     const items = cartItems.map((item: CartItem) => ({
@@ -50,75 +58,159 @@ export default function Checkout() {
           customerName: formData.customerName,
           customerPhone: formData.customerPhone,
           customerAddress: formData.customerAddress,
-          couponCode: couponCode ?? null,
+          couponCode: couponCode || null,
           items,
         }
       },
       {
         onSuccess: (order) => {
           queryClient.setQueryData(getGetCartQueryKey(), []);
-          toast({ title: "Order Placed Successfully! / تم تقديم الطلب بنجاح!" });
+          toast({ title: lang === 'ar' ? 'تم تقديم الطلب بنجاح!' : 'Order Placed Successfully!' });
           setLocation(`/orders/${order.id}`);
         },
         onError: (err: Error) => {
-          toast({ title: "Error / خطأ", description: err.message, variant: "destructive" });
+          toast({ title: lang === 'ar' ? 'خطأ' : 'Error', description: err.message, variant: "destructive" });
         }
       }
     );
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-2xl">
-      <h1 className="text-3xl font-serif font-bold mb-2">Checkout</h1>
-      <h1 className="text-3xl font-serif font-bold mb-8" dir="rtl">إتمام الطلب</h1>
+    <div className="container mx-auto px-4 py-12 md:py-20">
+      <div className="max-w-5xl mx-auto">
+        <h1 className="text-4xl md:text-5xl font-serif font-bold mb-12 text-center" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+          {lang === 'ar' ? 'إتمام الطلب' : 'Checkout'}
+        </h1>
 
-      <div className="bg-card border rounded-lg p-6 shadow-sm mb-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="customerName">Full Name / الاسم الكامل</Label>
-            <Input
-              id="customerName"
-              required
-              value={formData.customerName}
-              onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
-              placeholder="Your full name"
-            />
-          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
+          <div className="lg:col-span-7 xl:col-span-8 order-2 lg:order-1">
+            <div className="bg-card border rounded-2xl p-6 md:p-10 shadow-sm">
+              <h2 className="text-2xl font-serif font-bold mb-8 pb-4 border-b" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+                {lang === 'ar' ? 'معلومات التوصيل' : 'Shipping Information'}
+              </h2>
+              
+              <form id="checkout-form" onSubmit={handleSubmit} className="space-y-6" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+                <div className="space-y-2">
+                  <Label htmlFor="customerName" className="text-sm font-semibold">{lang === 'ar' ? 'الاسم الكامل' : 'Full Name'}</Label>
+                  <Input
+                    id="customerName"
+                    required
+                    value={formData.customerName}
+                    onChange={(e) => setFormData({ ...formData, customerName: e.target.value })}
+                    placeholder={lang === 'ar' ? 'أدخل اسمك الكامل' : 'Your full name'}
+                    className="h-12 bg-background"
+                  />
+                </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="customerPhone">Phone Number / رقم الهاتف</Label>
-            <Input
-              id="customerPhone"
-              required
-              value={formData.customerPhone}
-              onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
-              placeholder="+966 50 000 0000"
-            />
-          </div>
+                <div className="space-y-2">
+                  <Label htmlFor="customerPhone" className="text-sm font-semibold">{lang === 'ar' ? 'رقم الهاتف' : 'Phone Number'}</Label>
+                  <Input
+                    id="customerPhone"
+                    required
+                    value={formData.customerPhone}
+                    onChange={(e) => setFormData({ ...formData, customerPhone: e.target.value })}
+                    placeholder="+966 5X XXX XXXX"
+                    className="h-12 bg-background text-left"
+                    dir="ltr"
+                  />
+                </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="customerAddress">Shipping Address / عنوان التوصيل</Label>
-            <Textarea
-              id="customerAddress"
-              required
-              rows={4}
-              value={formData.customerAddress}
-              onChange={(e) => setFormData({ ...formData, customerAddress: e.target.value })}
-              placeholder="City, District, Street, Building..."
-            />
+                <div className="space-y-2">
+                  <Label htmlFor="customerAddress" className="text-sm font-semibold">{lang === 'ar' ? 'عنوان التوصيل التفصيلي' : 'Detailed Shipping Address'}</Label>
+                  <Textarea
+                    id="customerAddress"
+                    required
+                    rows={4}
+                    value={formData.customerAddress}
+                    onChange={(e) => setFormData({ ...formData, customerAddress: e.target.value })}
+                    placeholder={lang === 'ar' ? 'المدينة، الحي، الشارع، رقم المبنى...' : 'City, District, Street, Building...'}
+                    className="resize-none bg-background p-4"
+                  />
+                </div>
+                
+                <div className="pt-6">
+                  <div className="bg-secondary/20 border border-secondary/30 rounded-lg p-4 flex items-start gap-4 mb-8">
+                    <CreditCard className="h-6 w-6 text-primary shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold mb-1">{lang === 'ar' ? 'الدفع عند الاستلام' : 'Cash on Delivery'}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {lang === 'ar' ? 'سيتم الدفع نقداً عند استلام طلبك.' : 'Payment will be collected upon delivery of your order.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
           </div>
-
-          <div className="pt-4 border-t">
-            <Button
-              type="submit"
-              className="w-full h-12 text-lg"
-              disabled={createOrder.isPending}
-              data-testid="button-place-order"
-            >
-              {createOrder.isPending ? 'Processing...' : 'Place Order / تأكيد الطلب'}
-            </Button>
+          
+          <div className="lg:col-span-5 xl:col-span-4 order-1 lg:order-2 mb-8 lg:mb-0">
+            <div className="bg-muted/10 border rounded-2xl p-6 md:p-8 sticky top-24">
+              <h2 className="text-xl font-serif font-bold mb-6 pb-4 border-b" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+                {lang === 'ar' ? 'ملخص الطلب' : 'Order Summary'}
+              </h2>
+              
+              <div className="space-y-4 mb-6 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+                {cartItems.map((item) => (
+                  <div key={item.id} className="flex gap-4 items-center">
+                    <div className="w-16 h-16 bg-white rounded-md border flex items-center justify-center shrink-0 p-1">
+                      {item.product?.imageUrl ? (
+                        <img src={item.product.imageUrl} alt="" className="max-w-full max-h-full object-contain" />
+                      ) : null}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm truncate">{lang === 'ar' ? item.product?.nameAr : item.product?.nameEn}</p>
+                      <p className="text-muted-foreground text-xs mt-1">
+                        {item.quantity} x SAR {item.product?.price}
+                      </p>
+                    </div>
+                    <div className="font-bold text-sm shrink-0">
+                      SAR {(parseFloat(item.product?.price ?? "0") * item.quantity).toFixed(2)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="space-y-3 pt-6 border-t text-sm mb-6" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>{lang === 'ar' ? 'المجموع الفرعي' : 'Subtotal'}</span>
+                  <span>SAR {subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>{lang === 'ar' ? 'التوصيل' : 'Shipping'}</span>
+                  <span className="text-green-600 font-medium">{lang === 'ar' ? 'مجاني' : 'Free'}</span>
+                </div>
+                {couponCode && (
+                  <div className="flex justify-between text-green-600">
+                    <span>{lang === 'ar' ? 'كود الخصم المطبق' : 'Coupon Applied'}</span>
+                    <span className="uppercase text-xs border border-green-200 bg-green-50 px-2 rounded-full py-0.5">{couponCode}</span>
+                  </div>
+                )}
+                <div className="flex justify-between font-bold text-xl pt-4 border-t mt-4 text-primary">
+                  <span>{lang === 'ar' ? 'الإجمالي' : 'Total'}</span>
+                  <span>SAR {subtotal.toFixed(2)}</span>
+                </div>
+              </div>
+              
+              <Button
+                type="submit"
+                form="checkout-form"
+                className="w-full h-14 text-lg rounded-full shadow-md"
+                disabled={createOrder.isPending}
+                data-testid="button-place-order"
+              >
+                <ShieldCheck className="mr-2 h-5 w-5" />
+                {createOrder.isPending 
+                  ? (lang === 'ar' ? 'جاري التأكيد...' : 'Processing...') 
+                  : (lang === 'ar' ? 'تأكيد الطلب' : 'Place Order')}
+              </Button>
+              <p className="text-xs text-center text-muted-foreground mt-4" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+                {lang === 'ar' 
+                  ? 'بالنقر على "تأكيد الطلب"، فإنك توافق على الشروط والأحكام الخاصة بنا.' 
+                  : 'By placing your order, you agree to our Terms & Conditions.'}
+              </p>
+            </div>
           </div>
-        </form>
+        </div>
       </div>
     </div>
   );

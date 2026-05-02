@@ -1,55 +1,102 @@
 import React from "react";
 import { Link } from "wouter";
-import { Product } from "@workspace/api-client-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { type Product } from "@workspace/api-client-react";
+import { useLang } from "@/hooks/use-lang";
+import { Button } from "@/components/ui/button";
+import { ShoppingCart, Star } from "lucide-react";
+import { useAddToCart, getGetCartQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
-export function ProductCard({ product }: { product: Product }) {
+interface ProductCardProps {
+  product: Product;
+}
+
+export function ProductCard({ product }: ProductCardProps) {
+  const { lang } = useLang();
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const addToCart = useAddToCart();
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent navigating to product detail
+    
+    if (!user) {
+      toast({
+        title: "Login Required",
+        description: "Please login to add items to your cart. / يرجى تسجيل الدخول لإضافة منتجات إلى سلة التسوق الخاصة بك.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    addToCart.mutate(
+      { data: { productId: product.id, quantity: 1 } },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetCartQueryKey() });
+          toast({
+            title: "Added to Cart / تمت الإضافة إلى السلة",
+            description: `${lang === 'ar' ? product.nameAr : product.nameEn} added to your cart.`
+          });
+        },
+        onError: (err: any) => {
+          toast({
+            title: "Error / خطأ",
+            description: err.message || "Could not add to cart",
+            variant: "destructive"
+          });
+        }
+      }
+    );
+  };
+
   return (
-    <Link href={`/products/${product.id}`} className="group block" data-testid={`card-product-${product.id}`}>
-      <Card className="overflow-hidden border-border/50 hover:border-primary/50 transition-colors h-full flex flex-col bg-card hover-elevate">
-        <div className="aspect-[4/5] relative overflow-hidden bg-muted/30">
-          {product.imageUrl ? (
-            <img 
-              src={product.imageUrl} 
-              alt={product.nameEn || product.nameAr} 
-              className="object-cover w-full h-full group-hover:scale-105 transition-transform duration-500"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-secondary/20 text-muted-foreground">
-              No Image
-            </div>
-          )}
-          {product.stock && product.stock < 5 && product.stock > 0 && (
-            <Badge variant="secondary" className="absolute top-2 right-2 bg-secondary text-secondary-foreground">
-              Low Stock / كمية قليلة
-            </Badge>
-          )}
-          {product.stock === 0 && (
-            <Badge variant="destructive" className="absolute top-2 right-2">
-              Out of Stock / نفذت الكمية
-            </Badge>
-          )}
+    <Link href={`/products/${product.id}`} className="group flex flex-col gap-4" data-testid={`card-product-${product.id}`}>
+      <div className="relative aspect-[4/5] bg-muted/30 rounded-lg overflow-hidden flex items-center justify-center">
+        {product.imageUrl ? (
+          <img 
+            src={product.imageUrl} 
+            alt={product.nameEn} 
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        ) : (
+          <span className="text-muted-foreground">No image</span>
+        )}
+        
+        {/* Quick Add Overlay */}
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-end justify-center p-4">
+          <Button 
+            className="w-full bg-white text-black hover:bg-white/90" 
+            onClick={handleAddToCart}
+            disabled={product.stock === 0 || addToCart.isPending}
+            data-testid={`button-quick-add-${product.id}`}
+          >
+            <ShoppingCart className="mr-2 h-4 w-4" />
+            {product.stock === 0 ? (lang === 'ar' ? 'نفذت الكمية' : 'Out of Stock') : (lang === 'ar' ? 'أضف للسلة' : 'Add to Cart')}
+          </Button>
         </div>
-        <CardContent className="p-4 flex flex-col flex-grow">
-          <div className="flex-grow">
-            <h3 className="font-serif font-semibold text-lg line-clamp-1 mb-1 group-hover:text-primary transition-colors">
-              {product.nameEn}
-            </h3>
-            <h3 className="font-serif font-semibold text-lg line-clamp-1 mb-2 text-right group-hover:text-primary transition-colors" dir="rtl">
-              {product.nameAr}
-            </h3>
-            <p className="text-sm text-muted-foreground line-clamp-2 mb-4 h-10">
-              {product.descriptionEn?.slice(0, 80)}...
-            </p>
-          </div>
-          <div className="mt-auto flex items-center justify-between">
-            <span className="font-medium text-lg text-primary">
-              SAR {product.price}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
+      </div>
+      
+      <div className="flex flex-col flex-1">
+        <div className="flex justify-between items-start mb-1">
+          <h3 className="font-semibold text-lg line-clamp-1 group-hover:text-primary transition-colors" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+            {lang === 'ar' ? product.nameAr : product.nameEn}
+          </h3>
+        </div>
+        
+        <div className="flex items-center gap-1 mb-2 text-sm text-muted-foreground">
+          <Star className="h-3 w-3 fill-secondary text-secondary" />
+          <span>{Number(product.rating || 0).toFixed(1)}</span>
+          <span>({product.reviewCount || 0})</span>
+        </div>
+
+        <div className="mt-auto font-bold text-primary">
+          SAR {product.price}
+        </div>
+      </div>
     </Link>
   );
 }
