@@ -1,5 +1,5 @@
 import { Feather } from "@expo/vector-icons";
-import { useGetMyOrders } from "@workspace/api-client-react";
+import { useGetMyOrders, getGetMyOrdersQueryKey } from "@workspace/api-client-react";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
@@ -98,7 +98,7 @@ export default function OrdersScreen() {
   const router = useRouter();
 
   const { data: orders = [], isLoading } = useGetMyOrders({
-    query: { enabled: !!user && !isAdmin },
+    query: { enabled: !!user && !isAdmin, queryKey: getGetMyOrdersQueryKey() },
   });
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);

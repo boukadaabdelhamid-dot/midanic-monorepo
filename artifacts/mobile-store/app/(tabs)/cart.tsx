@@ -6,6 +6,7 @@ import {
   useRemoveFromCart,
   useUpdateCartItem,
   useValidateCoupon,
+  getGetCartQueryKey,
 } from "@workspace/api-client-react";
 import React, { useState } from "react";
 import {
@@ -38,7 +39,7 @@ export default function CartScreen() {
   } | null>(null);
 
   const { data: cartItems = [], isLoading, refetch } = useGetCart({
-    query: { enabled: !!user },
+    query: { enabled: !!user, queryKey: getGetCartQueryKey() },
   });
   const updateItem = useUpdateCartItem();
   const removeItem = useRemoveFromCart();
@@ -78,7 +79,7 @@ export default function CartScreen() {
   const handleCoupon = () => {
     if (!couponCode.trim()) return;
     validateCoupon.mutate(
-      { code: couponCode.trim(), orderTotal: subtotal },
+      { data: { code: couponCode.trim(), orderTotal: subtotal } },
       {
         onSuccess: (data) => {
           if (data.valid && data.discount) {
@@ -128,7 +129,7 @@ export default function CartScreen() {
           </Text>
           <Pressable
             style={[styles.loginBtn, { backgroundColor: colors.primary }]}
-            onPress={() => router.push("/(tabs)/index")}
+            onPress={() => router.push("/")}
           >
             <Text style={[styles.loginBtnText, { color: colors.primaryForeground }]}>
               {t("تسوّق الآن", "Shop Now")}

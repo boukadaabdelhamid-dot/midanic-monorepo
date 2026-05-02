@@ -50,14 +50,16 @@ export default function CheckoutScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     createOrder.mutate(
       {
-        customerName: name.trim(),
-        customerPhone: phone.trim(),
-        customerAddress: address.trim(),
-        couponCode: couponCode || null,
-        items: cartItems.map((item) => ({
-          productId: item.product?.id ?? 0,
-          quantity: item.quantity,
-        })),
+        data: {
+          customerName: name.trim(),
+          customerPhone: phone.trim(),
+          customerAddress: address.trim(),
+          couponCode: couponCode || null,
+          items: cartItems.map((item) => ({
+            productId: item.product?.id ?? 0,
+            quantity: item.quantity,
+          })),
+        },
       },
       {
         onSuccess: (order) => {

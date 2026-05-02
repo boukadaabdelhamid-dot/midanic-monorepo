@@ -10,13 +10,13 @@ import { Platform, StyleSheet, View, useColorScheme, Text } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { useNotifications } from "@/context/NotificationsContext";
-import { useGetCart } from "@workspace/api-client-react";
+import { useGetCart, getGetCartQueryKey } from "@workspace/api-client-react";
 import { useLang } from "@/context/LanguageContext";
 
 function useTabData() {
   const { user, isAdmin } = useAuth();
   const { unreadCount } = useNotifications();
-  const { data: cartItems = [] } = useGetCart({ query: { enabled: !!user } });
+  const { data: cartItems = [] } = useGetCart({ query: { enabled: !!user, queryKey: getGetCartQueryKey() } });
   const cartCount = cartItems.reduce((s, i) => s + i.quantity, 0);
   return { cartCount, notifCount: isAdmin ? unreadCount : 0, isAdmin };
 }
@@ -37,12 +37,12 @@ function NativeTabLayout() {
       <NativeTabs.Trigger name="cart">
         <Icon sf={{ default: "cart", selected: "cart.fill" }} />
         <Label>{t("السلة", "Cart")}</Label>
-        {cartCount > 0 && <Badge>{cartCount}</Badge>}
+        {cartCount > 0 && <Badge>{String(cartCount)}</Badge>}
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="orders">
         <Icon sf={{ default: "clock", selected: "clock.fill" }} />
         <Label>{t("الطلبات", "Orders")}</Label>
-        {notifCount > 0 && <Badge>{notifCount}</Badge>}
+        {notifCount > 0 && <Badge>{String(notifCount)}</Badge>}
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="profile">
         <Icon sf={{ default: "person", selected: "person.fill" }} />

@@ -53,7 +53,7 @@ export default function SearchScreen() {
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    addToCart.mutate({ productId: product.id, quantity: 1 });
+    addToCart.mutate({ data: { productId: product.id, quantity: 1 } });
   };
 
   return (

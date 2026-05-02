@@ -40,12 +40,12 @@ export default function LoginScreen() {
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     loginMutation.mutate(
-      { email: email.trim(), password },
+      { data: { email: email.trim(), password } },
       {
         onSuccess: async (data) => {
           await login(data.token, data.user);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          router.replace("/(tabs)/index");
+          router.replace("/");
         },
         onError: () => {
           Alert.alert(t("خطأ", "Login Failed"), t("البريد أو كلمة المرور غير صحيحة", "Invalid email or password"));

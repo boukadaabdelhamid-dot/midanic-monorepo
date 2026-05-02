@@ -58,7 +58,7 @@ export default function ProductDetailScreen() {
     setAdding(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     addToCart.mutate(
-      { productId: Number(id), quantity: qty },
+      { data: { productId: Number(id), quantity: qty } },
       {
         onSettled: () => setAdding(false),
         onSuccess: () => {

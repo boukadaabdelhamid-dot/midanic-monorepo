@@ -47,7 +47,7 @@ export default function HomeScreen() {
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    addToCart.mutate({ productId: product.id, quantity: 1 });
+    addToCart.mutate({ data: { productId: product.id, quantity: 1 } });
   };
 
   const products = productsData?.products ?? [];

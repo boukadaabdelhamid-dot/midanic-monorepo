@@ -44,12 +44,12 @@ export default function RegisterScreen() {
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     registerMutation.mutate(
-      { name: name.trim(), email: email.trim(), password, preferredLang: lang },
+      { data: { name: name.trim(), email: email.trim(), password, preferredLang: lang } },
       {
         onSuccess: async (data) => {
           await login(data.token, data.user);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          router.replace("/(tabs)/index");
+          router.replace("/");
         },
         onError: () => {
           Alert.alert(t("خطأ", "Error"), t("فشل في إنشاء الحساب، البريد مستخدم بالفعل", "Registration failed. Email may already be in use."));

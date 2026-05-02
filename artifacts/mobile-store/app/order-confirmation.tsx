@@ -50,7 +50,7 @@ export default function OrderConfirmationScreen() {
       </Pressable>
       <Pressable
         style={[styles.homeBtn, { borderColor: colors.border }]}
-        onPress={() => router.replace("/(tabs)/index")}
+        onPress={() => router.replace("/")}
       >
         <Text style={[styles.homeBtnText, { color: colors.foreground }]}>
           {t("الرئيسية", "Home")}
