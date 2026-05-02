@@ -16,6 +16,10 @@ export const productsTable = pgTable("products", {
   rating: numeric("rating", { precision: 3, scale: 2 }).notNull().default("0"),
   reviewCount: integer("review_count").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  reference: text("reference"),
+  barcode: text("barcode"),
+  costPrice: numeric("cost_price", { precision: 10, scale: 2 }),
+  catalogueType: text("catalogue_type").default("ARTICLE"),
 });
 
 export const insertProductSchema = createInsertSchema(productsTable).omit({ id: true, createdAt: true, rating: true, reviewCount: true });

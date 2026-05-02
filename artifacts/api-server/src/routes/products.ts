@@ -72,12 +72,16 @@ router.get("/products/:id", async (req, res) => {
 // POST /products (admin)
 router.post("/products", authenticate, requireAdmin, async (req: AuthRequest, res) => {
   try {
-    const { nameAr, nameEn, descriptionAr, descriptionEn, price, imageUrl, stock, categoryId } = req.body;
+    const { nameAr, nameEn, descriptionAr, descriptionEn, price, imageUrl, stock, categoryId, reference, barcode, costPrice, catalogueType } = req.body;
     const [product] = await db.insert(schema.productsTable).values({
       nameAr, nameEn,
       descriptionAr: descriptionAr || "",
       descriptionEn: descriptionEn || "",
       price, imageUrl, stock: stock || 0, categoryId,
+      reference: reference || null,
+      barcode: barcode || null,
+      costPrice: costPrice || null,
+      catalogueType: catalogueType || "ARTICLE",
     }).returning();
     res.status(201).json(product);
   } catch (err) {

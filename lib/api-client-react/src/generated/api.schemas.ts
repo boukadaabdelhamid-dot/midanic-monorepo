@@ -74,6 +74,10 @@ export interface Product {
   rating: string;
   reviewCount: number;
   createdAt?: string;
+  reference?: string | null;
+  barcode?: string | null;
+  costPrice?: string | null;
+  catalogueType?: string | null;
 }
 
 export interface Review {
@@ -104,6 +108,10 @@ export interface CreateProductRequest {
   imageUrl?: string | null;
   stock?: number;
   categoryId?: number | null;
+  reference?: string | null;
+  barcode?: string | null;
+  costPrice?: string | null;
+  catalogueType?: string | null;
 }
 
 export interface CreateReviewRequest {
