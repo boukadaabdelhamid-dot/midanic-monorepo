@@ -330,8 +330,8 @@ export default function Pos() {
               </div>
               <div className="flex justify-between gap-2 mt-1">
                 <span className="text-muted-foreground font-medium">Solde :</span>
-                <span className={`font-semibold ${(client?.total_spent ?? 0) < 0 ? "text-red-600" : ""}`}>
-                  {client ? fmt(client.total_spent ?? 0) : "0,00"}
+                <span className={`font-semibold ${Number(client?.total_spent ?? 0) < 0 ? "text-red-600" : ""}`}>
+                  {client ? fmt(Number(client.total_spent ?? 0)) : "0,00"}
                 </span>
               </div>
             </div>
@@ -571,7 +571,7 @@ function PaymentDialog({
   const [versementOn, setVersementOn] = useState(false);
   const [localAmount, setLocalAmount] = useState("");
 
-  const soldeClient = client?.total_spent ?? 0;
+  const soldeClient = Number(client?.total_spent ?? 0);
   const seuilCredit = 20000;
 
   useEffect(() => {

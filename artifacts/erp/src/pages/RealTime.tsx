@@ -163,7 +163,7 @@ export default function RealTime() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium truncate">Commande #{order.id?.slice(0, 8)}</p>
+                        <p className="text-sm font-medium truncate">Commande #{String(order.id ?? "").slice(0, 8)}</p>
                         <span className={`inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full font-medium ${s.bg} ${s.text}`}>
                           {s.icon}
                           {order.status}

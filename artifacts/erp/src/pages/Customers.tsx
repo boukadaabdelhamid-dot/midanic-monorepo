@@ -132,8 +132,8 @@ export default function Customers() {
                     <TableRow key={c.id} data-testid={`row-customer-${c.id}`}>
                       <TableCell className="font-medium">{c.name}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">{c.email}</TableCell>
-                      <TableCell>{c.total_orders ?? 0}</TableCell>
-                      <TableCell className="font-semibold text-primary">دج {(c.total_spent ?? 0).toFixed(2)}</TableCell>
+                      <TableCell>{Number(c.total_orders ?? 0)}</TableCell>
+                      <TableCell className="font-semibold text-primary">دج {Number(c.total_spent ?? 0).toFixed(2)}</TableCell>
                       <TableCell>
                         <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setSelectedId(c.id)} data-testid={`btn-view-${c.id}`}>
                           View / عرض
