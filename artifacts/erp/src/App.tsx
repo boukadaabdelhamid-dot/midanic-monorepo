@@ -1,5 +1,5 @@
 import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
-import { QueryClient, QueryClientProvider, MutationCache, QueryCache } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, MutationCache } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth, forceLogout } from "@/hooks/use-auth";
@@ -31,9 +31,6 @@ function is401(error: unknown): boolean {
 }
 
 const queryClient = new QueryClient({
-  queryCache: new QueryCache({
-    onError: (error) => { if (is401(error)) forceLogout(); },
-  }),
   mutationCache: new MutationCache({
     onError: (error) => { if (is401(error)) forceLogout(); },
   }),

@@ -36,6 +36,7 @@ router.get("/products", async (req, res) => {
     const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(schema.productsTable)
       .where(conditions.length > 0 ? and(...conditions) : undefined);
 
+    res.set("Cache-Control", "no-store");
     res.json({ products, total: Number(count), page: parseInt(page), limit: parseInt(limit) });
   } catch (err) {
     req.log.error(err);

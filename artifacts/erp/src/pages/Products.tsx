@@ -171,6 +171,10 @@ export default function Products() {
   const [visibleCols, setVisibleCols] = useState<Set<ColKey>>(() => loadVisibleCols());
   const [colsOpen, setColsOpen] = useState(false);
   const colsRef = useRef<HTMLDivElement>(null);
+  // Local override map — bypasses React Query cache for immediate UI feedback
+  const [exposedMap, setExposedMap] = useState<Map<number, boolean>>(new Map());
+  // Local product field overrides for dialog saves
+  const [productOverrides, setProductOverrides] = useState<Map<number, Partial<Product>>>(new Map());
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -278,8 +282,14 @@ export default function Products() {
     };
     const forceRefresh = () => qc.invalidateQueries({ queryKey: getGetProductsQueryKey(), refetchType: "all" });
     if (dialog.editing) {
-      updateProduct.mutate({ id: dialog.editing.id, data }, {
-        onSuccess: () => { forceRefresh(); setDialog({ open: false, editing: null }); },
+      const editingId = dialog.editing.id;
+      updateProduct.mutate({ id: editingId, data }, {
+        onSuccess: () => {
+          // Immediately store overrides in local state so table updates without waiting for refetch
+          setProductOverrides((m) => new Map(m).set(editingId, data as Partial<Product>));
+          setDialog({ open: false, editing: null });
+          forceRefresh();
+        },
         onError: (err) => alert(`Erreur: ${err.message}`),
       });
     } else {
@@ -297,24 +307,25 @@ export default function Products() {
     });
   };
 
-  const PRODUCTS_PARAMS = { limit: "200" } as const;
+  const getExposed = (p: Product) =>
+    exposedMap.has(p.id) ? exposedMap.get(p.id)! : p.isExposed;
 
   const toggleVisibility = (p: Product) => {
-    // Optimistic update — flip icon immediately
-    qc.setQueryData(getGetProductsQueryKey(PRODUCTS_PARAMS), (old: typeof productsRes) => {
-      if (!old?.products) return old;
-      return {
-        ...old,
-        products: old.products.map((prod) =>
-          prod.id === p.id ? { ...prod, isExposed: !p.isExposed } : prod
-        ),
-      };
-    });
+    const newVal = !getExposed(p);
+    // Flip icon immediately via local state — no cache dependency
+    setExposedMap((m) => new Map(m).set(p.id, newVal));
     updateProduct.mutate(
-      { id: p.id, data: { isExposed: !p.isExposed } },
+      { id: p.id, data: { isExposed: newVal } },
       {
-        onSuccess: () => qc.invalidateQueries({ queryKey: getGetProductsQueryKey(), refetchType: "all" }),
-        onError: () => qc.invalidateQueries({ queryKey: getGetProductsQueryKey(), refetchType: "all" }),
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: getGetProductsQueryKey(), refetchType: "all" });
+          // Keep local override permanently — it matches server truth; cleared on page refresh
+        },
+        onError: () => {
+          // Revert on failure
+          setExposedMap((m) => { const n = new Map(m); n.delete(p.id); return n; });
+          alert("Erreur lors de la mise à jour");
+        },
       }
     );
   };
@@ -480,7 +491,12 @@ export default function Products() {
                       </TableCell>
                     </TableRow>
                   )}
-                  {products.map((p: Product) => (
+                  {products.map((rawP: Product) => {
+                    // Merge local overrides so saves reflect immediately in table
+                    const p: Product = productOverrides.has(rawP.id)
+                      ? { ...rawP, ...productOverrides.get(rawP.id) }
+                      : rawP;
+                    return (
                     <TableRow
                       key={p.id}
                       data-testid={`row-product-${p.id}`}
@@ -588,14 +604,14 @@ export default function Products() {
                         <TableCell className="text-center">
                           <button
                             onClick={() => toggleVisibility(p)}
-                            title={p.isExposed ? "مرئي — cliquer pour masquer" : "مخفي — cliquer pour afficher"}
+                            title={getExposed(p) ? "مرئي — cliquer pour masquer" : "مخفي — cliquer pour afficher"}
                             className={`inline-flex items-center justify-center w-7 h-7 rounded-full transition-colors ${
-                              p.isExposed
+                              getExposed(p)
                                 ? "bg-emerald-100 text-emerald-600 hover:bg-emerald-200"
                                 : "bg-gray-100 text-gray-400 hover:bg-gray-200"
                             }`}
                           >
-                            {p.isExposed ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                            {getExposed(p) ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
                           </button>
                         </TableCell>
                       )}
@@ -612,7 +628,8 @@ export default function Products() {
                         </TableCell>
                       )}
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
