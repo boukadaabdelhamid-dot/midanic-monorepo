@@ -1,10 +1,12 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   useGetProducts, useGetCategories, useCreateProduct,
   useUpdateProduct, useDeleteProduct,
+  useGenerateProductBarcode,
   getGetProductsQueryKey,
   type Product, type Category,
 } from "@workspace/api-client-react";
+import JsBarcode from "jsbarcode";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,8 +27,30 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Trash2, Pencil, Plus, Search, Package, ImagePlus, X, Loader2,
   Smartphone, DollarSign, LayoutGrid, Image as ImageIcon, Eye, EyeOff,
-  Columns3,
+  Columns3, Printer, Sparkles,
 } from "lucide-react";
+
+// ── Barcode rendering ───────────────────────────────────────────────
+function BarcodeSvg({
+  value, width = 1.6, height = 50, displayValue = true, fontSize = 12,
+}: { value: string; width?: number; height?: number; displayValue?: boolean; fontSize?: number }) {
+  const ref = useRef<SVGSVGElement | null>(null);
+  useEffect(() => {
+    if (!ref.current || !value) return;
+    try {
+      JsBarcode(ref.current, value, {
+        format: /^\d{13}$/.test(value) ? "EAN13" : "CODE128",
+        width, height, displayValue, fontSize, margin: 2,
+      });
+    } catch {
+      // invalid value — clear svg
+      if (ref.current) ref.current.innerHTML = "";
+    }
+  }, [value, width, height, displayValue, fontSize]);
+  return <svg ref={ref} />;
+}
+
+type LabelTarget = { product: Product; qty: number };
 
 // ── Column definitions ──────────────────────────────────────────────────
 type ColKey =
@@ -154,11 +178,13 @@ function ToggleSwitch({ checked, onCheckedChange, label }: { checked: boolean; o
 
 export default function Products() {
   const qc = useQueryClient();
-  const { data: productsRes, isLoading } = useGetProducts({ limit: "200" });
+  const { data: productsRes, isLoading } = useGetProducts({ limit: 200 });
   const { data: categories } = useGetCategories();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
+  const generateBarcode = useGenerateProductBarcode();
+  const [labelDialog, setLabelDialog] = useState<{ items: LabelTarget[] } | null>(null);
 
   const [dialog, setDialog] = useState<{ open: boolean; editing: Product | null }>({ open: false, editing: null });
   const [form, setForm] = useState<ProductForm>(emptyForm);
@@ -385,7 +411,26 @@ export default function Products() {
           />
         </div>
         {selected.size > 0 && (
-          <span className="text-sm text-muted-foreground">{selected.size} sélectionné(s)</span>
+          <>
+            <span className="text-sm text-muted-foreground">{selected.size} sélectionné(s)</span>
+            <Button
+              variant="outline" size="sm" className="h-9 gap-2"
+              onClick={() => {
+                const items: LabelTarget[] = (productsRes?.products ?? [])
+                  .filter((p) => selected.has(p.id) && p.barcode)
+                  .map((p) => ({ product: p as Product, qty: 1 }));
+                if (items.length === 0) {
+                  alert("Aucun article sélectionné n'a de code-barres / لا يوجد منتج محدد له باركود");
+                  return;
+                }
+                setLabelDialog({ items });
+              }}
+              data-testid="button-print-selected"
+            >
+              <Printer className="h-4 w-4" />
+              Imprimer étiquettes / طباعة
+            </Button>
+          </>
         )}
         {/* Column visibility button */}
         <div ref={colsRef} className="relative ml-auto">
@@ -621,6 +666,15 @@ export default function Products() {
                             <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(p)} data-testid={`btn-edit-${p.id}`}>
                               <Pencil className="h-3.5 w-3.5" />
                             </Button>
+                            <Button
+                              size="icon" variant="ghost" className="h-8 w-8"
+                              disabled={!p.barcode}
+                              onClick={() => setLabelDialog({ items: [{ product: p, qty: 1 }] })}
+                              data-testid={`btn-print-${p.id}`}
+                              title={p.barcode ? "Imprimer étiquette / طباعة" : "Aucun code-barres"}
+                            >
+                              <Printer className="h-3.5 w-3.5" />
+                            </Button>
                             <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDelete(p.id)} data-testid={`btn-delete-${p.id}`}>
                               <Trash2 className="h-3.5 w-3.5" />
                             </Button>
@@ -711,7 +765,47 @@ export default function Products() {
                     </div>
                     <div>
                       <Label className="text-xs mb-1 block">Code à barres / باركود</Label>
-                      <Input value={form.barcode} onChange={(e) => setForm((f) => ({ ...f, barcode: e.target.value }))} placeholder="5420008643231" className="h-8 text-sm font-mono" />
+                      <div className="flex gap-1">
+                        <Input
+                          value={form.barcode}
+                          onChange={(e) => setForm((f) => ({ ...f, barcode: e.target.value }))}
+                          placeholder="5420008643231"
+                          className="h-8 text-sm font-mono flex-1"
+                          data-testid="input-barcode"
+                        />
+                        <Button
+                          type="button" size="sm" variant="outline"
+                          className="h-8 px-2 shrink-0"
+                          disabled={generateBarcode.isPending}
+                          onClick={() => {
+                            generateBarcode.mutate(undefined, {
+                              onSuccess: (r) => setForm((f) => ({ ...f, barcode: r.barcode })),
+                              onError: (e) => alert((e as Error).message),
+                            });
+                          }}
+                          data-testid="button-generate-barcode"
+                          title="Générer un code-barres unique / توليد"
+                        >
+                          {generateBarcode.isPending
+                            ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            : <Sparkles className="h-3.5 w-3.5" />}
+                        </Button>
+                      </div>
+                      {form.barcode && (
+                        <div className="mt-2 flex items-center gap-2 bg-white border rounded p-1.5">
+                          <BarcodeSvg value={form.barcode} height={32} fontSize={9} width={1.2} />
+                          {dialog.editing && (
+                            <Button
+                              type="button" size="sm" variant="ghost"
+                              className="h-7 px-2 ml-auto"
+                              onClick={() => setLabelDialog({ items: [{ product: { ...dialog.editing!, barcode: form.barcode, reference: form.reference, price: form.price, nameEn: form.nameEn, nameAr: form.nameAr }, qty: 1 }] })}
+                              title="Imprimer étiquette / طباعة الملصق"
+                            >
+                              <Printer className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
                     </div>
                     <div>
                       <Label className="text-xs mb-1 block">Réf. / المرجع</Label>
@@ -1032,6 +1126,137 @@ export default function Products() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {labelDialog && (
+        <PrintLabelsDialog
+          items={labelDialog.items}
+          onClose={() => setLabelDialog(null)}
+        />
+      )}
     </div>
+  );
+}
+
+// ── Print Labels Dialog ─────────────────────────────────────────────
+function PrintLabelsDialog({
+  items, onClose,
+}: { items: LabelTarget[]; onClose: () => void }) {
+  const [size, setSize] = useState<"small" | "medium">("medium");
+  const [rows, setRows] = useState<LabelTarget[]>(items);
+
+  const setQty = (idx: number, qty: number) =>
+    setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, qty: Math.max(1, qty) } : r)));
+
+  const allLabels = useMemo<Product[]>(
+    () => rows.flatMap((r) => Array.from({ length: r.qty }, () => r.product)),
+    [rows],
+  );
+
+  const dims =
+    size === "small"
+      ? { w: "40mm", h: "25mm", barH: 28, barW: 1.1, font: 8, name: "10px" }
+      : { w: "60mm", h: "35mm", barH: 40, barW: 1.4, font: 10, name: "12px" };
+
+  const handlePrint = () => {
+    setTimeout(() => window.print(), 50);
+  };
+
+  return (
+    <Dialog open={true} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-3xl max-h-[92vh] overflow-hidden flex flex-col p-0">
+        <div className="flex items-center justify-between px-5 py-3 border-b print:hidden">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold">
+              Imprimer étiquettes / طباعة الملصقات
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Label className="text-xs">Taille</Label>
+              <Select value={size} onValueChange={(v) => setSize(v as "small" | "medium")}>
+                <SelectTrigger className="h-8 text-xs w-32" data-testid="select-label-size">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="small">Petit (40×25mm)</SelectItem>
+                  <SelectItem value="medium">Moyen (60×35mm)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              size="sm"
+              className="bg-[#1B3057] hover:bg-[#1B3057]/90"
+              onClick={handlePrint}
+              data-testid="button-print-labels"
+            >
+              <Printer className="h-4 w-4 mr-1" /> Imprimer / طباعة
+            </Button>
+          </div>
+        </div>
+
+        <div className="px-5 py-3 border-b print:hidden bg-muted/20">
+          <Label className="text-xs mb-2 block font-semibold">Quantité par article</Label>
+          <div className="space-y-1.5 max-h-40 overflow-y-auto">
+            {rows.map((r, i) => (
+              <div key={r.product.id + "-" + i} className="flex items-center gap-2 text-sm">
+                <span className="flex-1 truncate">
+                  <span className="font-medium">{r.product.nameEn}</span>
+                  <span className="text-xs text-muted-foreground ml-2 font-mono">{r.product.barcode}</span>
+                </span>
+                <Input
+                  type="number" min={1} value={r.qty}
+                  onChange={(e) => setQty(i, parseInt(e.target.value) || 1)}
+                  className="h-7 w-20 text-sm"
+                  data-testid={`input-label-qty-${i}`}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 bg-white" id="midanic-print-area">
+          <div
+            className="grid gap-2 print:gap-1"
+            style={{
+              gridTemplateColumns: `repeat(auto-fill, minmax(${dims.w}, 1fr))`,
+            }}
+          >
+            {allLabels.map((p, idx) => (
+              <div
+                key={idx}
+                className="border border-gray-300 rounded p-1 flex flex-col items-center text-center bg-white"
+                style={{ width: dims.w, height: dims.h, breakInside: "avoid" }}
+              >
+                <div
+                  className="font-semibold leading-tight truncate w-full"
+                  style={{ fontSize: dims.name }}
+                  title={p.nameEn}
+                >
+                  {p.nameEn}
+                </div>
+                {p.price && (
+                  <div className="font-bold leading-tight" style={{ fontSize: dims.name }}>
+                    {parseFloat(p.price).toLocaleString("fr-DZ", { minimumFractionDigits: 2 })} دج
+                  </div>
+                )}
+                <div className="mt-auto">
+                  <BarcodeSvg
+                    value={p.barcode ?? ""}
+                    height={dims.barH}
+                    width={dims.barW}
+                    fontSize={dims.font}
+                  />
+                </div>
+                {p.reference && (
+                  <div className="text-[8px] text-muted-foreground font-mono leading-none">
+                    {p.reference}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

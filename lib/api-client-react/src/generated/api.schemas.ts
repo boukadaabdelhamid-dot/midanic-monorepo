@@ -13,6 +13,10 @@ export interface SuccessResponse {
   success: boolean;
 }
 
+export interface GenerateBarcodeResponse {
+  barcode: string;
+}
+
 export type RegisterRequestPreferredLang =
   (typeof RegisterRequestPreferredLang)[keyof typeof RegisterRequestPreferredLang];
 
@@ -111,6 +115,26 @@ export interface Product {
   rating: string;
   reviewCount: number;
   createdAt?: string;
+  reference?: string | null;
+  barcode?: string | null;
+  costPrice?: string | null;
+  catalogueType?: string | null;
+  brand?: string | null;
+  model?: string | null;
+  color?: string | null;
+  colisage?: number | null;
+  weight?: string | null;
+  priceGros?: string | null;
+  priceSemiGros?: string | null;
+  priceMin?: string | null;
+  catalogue1?: string | null;
+  catalogue2?: string | null;
+  catalogue3?: string | null;
+  catalogue4?: string | null;
+  catalogue5?: string | null;
+  catalogue6?: string | null;
+  isActive?: boolean | null;
+  isExposed?: boolean | null;
 }
 
 export interface Review {

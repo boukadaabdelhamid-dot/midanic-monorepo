@@ -54,6 +54,7 @@ import type {
   CustomerSummary,
   DeleteErpStaff200,
   Employee,
+  GenerateBarcodeResponse,
   GetAttendanceParams,
   GetErpCaisseTransfersParams,
   GetErpTransfersParams,
@@ -978,6 +979,87 @@ export const useDeleteErpStore = <
   TContext
 > => {
   return useMutation(getDeleteErpStoreMutationOptions(options));
+};
+
+/**
+ * @summary Generate a unique EAN-13 barcode for the current store
+ */
+export const getGenerateProductBarcodeUrl = () => {
+  return `/api/erp/products/generate-barcode`;
+};
+
+export const generateProductBarcode = async (
+  options?: RequestInit,
+): Promise<GenerateBarcodeResponse> => {
+  return customFetch<GenerateBarcodeResponse>(getGenerateProductBarcodeUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getGenerateProductBarcodeMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateProductBarcode>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateProductBarcode>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["generateProductBarcode"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateProductBarcode>>,
+    void
+  > = () => {
+    return generateProductBarcode(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateProductBarcodeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateProductBarcode>>
+>;
+
+export type GenerateProductBarcodeMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Generate a unique EAN-13 barcode for the current store
+ */
+export const useGenerateProductBarcode = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateProductBarcode>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateProductBarcode>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getGenerateProductBarcodeMutationOptions(options));
 };
 
 /**

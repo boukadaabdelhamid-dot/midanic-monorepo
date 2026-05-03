@@ -284,3 +284,22 @@
     inset: -1px;
   }
 }
+
+/* ── Print: only the labels area should print ────────────────────── */
+@media print {
+  body * { visibility: hidden !important; }
+  #midanic-print-area, #midanic-print-area * { visibility: visible !important; }
+  #midanic-print-area {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    padding: 4mm !important;
+    background: white !important;
+    overflow: visible !important;
+    z-index: 99999 !important;
+  }
+  /* Avoid breaking labels across pages */
+  #midanic-print-area > div > div { break-inside: avoid; page-break-inside: avoid; }
+  @page { margin: 6mm; }
+}

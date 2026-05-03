@@ -81,6 +81,44 @@ async function handleGetProduct(req: AuthRequest, res: import("express").Respons
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 }
 
+// POST /erp/products/generate-barcode (admin) — generates a unique EAN-13
+// for the current store. Prefix 200-299 is reserved for in-store/private use
+// per GS1, so we use a tenant-scoped 200-prefix code.
+router.post("/erp/products/generate-barcode", authenticate, requireAdmin, requireStore, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.currentStoreId!;
+    function ean13Checksum(d12: string): string {
+      let sum = 0;
+      for (let i = 0; i < 12; i++) {
+        const n = parseInt(d12[i] as string, 10);
+        sum += i % 2 === 0 ? n : n * 3;
+      }
+      return String((10 - (sum % 10)) % 10);
+    }
+    function genCandidate(): string {
+      // 200 + 4-digit store id (zero-padded) + 5 random digits + checksum = 13
+      const storePart = String(storeId % 10000).padStart(4, "0");
+      const rand = Math.floor(Math.random() * 100000).toString().padStart(5, "0");
+      const d12 = "200" + storePart + rand;
+      return d12 + ean13Checksum(d12);
+    }
+    let code = "";
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const candidate = genCandidate();
+      const [hit] = await db.select({ id: schema.productsTable.id })
+        .from(schema.productsTable)
+        .where(and(
+          eq(schema.productsTable.storeId, storeId),
+          eq(schema.productsTable.barcode, candidate),
+        ))
+        .limit(1);
+      if (!hit) { code = candidate; break; }
+    }
+    if (!code) { res.status(500).json({ error: "Could not generate unique barcode" }); return; }
+    res.json({ barcode: code });
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
+});
+
 // POST /products (admin)
 router.post("/products", authenticate, requireAdmin, requireStore, async (req: AuthRequest, res) => {
   try {
