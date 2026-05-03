@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth, forceLogout } from "@/hooks/use-auth";
 import { StoreProvider, useStoreContext } from "@/hooks/use-store";
 import { useMe } from "@/hooks/use-me";
+import { useRealtimeWS } from "@/hooks/use-realtime-ws";
 import { Layout } from "@/components/layout/Layout";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/Login";
@@ -77,6 +78,9 @@ function ProtectedHome() {
 
 function Router() {
   const { token } = useAuth();
+  // Single WS connection scoped to the whole app — keeps transfer list,
+  // order list, and inventory cache fresh in real time across pages.
+  useRealtimeWS();
 
   return (
     <Switch>
