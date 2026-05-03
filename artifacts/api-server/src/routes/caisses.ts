@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, and, or, desc, inArray, sql } from "drizzle-orm";
+import { eq, and, or, desc, inArray, gte, lt, sql } from "drizzle-orm";
 import { db, schema } from "../lib/db";
 import { authenticate, requireStaff, requireStore, requireAdmin, isAdmin, type AuthRequest } from "../lib/auth";
 import { broadcastToStoreUsers, broadcastToUsers } from "../lib/ws";
@@ -155,6 +155,139 @@ router.get("/erp/caisses", authenticate, requireStaff, requireStore, async (req:
       ...r,
       owner: r.ownerUserId ? userMap.get(r.ownerUserId) ?? null : null,
     })));
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
+});
+
+// ─── Per-staff caisse activity report ──────────────────────────────
+// Admin-only. Aggregates caisse_movements within [from, to) per staff
+// caisse in the current store. Dates are interpreted in the server TZ;
+// When `from`/`to` are date-only (YYYY-MM-DD), `from` is the inclusive
+// start-of-day and `to` is the inclusive end-of-day (i.e. expanded to
+// the next midnight as the exclusive upper bound). Example:
+// from=2026-05-01&to=2026-05-01 covers all of May 1st;
+// from=2026-05-01&to=2026-05-03 covers May 1st through May 3rd.
+router.get("/erp/caisses/reports", authenticate, requireAdmin, requireStore, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.currentStoreId!;
+    const { from: fromRaw, to: toRaw } = req.query as Record<string, string | undefined>;
+
+    const parseDay = (v: string | undefined): Date | null => {
+      if (!v) return null;
+      // Accept YYYY-MM-DD or full ISO. Treat date-only as local midnight.
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
+      if (m) {
+        const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+        return isNaN(d.getTime()) ? null : d;
+      }
+      const d = new Date(v);
+      return isNaN(d.getTime()) ? null : d;
+    };
+
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const startOfTomorrow = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
+
+    const fromDate = parseDay(fromRaw) ?? startOfToday;
+    let toDate = parseDay(toRaw) ?? startOfTomorrow;
+    // If `to` is a date-only value, treat it as inclusive end-of-day by
+    // bumping it to the next day's midnight (exclusive upper bound).
+    if (toRaw && /^\d{4}-\d{2}-\d{2}$/.test(toRaw)) {
+      toDate = new Date(toDate.getTime() + 24 * 60 * 60 * 1000);
+    }
+    if (toDate <= fromDate) {
+      res.status(400).json({ error: "`to` must be after `from`" });
+      return;
+    }
+
+    const m = schema.caisseMovementsTable;
+    const c = schema.caissesTable;
+
+    type ReportRow = {
+      caisseId: number;
+      ownerUserId: number | null;
+      kind: string;
+      totalSales: string;
+      transfersIn: string;
+      transfersOut: string;
+      transfersHeld: string;
+      transfersRefunded: string;
+      adminDeposits: string;
+      adminWithdrawals: string;
+      adjustmentsCredit: string;
+      adjustmentsDebit: string;
+      netMovement: string;
+      movementCount: number;
+      currentBalance: string;
+    };
+
+    const rows = await db
+      .select({
+        caisseId: c.id,
+        ownerUserId: c.ownerUserId,
+        kind: c.kind,
+        currentBalance: c.balance,
+        totalSales: sql<string>`coalesce(sum(case when ${m.reason} = 'sale' and ${m.type} = 'credit' then ${m.amount} else 0 end), 0)`,
+        transfersIn: sql<string>`coalesce(sum(case when ${m.reason} = 'transfer_in' and ${m.type} = 'credit' then ${m.amount} else 0 end), 0)`,
+        transfersOut: sql<string>`coalesce(sum(case when ${m.reason} = 'transfer_out' and ${m.type} = 'debit' then ${m.amount} else 0 end), 0)`,
+        transfersHeld: sql<string>`coalesce(sum(case when ${m.reason} = 'transfer_hold' and ${m.type} = 'debit' then ${m.amount} else 0 end), 0)`,
+        transfersRefunded: sql<string>`coalesce(sum(case when ${m.reason} = 'transfer_refund' and ${m.type} = 'credit' then ${m.amount} else 0 end), 0)`,
+        adminDeposits: sql<string>`coalesce(sum(case when ${m.reason} = 'admin_deposit' and ${m.type} = 'debit' then ${m.amount} else 0 end), 0)`,
+        adminWithdrawals: sql<string>`coalesce(sum(case when ${m.reason} = 'admin_withdraw' and ${m.type} = 'credit' then ${m.amount} else 0 end), 0)`,
+        adjustmentsCredit: sql<string>`coalesce(sum(case when ${m.reason} = 'adjustment' and ${m.type} = 'credit' then ${m.amount} else 0 end), 0)`,
+        adjustmentsDebit: sql<string>`coalesce(sum(case when ${m.reason} = 'adjustment' and ${m.type} = 'debit' then ${m.amount} else 0 end), 0)`,
+        netMovement: sql<string>`coalesce(sum(case when ${m.type} = 'credit' then ${m.amount} else -${m.amount} end), 0)`,
+        movementCount: sql<number>`coalesce(count(${m.id}), 0)::int`,
+      })
+      .from(c)
+      .leftJoin(
+        m,
+        and(
+          eq(m.caisseId, c.id),
+          gte(m.createdAt, fromDate),
+          lt(m.createdAt, toDate),
+        ),
+      )
+      .where(and(eq(c.storeId, storeId), eq(c.kind, "staff")))
+      .groupBy(c.id, c.ownerUserId, c.kind, c.balance)
+      .orderBy(c.id) as ReportRow[];
+
+    const ownerIds = Array.from(new Set(rows.map(r => r.ownerUserId).filter((x): x is number => !!x)));
+    const owners = ownerIds.length
+      ? await db.select({ id: schema.usersTable.id, name: schema.usersTable.name, email: schema.usersTable.email, role: schema.usersTable.role })
+          .from(schema.usersTable).where(inArray(schema.usersTable.id, ownerIds))
+      : [];
+    const ownerMap = new Map(owners.map(u => [u.id, u]));
+
+    const enriched = rows.map(r => ({
+      ...r,
+      owner: r.ownerUserId ? ownerMap.get(r.ownerUserId) ?? null : null,
+    }));
+
+    // Totals across all rows for quick reconciliation summary.
+    const sumStr = (key: keyof ReportRow): string => {
+      const s = rows.reduce((acc, r) => acc + parseFloat(String(r[key]) || "0"), 0);
+      return s.toFixed(2);
+    };
+    const totals = {
+      totalSales: sumStr("totalSales"),
+      transfersIn: sumStr("transfersIn"),
+      transfersOut: sumStr("transfersOut"),
+      transfersHeld: sumStr("transfersHeld"),
+      transfersRefunded: sumStr("transfersRefunded"),
+      adminDeposits: sumStr("adminDeposits"),
+      adminWithdrawals: sumStr("adminWithdrawals"),
+      adjustmentsCredit: sumStr("adjustmentsCredit"),
+      adjustmentsDebit: sumStr("adjustmentsDebit"),
+      netMovement: sumStr("netMovement"),
+      movementCount: rows.reduce((acc, r) => acc + Number(r.movementCount || 0), 0),
+    };
+
+    res.json({
+      from: fromDate.toISOString(),
+      to: toDate.toISOString(),
+      rows: enriched,
+      totals,
+    });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 

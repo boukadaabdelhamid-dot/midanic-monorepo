@@ -1726,6 +1726,68 @@ export const GetErpCaissesResponseItem = zod
 export const GetErpCaissesResponse = zod.array(GetErpCaissesResponseItem);
 
 /**
+ * @summary Per-staff caisse activity report aggregated over a date range (admin only)
+ */
+export const GetErpCaisseReportsQueryParams = zod.object({
+  from: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      "Start of range (inclusive). YYYY-MM-DD or ISO datetime. Defaults to start of today.",
+    ),
+  to: zod.coerce
+    .string()
+    .optional()
+    .describe(
+      "End of range. If YYYY-MM-DD it is treated as inclusive end-of-day. Defaults to start of tomorrow.",
+    ),
+});
+
+export const GetErpCaisseReportsResponse = zod.object({
+  from: zod.string(),
+  to: zod.string(),
+  rows: zod.array(
+    zod.object({
+      caisseId: zod.number(),
+      ownerUserId: zod.number().nullish(),
+      kind: zod.string(),
+      currentBalance: zod.string(),
+      totalSales: zod.string(),
+      transfersIn: zod.string(),
+      transfersOut: zod.string(),
+      transfersHeld: zod.string(),
+      transfersRefunded: zod.string(),
+      adminDeposits: zod.string(),
+      adminWithdrawals: zod.string(),
+      adjustmentsCredit: zod.string(),
+      adjustmentsDebit: zod.string(),
+      netMovement: zod.string(),
+      movementCount: zod.number(),
+      owner: zod
+        .object({
+          id: zod.number(),
+          name: zod.string().nullish(),
+          email: zod.string().nullish(),
+        })
+        .nullish(),
+    }),
+  ),
+  totals: zod.object({
+    totalSales: zod.string(),
+    transfersIn: zod.string(),
+    transfersOut: zod.string(),
+    transfersHeld: zod.string(),
+    transfersRefunded: zod.string(),
+    adminDeposits: zod.string(),
+    adminWithdrawals: zod.string(),
+    adjustmentsCredit: zod.string(),
+    adjustmentsDebit: zod.string(),
+    netMovement: zod.string(),
+    movementCount: zod.number(),
+  }),
+});
+
+/**
  * @summary Get caisse detail with recent movements
  */
 export const GetErpCaisseParams = zod.object({

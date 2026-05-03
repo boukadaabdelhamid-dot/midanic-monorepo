@@ -1410,6 +1410,30 @@ paths:
                 items:
                   $ref: "#/components/schemas/CaisseSummary"
 
+  /erp/caisses/reports:
+    get:
+      operationId: getErpCaisseReports
+      tags: [erp]
+      summary: Per-staff caisse activity report aggregated over a date range (admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: from
+          description: "Start of range (inclusive). YYYY-MM-DD or ISO datetime. Defaults to start of today."
+          schema: { type: string }
+        - in: query
+          name: to
+          description: "End of range. If YYYY-MM-DD it is treated as inclusive end-of-day. Defaults to start of tomorrow."
+          schema: { type: string }
+      responses:
+        "200":
+          description: Aggregated activity per staff caisse
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaisseReportResponse"
+
   /erp/caisses/{id}:
     get:
       operationId: getErpCaisse
@@ -3045,6 +3069,64 @@ components:
         amount: { type: string }
         notes: { type: string }
       required: [caisseId, amount]
+
+    CaisseReportRow:
+      type: object
+      properties:
+        caisseId: { type: integer }
+        ownerUserId: { type: integer, nullable: true }
+        kind: { type: string }
+        currentBalance: { type: string }
+        totalSales: { type: string }
+        transfersIn: { type: string }
+        transfersOut: { type: string }
+        transfersHeld: { type: string }
+        transfersRefunded: { type: string }
+        adminDeposits: { type: string }
+        adminWithdrawals: { type: string }
+        adjustmentsCredit: { type: string }
+        adjustmentsDebit: { type: string }
+        netMovement: { type: string }
+        movementCount: { type: integer }
+        owner:
+          $ref: "#/components/schemas/UserLite"
+          nullable: true
+      required:
+        [caisseId, kind, currentBalance, totalSales, transfersIn, transfersOut,
+         transfersHeld, transfersRefunded, adminDeposits, adminWithdrawals,
+         adjustmentsCredit, adjustmentsDebit, netMovement, movementCount]
+
+    CaisseReportTotals:
+      type: object
+      properties:
+        totalSales: { type: string }
+        transfersIn: { type: string }
+        transfersOut: { type: string }
+        transfersHeld: { type: string }
+        transfersRefunded: { type: string }
+        adminDeposits: { type: string }
+        adminWithdrawals: { type: string }
+        adjustmentsCredit: { type: string }
+        adjustmentsDebit: { type: string }
+        netMovement: { type: string }
+        movementCount: { type: integer }
+      required:
+        [totalSales, transfersIn, transfersOut, transfersHeld, transfersRefunded,
+         adminDeposits, adminWithdrawals, adjustmentsCredit, adjustmentsDebit,
+         netMovement, movementCount]
+
+    CaisseReportResponse:
+      type: object
+      properties:
+        from: { type: string }
+        to: { type: string }
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/CaisseReportRow"
+        totals:
+          $ref: "#/components/schemas/CaisseReportTotals"
+      required: [from, to, rows, totals]
 
     AdminCaisseAdjustRequest:
       type: object

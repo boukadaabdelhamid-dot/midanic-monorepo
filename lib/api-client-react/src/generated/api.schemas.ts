@@ -825,6 +825,46 @@ export interface AdminCaisseAmountRequest {
   notes?: string;
 }
 
+export interface CaisseReportRow {
+  caisseId: number;
+  ownerUserId?: number | null;
+  kind: string;
+  currentBalance: string;
+  totalSales: string;
+  transfersIn: string;
+  transfersOut: string;
+  transfersHeld: string;
+  transfersRefunded: string;
+  adminDeposits: string;
+  adminWithdrawals: string;
+  adjustmentsCredit: string;
+  adjustmentsDebit: string;
+  netMovement: string;
+  movementCount: number;
+  owner?: UserLite | null;
+}
+
+export interface CaisseReportTotals {
+  totalSales: string;
+  transfersIn: string;
+  transfersOut: string;
+  transfersHeld: string;
+  transfersRefunded: string;
+  adminDeposits: string;
+  adminWithdrawals: string;
+  adjustmentsCredit: string;
+  adjustmentsDebit: string;
+  netMovement: string;
+  movementCount: number;
+}
+
+export interface CaisseReportResponse {
+  from: string;
+  to: string;
+  rows: CaisseReportRow[];
+  totals: CaisseReportTotals;
+}
+
 export interface AdminCaisseAdjustRequest {
   caisseId: number;
   /** Signed amount; positive=credit, negative=debit */
@@ -1053,6 +1093,17 @@ export const GetErpTransfersStatus = {
   received: "received",
   cancelled: "cancelled",
 } as const;
+
+export type GetErpCaisseReportsParams = {
+  /**
+   * Start of range (inclusive). YYYY-MM-DD or ISO datetime. Defaults to start of today.
+   */
+  from?: string;
+  /**
+   * End of range. If YYYY-MM-DD it is treated as inclusive end-of-day. Defaults to start of tomorrow.
+   */
+  to?: string;
+};
 
 export type GetErpCaisseTransfersParams = {
   box?: GetErpCaisseTransfersBox;

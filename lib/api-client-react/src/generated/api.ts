@@ -26,6 +26,7 @@ import type {
   Attendance,
   AuthResponse,
   CaisseDetail,
+  CaisseReportResponse,
   CaisseSummary,
   CaisseTransfer,
   CaisseTransferRecipient,
@@ -56,6 +57,7 @@ import type {
   Employee,
   GenerateBarcodeResponse,
   GetAttendanceParams,
+  GetErpCaisseReportsParams,
   GetErpCaisseTransfersParams,
   GetErpTransfersParams,
   GetLowStockParams,
@@ -5643,6 +5645,106 @@ export function useGetErpCaisses<
   request?: SecondParameter<typeof customFetch>;
 }): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
   const queryOptions = getGetErpCaissesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Per-staff caisse activity report aggregated over a date range (admin only)
+ */
+export const getGetErpCaisseReportsUrl = (
+  params?: GetErpCaisseReportsParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/erp/caisses/reports?${stringifiedParams}`
+    : `/api/erp/caisses/reports`;
+};
+
+export const getErpCaisseReports = async (
+  params?: GetErpCaisseReportsParams,
+  options?: RequestInit,
+): Promise<CaisseReportResponse> => {
+  return customFetch<CaisseReportResponse>(getGetErpCaisseReportsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetErpCaisseReportsQueryKey = (
+  params?: GetErpCaisseReportsParams,
+) => {
+  return [`/api/erp/caisses/reports`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetErpCaisseReportsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getErpCaisseReports>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetErpCaisseReportsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getErpCaisseReports>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetErpCaisseReportsQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getErpCaisseReports>>
+  > = ({ signal }) =>
+    getErpCaisseReports(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getErpCaisseReports>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetErpCaisseReportsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getErpCaisseReports>>
+>;
+export type GetErpCaisseReportsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Per-staff caisse activity report aggregated over a date range (admin only)
+ */
+
+export function useGetErpCaisseReports<
+  TData = Awaited<ReturnType<typeof getErpCaisseReports>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetErpCaisseReportsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getErpCaisseReports>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetErpCaisseReportsQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

@@ -25,6 +25,7 @@ import Transfers from "@/pages/Transfers";
 import Accounting from "@/pages/Accounting";
 import Customers from "@/pages/Customers";
 import Caisse from "@/pages/Caisse";
+import CaisseReports from "@/pages/CaisseReports";
 import RealTime from "@/pages/RealTime";
 import Staff from "@/pages/Staff";
 
@@ -133,6 +134,9 @@ function Router() {
       </Route>
       <Route path="/staff">
         <ProtectedRoute component={Staff} adminOnly />
+      </Route>
+      <Route path="/caisse/reports">
+        <ProtectedRoute component={CaisseReports} adminOnly />
       </Route>
       <Route path="/caisse">
         <ProtectedRoute component={Caisse} />
