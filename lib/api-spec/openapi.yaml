@@ -1112,6 +1112,237 @@ paths:
               schema:
                 $ref: "#/components/schemas/AccountingSummary"
 
+  # ── ERP: Inter-store Stock Transfers ────────────────────────────
+  /erp/transfers:
+    get:
+      operationId: getErpTransfers
+      tags: [erp]
+      summary: List inter-store transfers (incoming/outgoing for current store)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: direction
+          schema:
+            type: string
+            enum: [in, out, all]
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [requested, approved, rejected, prepared, in_transit, received, cancelled]
+      responses:
+        "200":
+          description: Transfers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StockTransferSummary"
+    post:
+      operationId: createErpTransfer
+      tags: [erp]
+      summary: Create a transfer (request or direct send)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStockTransferRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockTransfer"
+
+  /erp/transfers/{id}:
+    get:
+      operationId: getErpTransfer
+      tags: [erp]
+      summary: Get transfer detail with items and event log
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Transfer detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockTransferDetail"
+
+  /erp/transfers/{id}/approve:
+    post:
+      operationId: approveErpTransfer
+      tags: [erp]
+      summary: Approve a requested transfer (destination side)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StockTransferActionRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockTransfer"
+
+  /erp/transfers/{id}/reject:
+    post:
+      operationId: rejectErpTransfer
+      tags: [erp]
+      summary: Reject a requested transfer (destination side)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StockTransferActionRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockTransfer"
+
+  /erp/transfers/{id}/prepare:
+    post:
+      operationId: prepareErpTransfer
+      tags: [erp]
+      summary: Mark items prepared & decrement source stock (source side)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StockTransferActionRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockTransfer"
+
+  /erp/transfers/{id}/ship:
+    post:
+      operationId: shipErpTransfer
+      tags: [erp]
+      summary: Mark prepared transfer as in transit (source side)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StockTransferActionRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockTransfer"
+
+  /erp/transfers/{id}/receive:
+    post:
+      operationId: receiveErpTransfer
+      tags: [erp]
+      summary: Mark items received & increment destination stock (destination side)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StockTransferActionRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockTransfer"
+
+  /erp/transfers/{id}/cancel:
+    post:
+      operationId: cancelErpTransfer
+      tags: [erp]
+      summary: Cancel a transfer (source side; restocks if already prepared)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StockTransferActionRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockTransfer"
+
   # ── ERP: CRM ─────────────────────────────────────────────────────
   /erp/customers:
     get:
@@ -2091,6 +2322,165 @@ components:
         reason:
           type: string
       required: [productId, quantity, reason]
+
+    StoreLite:
+      type: object
+      properties:
+        id:
+          type: integer
+        nameEn:
+          type: string
+        nameAr:
+          type: string
+      required: [id, nameEn, nameAr]
+
+    StockTransfer:
+      type: object
+      properties:
+        id:
+          type: integer
+        sourceStoreId:
+          type: integer
+        destinationStoreId:
+          type: integer
+        initiatorUserId:
+          type: integer
+        initiatorSide:
+          type: string
+        status:
+          type: string
+          enum: [requested, approved, rejected, prepared, in_transit, received, cancelled]
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+        approvedAt:
+          type: string
+          nullable: true
+        rejectedAt:
+          type: string
+          nullable: true
+        preparedAt:
+          type: string
+          nullable: true
+        shippedAt:
+          type: string
+          nullable: true
+        receivedAt:
+          type: string
+          nullable: true
+        cancelledAt:
+          type: string
+          nullable: true
+      required: [id, sourceStoreId, destinationStoreId, status, createdAt]
+
+    StockTransferSummary:
+      allOf:
+        - $ref: "#/components/schemas/StockTransfer"
+        - type: object
+          properties:
+            sourceStore:
+              $ref: "#/components/schemas/StoreLite"
+            destinationStore:
+              $ref: "#/components/schemas/StoreLite"
+            itemCount:
+              type: integer
+            totalQuantity:
+              type: integer
+
+    StockTransferItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        transferId:
+          type: integer
+        sourceProductId:
+          type: integer
+        destinationProductId:
+          type: integer
+          nullable: true
+        quantity:
+          type: integer
+        matchKey:
+          type: string
+        sourceProductNameEn:
+          type: string
+          nullable: true
+        sourceProductNameAr:
+          type: string
+          nullable: true
+        sourceProductStock:
+          type: integer
+          nullable: true
+      required: [id, transferId, sourceProductId, quantity, matchKey]
+
+    StockTransferEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        transferId:
+          type: integer
+        status:
+          type: string
+        actorUserId:
+          type: integer
+        actorStoreId:
+          type: integer
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+      required: [id, transferId, status, actorUserId, actorStoreId, createdAt]
+
+    StockTransferDetail:
+      allOf:
+        - $ref: "#/components/schemas/StockTransfer"
+        - type: object
+          properties:
+            sourceStore:
+              $ref: "#/components/schemas/StoreLite"
+            destinationStore:
+              $ref: "#/components/schemas/StoreLite"
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/StockTransferItem"
+            events:
+              type: array
+              items:
+                $ref: "#/components/schemas/StockTransferEvent"
+
+    CreateStockTransferRequest:
+      type: object
+      properties:
+        destinationStoreId:
+          type: integer
+        notes:
+          type: string
+        mode:
+          type: string
+          enum: [request, send]
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              sourceProductId:
+                type: integer
+              quantity:
+                type: integer
+            required: [sourceProductId, quantity]
+      required: [destinationStoreId, items]
+
+    StockTransferActionRequest:
+      type: object
+      properties:
+        notes:
+          type: string
 
     Transaction:
       type: object

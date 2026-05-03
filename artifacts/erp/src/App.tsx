@@ -20,6 +20,7 @@ import Leaves from "@/pages/Leaves";
 import Suppliers from "@/pages/Suppliers";
 import PurchaseOrders from "@/pages/PurchaseOrders";
 import Inventory from "@/pages/Inventory";
+import Transfers from "@/pages/Transfers";
 import Accounting from "@/pages/Accounting";
 import Customers from "@/pages/Customers";
 import Caisse from "@/pages/Caisse";
@@ -116,6 +117,9 @@ function Router() {
       </Route>
       <Route path="/inventory">
         <ProtectedRoute component={Inventory} />
+      </Route>
+      <Route path="/transfers">
+        <ProtectedRoute component={Transfers} />
       </Route>
       <Route path="/accounting">
         <ProtectedRoute component={Accounting} adminOnly />

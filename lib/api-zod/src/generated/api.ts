@@ -1045,6 +1045,381 @@ export const GetAccountingSummaryResponse = zod.object({
 });
 
 /**
+ * @summary List inter-store transfers (incoming/outgoing for current store)
+ */
+export const GetErpTransfersQueryParams = zod.object({
+  direction: zod.enum(["in", "out", "all"]).optional(),
+  status: zod
+    .enum([
+      "requested",
+      "approved",
+      "rejected",
+      "prepared",
+      "in_transit",
+      "received",
+      "cancelled",
+    ])
+    .optional(),
+});
+
+export const GetErpTransfersResponseItem = zod
+  .object({
+    id: zod.number(),
+    sourceStoreId: zod.number(),
+    destinationStoreId: zod.number(),
+    initiatorUserId: zod.number().optional(),
+    initiatorSide: zod.string().optional(),
+    status: zod.enum([
+      "requested",
+      "approved",
+      "rejected",
+      "prepared",
+      "in_transit",
+      "received",
+      "cancelled",
+    ]),
+    notes: zod.string().nullish(),
+    createdAt: zod.string(),
+    approvedAt: zod.string().nullish(),
+    rejectedAt: zod.string().nullish(),
+    preparedAt: zod.string().nullish(),
+    shippedAt: zod.string().nullish(),
+    receivedAt: zod.string().nullish(),
+    cancelledAt: zod.string().nullish(),
+  })
+  .and(
+    zod.object({
+      sourceStore: zod
+        .object({
+          id: zod.number(),
+          nameEn: zod.string(),
+          nameAr: zod.string(),
+        })
+        .optional(),
+      destinationStore: zod
+        .object({
+          id: zod.number(),
+          nameEn: zod.string(),
+          nameAr: zod.string(),
+        })
+        .optional(),
+      itemCount: zod.number().optional(),
+      totalQuantity: zod.number().optional(),
+    }),
+  );
+export const GetErpTransfersResponse = zod.array(GetErpTransfersResponseItem);
+
+/**
+ * @summary Create a transfer (request or direct send)
+ */
+export const CreateErpTransferBody = zod.object({
+  destinationStoreId: zod.number(),
+  notes: zod.string().optional(),
+  mode: zod.enum(["request", "send"]).optional(),
+  items: zod.array(
+    zod.object({
+      sourceProductId: zod.number(),
+      quantity: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary Get transfer detail with items and event log
+ */
+export const GetErpTransferParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetErpTransferResponse = zod
+  .object({
+    id: zod.number(),
+    sourceStoreId: zod.number(),
+    destinationStoreId: zod.number(),
+    initiatorUserId: zod.number().optional(),
+    initiatorSide: zod.string().optional(),
+    status: zod.enum([
+      "requested",
+      "approved",
+      "rejected",
+      "prepared",
+      "in_transit",
+      "received",
+      "cancelled",
+    ]),
+    notes: zod.string().nullish(),
+    createdAt: zod.string(),
+    approvedAt: zod.string().nullish(),
+    rejectedAt: zod.string().nullish(),
+    preparedAt: zod.string().nullish(),
+    shippedAt: zod.string().nullish(),
+    receivedAt: zod.string().nullish(),
+    cancelledAt: zod.string().nullish(),
+  })
+  .and(
+    zod.object({
+      sourceStore: zod
+        .object({
+          id: zod.number(),
+          nameEn: zod.string(),
+          nameAr: zod.string(),
+        })
+        .optional(),
+      destinationStore: zod
+        .object({
+          id: zod.number(),
+          nameEn: zod.string(),
+          nameAr: zod.string(),
+        })
+        .optional(),
+      items: zod
+        .array(
+          zod.object({
+            id: zod.number(),
+            transferId: zod.number(),
+            sourceProductId: zod.number(),
+            destinationProductId: zod.number().nullish(),
+            quantity: zod.number(),
+            matchKey: zod.string(),
+            sourceProductNameEn: zod.string().nullish(),
+            sourceProductNameAr: zod.string().nullish(),
+            sourceProductStock: zod.number().nullish(),
+          }),
+        )
+        .optional(),
+      events: zod
+        .array(
+          zod.object({
+            id: zod.number(),
+            transferId: zod.number(),
+            status: zod.string(),
+            actorUserId: zod.number(),
+            actorStoreId: zod.number(),
+            notes: zod.string().nullish(),
+            createdAt: zod.string(),
+          }),
+        )
+        .optional(),
+    }),
+  );
+
+/**
+ * @summary Approve a requested transfer (destination side)
+ */
+export const ApproveErpTransferParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ApproveErpTransferBody = zod.object({
+  notes: zod.string().optional(),
+});
+
+export const ApproveErpTransferResponse = zod.object({
+  id: zod.number(),
+  sourceStoreId: zod.number(),
+  destinationStoreId: zod.number(),
+  initiatorUserId: zod.number().optional(),
+  initiatorSide: zod.string().optional(),
+  status: zod.enum([
+    "requested",
+    "approved",
+    "rejected",
+    "prepared",
+    "in_transit",
+    "received",
+    "cancelled",
+  ]),
+  notes: zod.string().nullish(),
+  createdAt: zod.string(),
+  approvedAt: zod.string().nullish(),
+  rejectedAt: zod.string().nullish(),
+  preparedAt: zod.string().nullish(),
+  shippedAt: zod.string().nullish(),
+  receivedAt: zod.string().nullish(),
+  cancelledAt: zod.string().nullish(),
+});
+
+/**
+ * @summary Reject a requested transfer (destination side)
+ */
+export const RejectErpTransferParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const RejectErpTransferBody = zod.object({
+  notes: zod.string().optional(),
+});
+
+export const RejectErpTransferResponse = zod.object({
+  id: zod.number(),
+  sourceStoreId: zod.number(),
+  destinationStoreId: zod.number(),
+  initiatorUserId: zod.number().optional(),
+  initiatorSide: zod.string().optional(),
+  status: zod.enum([
+    "requested",
+    "approved",
+    "rejected",
+    "prepared",
+    "in_transit",
+    "received",
+    "cancelled",
+  ]),
+  notes: zod.string().nullish(),
+  createdAt: zod.string(),
+  approvedAt: zod.string().nullish(),
+  rejectedAt: zod.string().nullish(),
+  preparedAt: zod.string().nullish(),
+  shippedAt: zod.string().nullish(),
+  receivedAt: zod.string().nullish(),
+  cancelledAt: zod.string().nullish(),
+});
+
+/**
+ * @summary Mark items prepared & decrement source stock (source side)
+ */
+export const PrepareErpTransferParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const PrepareErpTransferBody = zod.object({
+  notes: zod.string().optional(),
+});
+
+export const PrepareErpTransferResponse = zod.object({
+  id: zod.number(),
+  sourceStoreId: zod.number(),
+  destinationStoreId: zod.number(),
+  initiatorUserId: zod.number().optional(),
+  initiatorSide: zod.string().optional(),
+  status: zod.enum([
+    "requested",
+    "approved",
+    "rejected",
+    "prepared",
+    "in_transit",
+    "received",
+    "cancelled",
+  ]),
+  notes: zod.string().nullish(),
+  createdAt: zod.string(),
+  approvedAt: zod.string().nullish(),
+  rejectedAt: zod.string().nullish(),
+  preparedAt: zod.string().nullish(),
+  shippedAt: zod.string().nullish(),
+  receivedAt: zod.string().nullish(),
+  cancelledAt: zod.string().nullish(),
+});
+
+/**
+ * @summary Mark prepared transfer as in transit (source side)
+ */
+export const ShipErpTransferParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ShipErpTransferBody = zod.object({
+  notes: zod.string().optional(),
+});
+
+export const ShipErpTransferResponse = zod.object({
+  id: zod.number(),
+  sourceStoreId: zod.number(),
+  destinationStoreId: zod.number(),
+  initiatorUserId: zod.number().optional(),
+  initiatorSide: zod.string().optional(),
+  status: zod.enum([
+    "requested",
+    "approved",
+    "rejected",
+    "prepared",
+    "in_transit",
+    "received",
+    "cancelled",
+  ]),
+  notes: zod.string().nullish(),
+  createdAt: zod.string(),
+  approvedAt: zod.string().nullish(),
+  rejectedAt: zod.string().nullish(),
+  preparedAt: zod.string().nullish(),
+  shippedAt: zod.string().nullish(),
+  receivedAt: zod.string().nullish(),
+  cancelledAt: zod.string().nullish(),
+});
+
+/**
+ * @summary Mark items received & increment destination stock (destination side)
+ */
+export const ReceiveErpTransferParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const ReceiveErpTransferBody = zod.object({
+  notes: zod.string().optional(),
+});
+
+export const ReceiveErpTransferResponse = zod.object({
+  id: zod.number(),
+  sourceStoreId: zod.number(),
+  destinationStoreId: zod.number(),
+  initiatorUserId: zod.number().optional(),
+  initiatorSide: zod.string().optional(),
+  status: zod.enum([
+    "requested",
+    "approved",
+    "rejected",
+    "prepared",
+    "in_transit",
+    "received",
+    "cancelled",
+  ]),
+  notes: zod.string().nullish(),
+  createdAt: zod.string(),
+  approvedAt: zod.string().nullish(),
+  rejectedAt: zod.string().nullish(),
+  preparedAt: zod.string().nullish(),
+  shippedAt: zod.string().nullish(),
+  receivedAt: zod.string().nullish(),
+  cancelledAt: zod.string().nullish(),
+});
+
+/**
+ * @summary Cancel a transfer (source side; restocks if already prepared)
+ */
+export const CancelErpTransferParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const CancelErpTransferBody = zod.object({
+  notes: zod.string().optional(),
+});
+
+export const CancelErpTransferResponse = zod.object({
+  id: zod.number(),
+  sourceStoreId: zod.number(),
+  destinationStoreId: zod.number(),
+  initiatorUserId: zod.number().optional(),
+  initiatorSide: zod.string().optional(),
+  status: zod.enum([
+    "requested",
+    "approved",
+    "rejected",
+    "prepared",
+    "in_transit",
+    "received",
+    "cancelled",
+  ]),
+  notes: zod.string().nullish(),
+  createdAt: zod.string(),
+  approvedAt: zod.string().nullish(),
+  rejectedAt: zod.string().nullish(),
+  preparedAt: zod.string().nullish(),
+  shippedAt: zod.string().nullish(),
+  receivedAt: zod.string().nullish(),
+  cancelledAt: zod.string().nullish(),
+});
+
+/**
  * @summary List customers (CRM)
  */
 export const GetErpCustomersResponseItem = zod.object({

@@ -37,6 +37,7 @@ import type {
   CreatePurchaseOrderRequest,
   CreateReviewRequest,
   CreateStaffRequest,
+  CreateStockTransferRequest,
   CreateStoreRequest,
   CreateSupplierRequest,
   CreateTransactionRequest,
@@ -46,6 +47,7 @@ import type {
   DeleteErpStaff200,
   Employee,
   GetAttendanceParams,
+  GetErpTransfersParams,
   GetLowStockParams,
   GetProductsParams,
   HealthStatus,
@@ -66,6 +68,10 @@ import type {
   SelectStoreResponse,
   SetErpStaffStoresBody,
   StaffMember,
+  StockTransfer,
+  StockTransferActionRequest,
+  StockTransferDetail,
+  StockTransferSummary,
   Store,
   SuccessResponse,
   Supplier,
@@ -4533,6 +4539,801 @@ export function useGetAccountingSummary<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary List inter-store transfers (incoming/outgoing for current store)
+ */
+export const getGetErpTransfersUrl = (params?: GetErpTransfersParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/erp/transfers?${stringifiedParams}`
+    : `/api/erp/transfers`;
+};
+
+export const getErpTransfers = async (
+  params?: GetErpTransfersParams,
+  options?: RequestInit,
+): Promise<StockTransferSummary[]> => {
+  return customFetch<StockTransferSummary[]>(getGetErpTransfersUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetErpTransfersQueryKey = (params?: GetErpTransfersParams) => {
+  return [`/api/erp/transfers`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetErpTransfersQueryOptions = <
+  TData = Awaited<ReturnType<typeof getErpTransfers>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetErpTransfersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getErpTransfers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetErpTransfersQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getErpTransfers>>> = ({
+    signal,
+  }) => getErpTransfers(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getErpTransfers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetErpTransfersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getErpTransfers>>
+>;
+export type GetErpTransfersQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List inter-store transfers (incoming/outgoing for current store)
+ */
+
+export function useGetErpTransfers<
+  TData = Awaited<ReturnType<typeof getErpTransfers>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetErpTransfersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getErpTransfers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetErpTransfersQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a transfer (request or direct send)
+ */
+export const getCreateErpTransferUrl = () => {
+  return `/api/erp/transfers`;
+};
+
+export const createErpTransfer = async (
+  createStockTransferRequest: CreateStockTransferRequest,
+  options?: RequestInit,
+): Promise<StockTransfer> => {
+  return customFetch<StockTransfer>(getCreateErpTransferUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createStockTransferRequest),
+  });
+};
+
+export const getCreateErpTransferMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createErpTransfer>>,
+    TError,
+    { data: BodyType<CreateStockTransferRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createErpTransfer>>,
+  TError,
+  { data: BodyType<CreateStockTransferRequest> },
+  TContext
+> => {
+  const mutationKey = ["createErpTransfer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createErpTransfer>>,
+    { data: BodyType<CreateStockTransferRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createErpTransfer(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateErpTransferMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createErpTransfer>>
+>;
+export type CreateErpTransferMutationBody =
+  BodyType<CreateStockTransferRequest>;
+export type CreateErpTransferMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a transfer (request or direct send)
+ */
+export const useCreateErpTransfer = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createErpTransfer>>,
+    TError,
+    { data: BodyType<CreateStockTransferRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createErpTransfer>>,
+  TError,
+  { data: BodyType<CreateStockTransferRequest> },
+  TContext
+> => {
+  return useMutation(getCreateErpTransferMutationOptions(options));
+};
+
+/**
+ * @summary Get transfer detail with items and event log
+ */
+export const getGetErpTransferUrl = (id: number) => {
+  return `/api/erp/transfers/${id}`;
+};
+
+export const getErpTransfer = async (
+  id: number,
+  options?: RequestInit,
+): Promise<StockTransferDetail> => {
+  return customFetch<StockTransferDetail>(getGetErpTransferUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetErpTransferQueryKey = (id: number) => {
+  return [`/api/erp/transfers/${id}`] as const;
+};
+
+export const getGetErpTransferQueryOptions = <
+  TData = Awaited<ReturnType<typeof getErpTransfer>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getErpTransfer>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetErpTransferQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getErpTransfer>>> = ({
+    signal,
+  }) => getErpTransfer(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getErpTransfer>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetErpTransferQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getErpTransfer>>
+>;
+export type GetErpTransferQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get transfer detail with items and event log
+ */
+
+export function useGetErpTransfer<
+  TData = Awaited<ReturnType<typeof getErpTransfer>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getErpTransfer>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetErpTransferQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Approve a requested transfer (destination side)
+ */
+export const getApproveErpTransferUrl = (id: number) => {
+  return `/api/erp/transfers/${id}/approve`;
+};
+
+export const approveErpTransfer = async (
+  id: number,
+  stockTransferActionRequest?: StockTransferActionRequest,
+  options?: RequestInit,
+): Promise<StockTransfer> => {
+  return customFetch<StockTransfer>(getApproveErpTransferUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(stockTransferActionRequest),
+  });
+};
+
+export const getApproveErpTransferMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveErpTransfer>>,
+    TError,
+    { id: number; data: BodyType<StockTransferActionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof approveErpTransfer>>,
+  TError,
+  { id: number; data: BodyType<StockTransferActionRequest> },
+  TContext
+> => {
+  const mutationKey = ["approveErpTransfer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof approveErpTransfer>>,
+    { id: number; data: BodyType<StockTransferActionRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return approveErpTransfer(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ApproveErpTransferMutationResult = NonNullable<
+  Awaited<ReturnType<typeof approveErpTransfer>>
+>;
+export type ApproveErpTransferMutationBody =
+  BodyType<StockTransferActionRequest>;
+export type ApproveErpTransferMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Approve a requested transfer (destination side)
+ */
+export const useApproveErpTransfer = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof approveErpTransfer>>,
+    TError,
+    { id: number; data: BodyType<StockTransferActionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof approveErpTransfer>>,
+  TError,
+  { id: number; data: BodyType<StockTransferActionRequest> },
+  TContext
+> => {
+  return useMutation(getApproveErpTransferMutationOptions(options));
+};
+
+/**
+ * @summary Reject a requested transfer (destination side)
+ */
+export const getRejectErpTransferUrl = (id: number) => {
+  return `/api/erp/transfers/${id}/reject`;
+};
+
+export const rejectErpTransfer = async (
+  id: number,
+  stockTransferActionRequest?: StockTransferActionRequest,
+  options?: RequestInit,
+): Promise<StockTransfer> => {
+  return customFetch<StockTransfer>(getRejectErpTransferUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(stockTransferActionRequest),
+  });
+};
+
+export const getRejectErpTransferMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rejectErpTransfer>>,
+    TError,
+    { id: number; data: BodyType<StockTransferActionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof rejectErpTransfer>>,
+  TError,
+  { id: number; data: BodyType<StockTransferActionRequest> },
+  TContext
+> => {
+  const mutationKey = ["rejectErpTransfer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof rejectErpTransfer>>,
+    { id: number; data: BodyType<StockTransferActionRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return rejectErpTransfer(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RejectErpTransferMutationResult = NonNullable<
+  Awaited<ReturnType<typeof rejectErpTransfer>>
+>;
+export type RejectErpTransferMutationBody =
+  BodyType<StockTransferActionRequest>;
+export type RejectErpTransferMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Reject a requested transfer (destination side)
+ */
+export const useRejectErpTransfer = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rejectErpTransfer>>,
+    TError,
+    { id: number; data: BodyType<StockTransferActionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof rejectErpTransfer>>,
+  TError,
+  { id: number; data: BodyType<StockTransferActionRequest> },
+  TContext
+> => {
+  return useMutation(getRejectErpTransferMutationOptions(options));
+};
+
+/**
+ * @summary Mark items prepared & decrement source stock (source side)
+ */
+export const getPrepareErpTransferUrl = (id: number) => {
+  return `/api/erp/transfers/${id}/prepare`;
+};
+
+export const prepareErpTransfer = async (
+  id: number,
+  stockTransferActionRequest?: StockTransferActionRequest,
+  options?: RequestInit,
+): Promise<StockTransfer> => {
+  return customFetch<StockTransfer>(getPrepareErpTransferUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(stockTransferActionRequest),
+  });
+};
+
+export const getPrepareErpTransferMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof prepareErpTransfer>>,
+    TError,
+    { id: number; data: BodyType<StockTransferActionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof prepareErpTransfer>>,
+  TError,
+  { id: number; data: BodyType<StockTransferActionRequest> },
+  TContext
+> => {
+  const mutationKey = ["prepareErpTransfer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof prepareErpTransfer>>,
+    { id: number; data: BodyType<StockTransferActionRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return prepareErpTransfer(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PrepareErpTransferMutationResult = NonNullable<
+  Awaited<ReturnType<typeof prepareErpTransfer>>
+>;
+export type PrepareErpTransferMutationBody =
+  BodyType<StockTransferActionRequest>;
+export type PrepareErpTransferMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Mark items prepared & decrement source stock (source side)
+ */
+export const usePrepareErpTransfer = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof prepareErpTransfer>>,
+    TError,
+    { id: number; data: BodyType<StockTransferActionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof prepareErpTransfer>>,
+  TError,
+  { id: number; data: BodyType<StockTransferActionRequest> },
+  TContext
+> => {
+  return useMutation(getPrepareErpTransferMutationOptions(options));
+};
+
+/**
+ * @summary Mark prepared transfer as in transit (source side)
+ */
+export const getShipErpTransferUrl = (id: number) => {
+  return `/api/erp/transfers/${id}/ship`;
+};
+
+export const shipErpTransfer = async (
+  id: number,
+  stockTransferActionRequest?: StockTransferActionRequest,
+  options?: RequestInit,
+): Promise<StockTransfer> => {
+  return customFetch<StockTransfer>(getShipErpTransferUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(stockTransferActionRequest),
+  });
+};
+
+export const getShipErpTransferMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof shipErpTransfer>>,
+    TError,
+    { id: number; data: BodyType<StockTransferActionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof shipErpTransfer>>,
+  TError,
+  { id: number; data: BodyType<StockTransferActionRequest> },
+  TContext
+> => {
+  const mutationKey = ["shipErpTransfer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof shipErpTransfer>>,
+    { id: number; data: BodyType<StockTransferActionRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return shipErpTransfer(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ShipErpTransferMutationResult = NonNullable<
+  Awaited<ReturnType<typeof shipErpTransfer>>
+>;
+export type ShipErpTransferMutationBody = BodyType<StockTransferActionRequest>;
+export type ShipErpTransferMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Mark prepared transfer as in transit (source side)
+ */
+export const useShipErpTransfer = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof shipErpTransfer>>,
+    TError,
+    { id: number; data: BodyType<StockTransferActionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof shipErpTransfer>>,
+  TError,
+  { id: number; data: BodyType<StockTransferActionRequest> },
+  TContext
+> => {
+  return useMutation(getShipErpTransferMutationOptions(options));
+};
+
+/**
+ * @summary Mark items received & increment destination stock (destination side)
+ */
+export const getReceiveErpTransferUrl = (id: number) => {
+  return `/api/erp/transfers/${id}/receive`;
+};
+
+export const receiveErpTransfer = async (
+  id: number,
+  stockTransferActionRequest?: StockTransferActionRequest,
+  options?: RequestInit,
+): Promise<StockTransfer> => {
+  return customFetch<StockTransfer>(getReceiveErpTransferUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(stockTransferActionRequest),
+  });
+};
+
+export const getReceiveErpTransferMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof receiveErpTransfer>>,
+    TError,
+    { id: number; data: BodyType<StockTransferActionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof receiveErpTransfer>>,
+  TError,
+  { id: number; data: BodyType<StockTransferActionRequest> },
+  TContext
+> => {
+  const mutationKey = ["receiveErpTransfer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof receiveErpTransfer>>,
+    { id: number; data: BodyType<StockTransferActionRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return receiveErpTransfer(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReceiveErpTransferMutationResult = NonNullable<
+  Awaited<ReturnType<typeof receiveErpTransfer>>
+>;
+export type ReceiveErpTransferMutationBody =
+  BodyType<StockTransferActionRequest>;
+export type ReceiveErpTransferMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Mark items received & increment destination stock (destination side)
+ */
+export const useReceiveErpTransfer = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof receiveErpTransfer>>,
+    TError,
+    { id: number; data: BodyType<StockTransferActionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof receiveErpTransfer>>,
+  TError,
+  { id: number; data: BodyType<StockTransferActionRequest> },
+  TContext
+> => {
+  return useMutation(getReceiveErpTransferMutationOptions(options));
+};
+
+/**
+ * @summary Cancel a transfer (source side; restocks if already prepared)
+ */
+export const getCancelErpTransferUrl = (id: number) => {
+  return `/api/erp/transfers/${id}/cancel`;
+};
+
+export const cancelErpTransfer = async (
+  id: number,
+  stockTransferActionRequest?: StockTransferActionRequest,
+  options?: RequestInit,
+): Promise<StockTransfer> => {
+  return customFetch<StockTransfer>(getCancelErpTransferUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(stockTransferActionRequest),
+  });
+};
+
+export const getCancelErpTransferMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cancelErpTransfer>>,
+    TError,
+    { id: number; data: BodyType<StockTransferActionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof cancelErpTransfer>>,
+  TError,
+  { id: number; data: BodyType<StockTransferActionRequest> },
+  TContext
+> => {
+  const mutationKey = ["cancelErpTransfer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof cancelErpTransfer>>,
+    { id: number; data: BodyType<StockTransferActionRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return cancelErpTransfer(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CancelErpTransferMutationResult = NonNullable<
+  Awaited<ReturnType<typeof cancelErpTransfer>>
+>;
+export type CancelErpTransferMutationBody =
+  BodyType<StockTransferActionRequest>;
+export type CancelErpTransferMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Cancel a transfer (source side; restocks if already prepared)
+ */
+export const useCancelErpTransfer = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cancelErpTransfer>>,
+    TError,
+    { id: number; data: BodyType<StockTransferActionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof cancelErpTransfer>>,
+  TError,
+  { id: number; data: BodyType<StockTransferActionRequest> },
+  TContext
+> => {
+  return useMutation(getCancelErpTransferMutationOptions(options));
+};
 
 /**
  * @summary List customers (CRM)

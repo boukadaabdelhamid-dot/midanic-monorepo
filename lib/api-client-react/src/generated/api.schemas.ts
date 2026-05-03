@@ -520,6 +520,102 @@ export interface AdjustInventoryRequest {
   reason: string;
 }
 
+export interface StoreLite {
+  id: number;
+  nameEn: string;
+  nameAr: string;
+}
+
+export type StockTransferStatus =
+  (typeof StockTransferStatus)[keyof typeof StockTransferStatus];
+
+export const StockTransferStatus = {
+  requested: "requested",
+  approved: "approved",
+  rejected: "rejected",
+  prepared: "prepared",
+  in_transit: "in_transit",
+  received: "received",
+  cancelled: "cancelled",
+} as const;
+
+export interface StockTransfer {
+  id: number;
+  sourceStoreId: number;
+  destinationStoreId: number;
+  initiatorUserId?: number;
+  initiatorSide?: string;
+  status: StockTransferStatus;
+  notes?: string | null;
+  createdAt: string;
+  approvedAt?: string | null;
+  rejectedAt?: string | null;
+  preparedAt?: string | null;
+  shippedAt?: string | null;
+  receivedAt?: string | null;
+  cancelledAt?: string | null;
+}
+
+export type StockTransferSummary = StockTransfer & {
+  sourceStore?: StoreLite;
+  destinationStore?: StoreLite;
+  itemCount?: number;
+  totalQuantity?: number;
+};
+
+export interface StockTransferItem {
+  id: number;
+  transferId: number;
+  sourceProductId: number;
+  destinationProductId?: number | null;
+  quantity: number;
+  matchKey: string;
+  sourceProductNameEn?: string | null;
+  sourceProductNameAr?: string | null;
+  sourceProductStock?: number | null;
+}
+
+export interface StockTransferEvent {
+  id: number;
+  transferId: number;
+  status: string;
+  actorUserId: number;
+  actorStoreId: number;
+  notes?: string | null;
+  createdAt: string;
+}
+
+export type StockTransferDetail = StockTransfer & {
+  sourceStore?: StoreLite;
+  destinationStore?: StoreLite;
+  items?: StockTransferItem[];
+  events?: StockTransferEvent[];
+};
+
+export type CreateStockTransferRequestMode =
+  (typeof CreateStockTransferRequestMode)[keyof typeof CreateStockTransferRequestMode];
+
+export const CreateStockTransferRequestMode = {
+  request: "request",
+  send: "send",
+} as const;
+
+export type CreateStockTransferRequestItemsItem = {
+  sourceProductId: number;
+  quantity: number;
+};
+
+export interface CreateStockTransferRequest {
+  destinationStoreId: number;
+  notes?: string;
+  mode?: CreateStockTransferRequestMode;
+  items: CreateStockTransferRequestItemsItem[];
+}
+
+export interface StockTransferActionRequest {
+  notes?: string;
+}
+
 export type TransactionType =
   (typeof TransactionType)[keyof typeof TransactionType];
 
@@ -713,6 +809,33 @@ export const UpdateLeaveStatusBodyStatus = {
 export type UpdateLeaveStatusBody = {
   status: UpdateLeaveStatusBodyStatus;
 };
+
+export type GetErpTransfersParams = {
+  direction?: GetErpTransfersDirection;
+  status?: GetErpTransfersStatus;
+};
+
+export type GetErpTransfersDirection =
+  (typeof GetErpTransfersDirection)[keyof typeof GetErpTransfersDirection];
+
+export const GetErpTransfersDirection = {
+  in: "in",
+  out: "out",
+  all: "all",
+} as const;
+
+export type GetErpTransfersStatus =
+  (typeof GetErpTransfersStatus)[keyof typeof GetErpTransfersStatus];
+
+export const GetErpTransfersStatus = {
+  requested: "requested",
+  approved: "approved",
+  rejected: "rejected",
+  prepared: "prepared",
+  in_transit: "in_transit",
+  received: "received",
+  cancelled: "cancelled",
+} as const;
 
 export type SetErpStaffStoresBody = {
   storeIds: number[];

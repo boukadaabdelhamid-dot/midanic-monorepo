@@ -123,7 +123,51 @@ export const customerNotesTable = pgTable("customer_notes", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// ─── Inter-store Stock Transfers ──────────────────────────────────────────────
+export const stockTransferStatusEnum = pgEnum("stock_transfer_status", [
+  "requested", "approved", "rejected", "prepared", "in_transit", "received", "cancelled",
+]);
+
+export const stockTransfersTable = pgTable("stock_transfers", {
+  id: serial("id").primaryKey(),
+  sourceStoreId: integer("source_store_id").references(() => storesTable.id).notNull(),
+  destinationStoreId: integer("destination_store_id").references(() => storesTable.id).notNull(),
+  initiatorUserId: integer("initiator_user_id").references(() => usersTable.id).notNull(),
+  initiatorSide: text("initiator_side").notNull(), // 'source' (direct send) or 'destination' (request)
+  status: stockTransferStatusEnum("status").notNull().default("requested"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  approvedAt: timestamp("approved_at"),
+  rejectedAt: timestamp("rejected_at"),
+  preparedAt: timestamp("prepared_at"),
+  shippedAt: timestamp("shipped_at"),
+  receivedAt: timestamp("received_at"),
+  cancelledAt: timestamp("cancelled_at"),
+});
+
+export const stockTransferItemsTable = pgTable("stock_transfer_items", {
+  id: serial("id").primaryKey(),
+  transferId: integer("transfer_id").references(() => stockTransfersTable.id, { onDelete: "cascade" }).notNull(),
+  sourceProductId: integer("source_product_id").references(() => productsTable.id).notNull(),
+  destinationProductId: integer("destination_product_id").references(() => productsTable.id),
+  quantity: integer("quantity").notNull(),
+  matchKey: text("match_key").notNull(), // reference or barcode used to match across stores
+});
+
+export const stockTransferEventsTable = pgTable("stock_transfer_events", {
+  id: serial("id").primaryKey(),
+  transferId: integer("transfer_id").references(() => stockTransfersTable.id, { onDelete: "cascade" }).notNull(),
+  status: stockTransferStatusEnum("status").notNull(),
+  actorUserId: integer("actor_user_id").references(() => usersTable.id).notNull(),
+  actorStoreId: integer("actor_store_id").references(() => storesTable.id).notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export type Employee = typeof employeesTable.$inferSelect;
 export type Supplier = typeof suppliersTable.$inferSelect;
 export type Transaction = typeof transactionsTable.$inferSelect;
 export type InventoryMovement = typeof inventoryMovementsTable.$inferSelect;
+export type StockTransfer = typeof stockTransfersTable.$inferSelect;
+export type StockTransferItem = typeof stockTransferItemsTable.$inferSelect;
+export type StockTransferEvent = typeof stockTransferEventsTable.$inferSelect;

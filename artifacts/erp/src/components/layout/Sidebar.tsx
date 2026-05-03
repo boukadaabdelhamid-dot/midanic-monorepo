@@ -5,6 +5,7 @@ import {
   Calendar, Truck, FileText, BarChart2, CreditCard,
   UserCheck, LogOut, Menu, X, Wallet, Activity, Home,
   ChevronLeft, ChevronRight, Store as StoreIcon, Check,
+  ArrowLeftRight,
 } from "lucide-react";
 import { Shield } from "lucide-react";
 import logoPath from "@assets/logo_des_13_midanic_1777739613232.jpeg";
@@ -27,6 +28,7 @@ const navItems: NavItem[] = [
   { href: "/products", icon: Package, labelEn: "Articles", labelAr: "المنتجات" },
   { href: "/purchase-orders", icon: FileText, labelEn: "Achats", labelAr: "المشتريات", adminOnly: true },
   { href: "/inventory", icon: BarChart2, labelEn: "Stock", labelAr: "المخزون" },
+  { href: "/transfers", icon: ArrowLeftRight, labelEn: "Transferts", labelAr: "التحويلات" },
   { href: "/customers", icon: UserCheck, labelEn: "Clients", labelAr: "العملاء" },
   { href: "/suppliers", icon: Truck, labelEn: "Fournisseurs", labelAr: "الموردون", adminOnly: true },
   { href: "/employees", icon: Users, labelEn: "Employés", labelAr: "الموظفون", adminOnly: true },
