@@ -45,18 +45,35 @@ function broadcastTransferChanged(t: { id: number; sourceStoreId: number; destin
 // Source actions: prepare, ship, cancel (if no shipment yet)
 // Destination actions: approve, reject, receive
 // Both sides may VIEW.
-// NOTE: admins are NOT given a blanket bypass — they must have selected
-// the relevant store via the store-switcher (currentStoreId), which is
-// the same pattern used everywhere else in the ERP. This prevents an
-// admin currently on store C from acting on a transfer between A and B.
-function actorOnSource(req: AuthRequest, t: { sourceStoreId: number }): boolean {
-  return req.currentStoreId === t.sourceStoreId;
+// Permission model:
+//   - Employees: must have currentStoreId === transfer.<side>StoreId
+//   - Admins:    may act on either side as long as they HAVE a membership
+//                in user_stores for that side's store (so an admin on
+//                store C still cannot touch a transfer between A↔B unless
+//                they have access to A or B). This matches the requirement
+//                that admins can act on any transfer involving their stores
+//                regardless of which one is currently selected.
+async function adminHasStoreAccess(req: AuthRequest, storeId: number): Promise<boolean> {
+  if (!isAdmin(req) || !req.user) return false;
+  const [link] = await db.select({ storeId: schema.userStoresTable.storeId })
+    .from(schema.userStoresTable)
+    .where(and(
+      eq(schema.userStoresTable.userId, req.user.id),
+      eq(schema.userStoresTable.storeId, storeId),
+    ))
+    .limit(1);
+  return !!link;
 }
-function actorOnDestination(req: AuthRequest, t: { destinationStoreId: number }): boolean {
-  return req.currentStoreId === t.destinationStoreId;
+async function actorOnSource(req: AuthRequest, t: { sourceStoreId: number }): Promise<boolean> {
+  if (req.currentStoreId === t.sourceStoreId) return true;
+  return await adminHasStoreAccess(req, t.sourceStoreId);
 }
-function actorInvolved(req: AuthRequest, t: { sourceStoreId: number; destinationStoreId: number }): boolean {
-  return actorOnSource(req, t) || actorOnDestination(req, t);
+async function actorOnDestination(req: AuthRequest, t: { destinationStoreId: number }): Promise<boolean> {
+  if (req.currentStoreId === t.destinationStoreId) return true;
+  return await adminHasStoreAccess(req, t.destinationStoreId);
+}
+async function actorInvolved(req: AuthRequest, t: { sourceStoreId: number; destinationStoreId: number }): Promise<boolean> {
+  return (await actorOnSource(req, t)) || (await actorOnDestination(req, t));
 }
 
 // ─── LIST ──────────────────────────────────────────────────────────
@@ -128,7 +145,7 @@ router.get("/erp/transfers/:id", authenticate, requireStaff, requireStore, async
   try {
     const t = await loadTransferOr404(pid(req, "id"));
     if (!t) { res.status(404).json({ error: "Transfer not found" }); return; }
-    if (!actorInvolved(req, t)) {
+    if (!(await actorInvolved(req, t))) {
       res.status(403).json({ error: "Forbidden", code: "STORE_ACCESS_REVOKED" });
       return;
     }
@@ -395,7 +412,7 @@ router.post("/erp/transfers/:id/approve", authenticate, requireStaff, requireSto
     const id = pid(req, "id");
     const t = await loadTransferOr404(id);
     if (!t) { res.status(404).json({ error: "Transfer not found" }); return; }
-    if (!ensure(req, actorOnDestination(req, t), res, "Only destination side can approve")) return;
+    if (!ensure(req, await actorOnDestination(req, t), res, "Only destination side can approve")) return;
     if (t.status !== "requested") { res.status(409).json({ error: `Cannot approve from status ${t.status}` }); return; }
 
     const updated = await db.transaction(async (tx) => {
@@ -424,7 +441,7 @@ router.post("/erp/transfers/:id/reject", authenticate, requireStaff, requireStor
     const id = pid(req, "id");
     const t = await loadTransferOr404(id);
     if (!t) { res.status(404).json({ error: "Transfer not found" }); return; }
-    if (!ensure(req, actorOnDestination(req, t), res, "Only destination side can reject")) return;
+    if (!ensure(req, await actorOnDestination(req, t), res, "Only destination side can reject")) return;
     if (t.status !== "requested") { res.status(409).json({ error: `Cannot reject from status ${t.status}` }); return; }
 
     const updated = await db.transaction(async (tx) => {
@@ -452,7 +469,7 @@ router.post("/erp/transfers/:id/prepare", authenticate, requireStaff, requireSto
   try {
     const t = await loadTransferOr404(pid(req, "id"));
     if (!t) { res.status(404).json({ error: "Transfer not found" }); return; }
-    if (!ensure(req, actorOnSource(req, t), res, "Only source side can prepare")) return;
+    if (!ensure(req, await actorOnSource(req, t), res, "Only source side can prepare")) return;
     if (t.status === "requested") {
       // Direct prepare from 'requested' only allowed for source admin (skip approval).
       if (!isAdmin(req)) {
@@ -526,7 +543,7 @@ router.post("/erp/transfers/:id/ship", authenticate, requireStaff, requireStore,
     const id = pid(req, "id");
     const t = await loadTransferOr404(id);
     if (!t) { res.status(404).json({ error: "Transfer not found" }); return; }
-    if (!ensure(req, actorOnSource(req, t), res, "Only source side can ship")) return;
+    if (!ensure(req, await actorOnSource(req, t), res, "Only source side can ship")) return;
     if (t.status !== "prepared") { res.status(409).json({ error: `Cannot ship from status ${t.status}` }); return; }
 
     const updated = await db.transaction(async (tx) => {
@@ -554,7 +571,7 @@ router.post("/erp/transfers/:id/receive", authenticate, requireStaff, requireSto
   try {
     const t = await loadTransferOr404(pid(req, "id"));
     if (!t) { res.status(404).json({ error: "Transfer not found" }); return; }
-    if (!ensure(req, actorOnDestination(req, t), res, "Only destination side can receive")) return;
+    if (!ensure(req, await actorOnDestination(req, t), res, "Only destination side can receive")) return;
     // Strict transition: only ship→receive. Source must explicitly mark
     // as in_transit before destination can receive (audit clarity).
     if (t.status !== "in_transit") {
@@ -615,7 +632,7 @@ router.post("/erp/transfers/:id/cancel", authenticate, requireStaff, requireStor
   try {
     const t = await loadTransferOr404(pid(req, "id"));
     if (!t) { res.status(404).json({ error: "Transfer not found" }); return; }
-    if (!ensure(req, actorOnSource(req, t), res, "Only source side can cancel")) return;
+    if (!ensure(req, await actorOnSource(req, t), res, "Only source side can cancel")) return;
     if (t.status === "received" || t.status === "cancelled" || t.status === "rejected") {
       res.status(409).json({ error: `Cannot cancel from status ${t.status}` }); return;
     }

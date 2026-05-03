@@ -475,12 +475,14 @@ function TransferDetailDialog({
   const cancel = useCancelErpTransfer();
 
   const t = detail as StockTransferDetail | undefined;
-  // Action gating must mirror the backend exactly: the backend requires
-  // currentStoreId to match the transfer side (admins do NOT get a blanket
-  // bypass — they must select the relevant store). Hiding buttons that the
-  // server would reject prevents misleading 403s.
-  const isSource = t ? currentStoreId === t.sourceStoreId : false;
-  const isDest = t ? currentStoreId === t.destinationStoreId : false;
+  // Action gating mirrors backend authz:
+  //   - Employees: currentStoreId must equal the side's storeId
+  //   - Admins:    may act on either side as long as they have a
+  //                membership in user_stores for that side's store
+  const { user: me } = useMe();
+  const adminStoreIds = isAdmin ? new Set((me?.stores ?? []).map((s) => s.id)) : new Set<number>();
+  const isSource = t ? (currentStoreId === t.sourceStoreId || adminStoreIds.has(t.sourceStoreId)) : false;
+  const isDest = t ? (currentStoreId === t.destinationStoreId || adminStoreIds.has(t.destinationStoreId)) : false;
 
   const act = (m: { mutate: (v: { id: number }, opts: { onSuccess: () => void }) => void }) => {
     m.mutate({ id }, { onSuccess: () => onChanged() });
