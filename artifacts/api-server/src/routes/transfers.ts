@@ -80,7 +80,17 @@ async function actorInvolved(req: AuthRequest, t: { sourceStoreId: number; desti
 router.get("/erp/transfers", authenticate, requireStaff, requireStore, async (req: AuthRequest, res) => {
   try {
     const storeId = req.currentStoreId!;
-    const { direction, status } = req.query as Record<string, string>;
+    const { direction, status } = req.query as Record<string, string | undefined>;
+    const validDirections = new Set(["in", "out", "all", undefined, ""]);
+    if (!validDirections.has(direction)) {
+      res.status(400).json({ error: `Invalid direction: ${direction}` });
+      return;
+    }
+    const validStatuses: TransferStatus[] = ["requested","approved","rejected","prepared","in_transit","received","cancelled"];
+    if (status && !validStatuses.includes(status as TransferStatus)) {
+      res.status(400).json({ error: `Invalid status: ${status}` });
+      return;
+    }
     const conditions = [] as Array<ReturnType<typeof eq>>;
     if (direction === "in") {
       conditions.push(eq(schema.stockTransfersTable.destinationStoreId, storeId));
