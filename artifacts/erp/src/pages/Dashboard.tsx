@@ -3,13 +3,23 @@ import { useGetAnalytics, useGetAccountingSummary } from "@workspace/api-client-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend,
 } from "recharts";
-import { ShoppingCart, TrendingUp, Clock, DollarSign } from "lucide-react";
+import { ShoppingCart, TrendingUp, Clock, DollarSign, Globe, Store as StoreIcon } from "lucide-react";
 
 export default function Dashboard() {
   const { data: analytics, isLoading } = useGetAnalytics();
   const { data: summary } = useGetAccountingSummary();
+
+  const onlineRevenue = analytics?.channelBreakdown?.online?.revenue ?? 0;
+  const posRevenue = analytics?.channelBreakdown?.pos?.revenue ?? 0;
+  const onlineCount = analytics?.channelBreakdown?.online?.orders ?? 0;
+  const posCount = analytics?.channelBreakdown?.pos?.orders ?? 0;
+  const totalChannelRevenue = onlineRevenue + posRevenue;
+  const onlineShare = totalChannelRevenue > 0 ? (onlineRevenue / totalChannelRevenue) * 100 : 0;
+  const posShare = totalChannelRevenue > 0 ? (posRevenue / totalChannelRevenue) * 100 : 0;
+  const dailyChannel = (analytics?.dailyChannelSales ?? []) as Record<string, unknown>[];
+  const CHANNEL_COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))"];
 
   if (isLoading) {
     return (
@@ -114,6 +124,66 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="border shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Sales by Channel / المبيعات حسب القناة</CardTitle>
+          <p className="text-xs text-muted-foreground mt-0.5">Last 30 days · آخر 30 يومًا</p>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="flex items-start gap-3 p-3 rounded-lg border">
+              <div className="p-2 rounded-lg bg-muted/50 text-blue-600">
+                <Globe className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-baseline justify-between">
+                  <p className="text-sm font-medium">Online / الإنترنت</p>
+                  <p className="text-xs text-muted-foreground">{onlineShare.toFixed(1)}%</p>
+                </div>
+                <p className="text-xl font-bold text-foreground">دج {onlineRevenue.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">{onlineCount} order{onlineCount === 1 ? "" : "s"}</p>
+                <div className="mt-2 h-2 w-full rounded-full bg-muted overflow-hidden">
+                  <div className="h-full" style={{ width: `${onlineShare}%`, backgroundColor: CHANNEL_COLORS[0] }} />
+                </div>
+              </div>
+            </div>
+            <div className="flex items-start gap-3 p-3 rounded-lg border">
+              <div className="p-2 rounded-lg bg-muted/50 text-emerald-600">
+                <StoreIcon className="h-5 w-5" />
+              </div>
+              <div className="flex-1">
+                <div className="flex items-baseline justify-between">
+                  <p className="text-sm font-medium">In-store (POS) / المتجر</p>
+                  <p className="text-xs text-muted-foreground">{posShare.toFixed(1)}%</p>
+                </div>
+                <p className="text-xl font-bold text-foreground">دج {posRevenue.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">{posCount} order{posCount === 1 ? "" : "s"}</p>
+                <div className="mt-2 h-2 w-full rounded-full bg-muted overflow-hidden">
+                  <div className="h-full" style={{ width: `${posShare}%`, backgroundColor: CHANNEL_COLORS[1] }} />
+                </div>
+              </div>
+            </div>
+          </div>
+          {dailyChannel.length > 0 ? (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={dailyChannel}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(v: string) => String(v).slice(5)} />
+                <YAxis tick={{ fontSize: 11 }} />
+                <Tooltip formatter={(v: number, name: string) => [`دج ${Number(v).toLocaleString()}`, name]} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Bar dataKey="onlineRevenue" stackId="ch" fill={CHANNEL_COLORS[0]} name="Online" radius={[2, 2, 0, 0]} />
+                <Bar dataKey="posRevenue" stackId="ch" fill={CHANNEL_COLORS[1]} name="In-store" radius={[2, 2, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-32 flex items-center justify-center text-sm text-muted-foreground">
+              No sales in the last 30 days
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {summary && (
         <Card className="border shadow-sm">

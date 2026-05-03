@@ -877,6 +877,31 @@ export const GetAnalyticsResponse = zod.object({
       }),
     )
     .optional(),
+  channelBreakdown: zod
+    .object({
+      online: zod.object({
+        revenue: zod.number(),
+        orders: zod.number(),
+      }),
+      pos: zod.object({
+        revenue: zod.number(),
+        orders: zod.number(),
+      }),
+    })
+    .optional()
+    .describe(
+      "Revenue and order counts split by sales channel for the\nsame window as `dailySales` (last 30 days).\n",
+    ),
+  dailyChannelSales: zod
+    .array(
+      zod.object({
+        date: zod.string(),
+        onlineRevenue: zod.number(),
+        posRevenue: zod.number(),
+      }),
+    )
+    .optional()
+    .describe("Per-day revenue split by channel over the last 30 days.\n"),
 });
 
 /**

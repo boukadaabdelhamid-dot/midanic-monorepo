@@ -2460,7 +2460,41 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Product"
+        channelBreakdown:
+          type: object
+          description: |
+            Revenue and order counts split by sales channel for the
+            same window as `dailySales` (last 30 days).
+          properties:
+            online:
+              $ref: "#/components/schemas/ChannelStats"
+            pos:
+              $ref: "#/components/schemas/ChannelStats"
+          required: [online, pos]
+        dailyChannelSales:
+          type: array
+          description: |
+            Per-day revenue split by channel over the last 30 days.
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              onlineRevenue:
+                type: number
+              posRevenue:
+                type: number
+            required: [date, onlineRevenue, posRevenue]
       required: [totalOrders, totalRevenue, netProfit, pendingOrders]
+
+    ChannelStats:
+      type: object
+      properties:
+        revenue:
+          type: number
+        orders:
+          type: integer
+      required: [revenue, orders]
 
     # ERP
     Employee:

@@ -342,6 +342,27 @@ export type AnalyticsDailySalesItem = { [key: string]: unknown };
 
 export type AnalyticsTopProductsItem = { [key: string]: unknown };
 
+export interface ChannelStats {
+  revenue: number;
+  orders: number;
+}
+
+/**
+ * Revenue and order counts split by sales channel for the
+same window as `dailySales` (last 30 days).
+
+ */
+export type AnalyticsChannelBreakdown = {
+  online: ChannelStats;
+  pos: ChannelStats;
+};
+
+export type AnalyticsDailyChannelSalesItem = {
+  date: string;
+  onlineRevenue: number;
+  posRevenue: number;
+};
+
 export interface Analytics {
   totalOrders: number;
   totalRevenue: number;
@@ -351,6 +372,13 @@ export interface Analytics {
   dailySales?: AnalyticsDailySalesItem[];
   topProducts?: AnalyticsTopProductsItem[];
   lowStock?: Product[];
+  /** Revenue and order counts split by sales channel for the
+same window as `dailySales` (last 30 days).
+ */
+  channelBreakdown?: AnalyticsChannelBreakdown;
+  /** Per-day revenue split by channel over the last 30 days.
+   */
+  dailyChannelSales?: AnalyticsDailyChannelSalesItem[];
 }
 
 export type EmployeeStatus =

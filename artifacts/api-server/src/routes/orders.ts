@@ -407,6 +407,31 @@ router.get("/admin/analytics", authenticate, requireAdmin, requireStore, async (
       ORDER BY DATE(created_at)
     `);
 
+    // Channel split (online vs POS) for the same 30-day window as dailySales.
+    // Channel is inferred from seller_user_id: NULL = online (storefront),
+    // NOT NULL = POS (in-store cashier).
+    const channelTotals = await db.execute(sql`
+      SELECT
+        COALESCE(SUM(CASE WHEN seller_user_id IS NULL THEN total_amount ELSE 0 END), 0) AS online_revenue,
+        COUNT(*) FILTER (WHERE seller_user_id IS NULL) AS online_orders,
+        COALESCE(SUM(CASE WHEN seller_user_id IS NOT NULL THEN total_amount ELSE 0 END), 0) AS pos_revenue,
+        COUNT(*) FILTER (WHERE seller_user_id IS NOT NULL) AS pos_orders
+      FROM orders
+      WHERE created_at >= NOW() - INTERVAL '30 days' AND store_id = ${storeId}
+    `);
+    const ct = (channelTotals.rows[0] ?? {}) as Record<string, unknown>;
+
+    const dailyChannelSales = await db.execute(sql`
+      SELECT
+        DATE(created_at) AS date,
+        COALESCE(SUM(CASE WHEN seller_user_id IS NULL THEN total_amount ELSE 0 END), 0) AS online_revenue,
+        COALESCE(SUM(CASE WHEN seller_user_id IS NOT NULL THEN total_amount ELSE 0 END), 0) AS pos_revenue
+      FROM orders
+      WHERE created_at >= NOW() - INTERVAL '30 days' AND store_id = ${storeId}
+      GROUP BY DATE(created_at)
+      ORDER BY DATE(created_at)
+    `);
+
     const topProducts = await db.execute(sql`
       SELECT p.id, p.name_ar, p.name_en, SUM(oi.quantity) as sold, SUM(oi.quantity * oi.unit_price) as revenue
       FROM order_items oi
@@ -431,6 +456,18 @@ router.get("/admin/analytics", authenticate, requireAdmin, requireStore, async (
       dailySales: dailySales.rows,
       topProducts: topProducts.rows,
       lowStock,
+      channelBreakdown: {
+        online: { revenue: Number(ct["online_revenue"] ?? 0), orders: Number(ct["online_orders"] ?? 0) },
+        pos:    { revenue: Number(ct["pos_revenue"]    ?? 0), orders: Number(ct["pos_orders"]    ?? 0) },
+      },
+      dailyChannelSales: dailyChannelSales.rows.map((r) => {
+        const row = r as Record<string, unknown>;
+        return {
+          date: String(row["date"]),
+          onlineRevenue: Number(row["online_revenue"] ?? 0),
+          posRevenue:    Number(row["pos_revenue"]    ?? 0),
+        };
+      }),
     });
   } catch (err) {
     req.log.error(err);
