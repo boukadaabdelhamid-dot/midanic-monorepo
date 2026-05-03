@@ -36,6 +36,15 @@ const fmtAmount = (v: string | number | undefined | null) => {
   return n.toLocaleString("fr-DZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
+const errMsg = (e: unknown): string => {
+  if (e instanceof Error) return e.message;
+  if (typeof e === "object" && e !== null && "message" in e) {
+    const m = (e as { message?: unknown }).message;
+    if (typeof m === "string") return m;
+  }
+  return String(e ?? "");
+};
+
 type PersonLike = { name?: string | null; email?: string | null } | null | undefined;
 type CaisseLike = {
   kind?: string;
@@ -110,9 +119,9 @@ export default function Caisse() {
   const accept = useAcceptErpCaisseTransfer();
   const reject = useRejectErpCaisseTransfer();
   const cancel = useCancelErpCaisseTransfer();
-  const handleAccept = (id: number) => accept.mutate({ id }, { onSuccess: () => { toast({ title: "Transfert accepté / تم القبول" }); refreshAll(); }, onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }) });
-  const handleReject = (id: number) => reject.mutate({ id }, { onSuccess: () => { toast({ title: "Transfert refusé / تم الرفض" }); refreshAll(); }, onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }) });
-  const handleCancel = (id: number) => cancel.mutate({ id }, { onSuccess: () => { toast({ title: "Annulé / تم الإلغاء" }); refreshAll(); }, onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }) });
+  const handleAccept = (id: number) => accept.mutate({ id }, { onSuccess: () => { toast({ title: "Transfert accepté / تم القبول" }); refreshAll(); }, onError: (e: unknown) => toast({ title: "Erreur", description: errMsg(e), variant: "destructive" }) });
+  const handleReject = (id: number) => reject.mutate({ id }, { onSuccess: () => { toast({ title: "Transfert refusé / تم الرفض" }); refreshAll(); }, onError: (e: unknown) => toast({ title: "Erreur", description: errMsg(e), variant: "destructive" }) });
+  const handleCancel = (id: number) => cancel.mutate({ id }, { onSuccess: () => { toast({ title: "Annulé / تم الإلغاء" }); refreshAll(); }, onError: (e: unknown) => toast({ title: "Erreur", description: errMsg(e), variant: "destructive" }) });
 
   // ── dialogs state ───────────────────────────────────────────────
   const [sendOpen, setSendOpen] = useState(false);
@@ -382,7 +391,7 @@ function SendTransferDialog({
           setRecipient(""); setAmount(""); setNotes("");
           onSent(); onClose();
         },
-        onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
+        onError: (e: unknown) => toast({ title: "Erreur", description: errMsg(e), variant: "destructive" }),
       },
     );
   };
@@ -457,7 +466,7 @@ function AdminCaisseDialog({
       }
       adjust.mutate(
         { data: { caisseId: action.caisse.id, delta: d.toFixed(2), notes: notes.trim() } },
-        { onSuccess: () => { toast({ title: "Ajusté / تم التعديل" }); onDone(); onClose(); }, onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }) },
+        { onSuccess: () => { toast({ title: "Ajusté / تم التعديل" }); onDone(); onClose(); }, onError: (e: unknown) => toast({ title: "Erreur", description: errMsg(e), variant: "destructive" }) },
       );
       return;
     }
@@ -467,7 +476,7 @@ function AdminCaisseDialog({
     const fn = action.type === "deposit" ? deposit : withdraw;
     fn.mutate(payload, {
       onSuccess: () => { toast({ title: "Opération réussie / تمت العملية" }); onDone(); onClose(); },
-      onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
+      onError: (e: unknown) => toast({ title: "Erreur", description: errMsg(e), variant: "destructive" }),
     });
   };
 

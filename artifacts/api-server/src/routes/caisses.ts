@@ -396,7 +396,7 @@ router.post("/erp/caisse-transfers/:id/accept", authenticate, requireStaff, requ
       .filter((x): x is number => typeof x === "number");
     await broadcastCaisseChanged(t.storeId, [t.senderCaisseId, t.recipientCaisseId]);
     broadcastCaisseTransferChanged(t.storeId, t.id, "accepted", participants);
-    res.json({ ok: true });
+    res.json({ success: true });
   } catch (err) {
     const e = err as { http?: number; message?: string };
     if (e.http === 409) { res.status(409).json({ error: e.message }); return; }
@@ -445,7 +445,7 @@ router.post("/erp/caisse-transfers/:id/reject", authenticate, requireStaff, requ
       .filter((x): x is number => typeof x === "number");
     await broadcastCaisseChanged(t.storeId, [t.senderCaisseId, t.recipientCaisseId]);
     broadcastCaisseTransferChanged(t.storeId, t.id, "rejected", participants);
-    res.json({ ok: true });
+    res.json({ success: true });
   } catch (err) {
     const e = err as { http?: number; message?: string };
     if (e.http === 409) { res.status(409).json({ error: e.message }); return; }
@@ -494,7 +494,7 @@ router.post("/erp/caisse-transfers/:id/cancel", authenticate, requireStaff, requ
       .filter((x): x is number => typeof x === "number");
     await broadcastCaisseChanged(t.storeId, [t.senderCaisseId]);
     broadcastCaisseTransferChanged(t.storeId, t.id, "cancelled", participants);
-    res.json({ ok: true });
+    res.json({ success: true });
   } catch (err) {
     const e = err as { http?: number; message?: string };
     if (e.http === 409) { res.status(409).json({ error: e.message }); return; }
@@ -550,7 +550,7 @@ router.post("/erp/caisses/admin/deposit", authenticate, requireAdmin, requireSto
       ]);
     });
     await broadcastCaisseChanged(c.storeId, [c.id, main.id]);
-    res.json({ ok: true });
+    res.json({ success: true });
   } catch (err) {
     const e = err as { http?: number; message?: string };
     if (e.http === 409) { res.status(409).json({ error: e.message }); return; }
@@ -603,7 +603,7 @@ router.post("/erp/caisses/admin/withdraw", authenticate, requireAdmin, requireSt
       ]);
     });
     await broadcastCaisseChanged(c.storeId, [c.id, main.id]);
-    res.json({ ok: true });
+    res.json({ success: true });
   } catch (err) {
     const e = err as { http?: number; message?: string };
     if (e.http === 409) { res.status(409).json({ error: e.message }); return; }
@@ -655,7 +655,7 @@ router.post("/erp/caisses/admin/adjust", authenticate, requireAdmin, requireStor
       });
     });
     await broadcastCaisseChanged(c.storeId, [c.id]);
-    res.json({ ok: true });
+    res.json({ success: true });
   } catch (err) {
     const e = err as { http?: number; message?: string };
     if (e.http === 409) { res.status(409).json({ error: e.message }); return; }
