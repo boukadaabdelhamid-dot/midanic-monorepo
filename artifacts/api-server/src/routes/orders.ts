@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { eq, desc, sql, lt } from "drizzle-orm";
 import { db, schema } from "../lib/db";
-import { authenticate, requireAdmin, optionalAuth, type AuthRequest } from "../lib/auth";
+import { authenticate, requireAdmin, requireStaff, optionalAuth, type AuthRequest } from "../lib/auth";
 import { broadcastToAdmins } from "../lib/ws";
 
 
@@ -233,7 +233,7 @@ router.get("/orders/:id", authenticate, async (req: AuthRequest, res) => {
 });
 
 // GET /admin/orders
-router.get("/admin/orders", authenticate, requireAdmin, async (req: AuthRequest, res) => {
+router.get("/admin/orders", authenticate, requireStaff, async (req: AuthRequest, res) => {
   try {
     const orders = await db.select().from(schema.ordersTable).orderBy(desc(schema.ordersTable.createdAt));
     res.json(orders);
@@ -244,7 +244,7 @@ router.get("/admin/orders", authenticate, requireAdmin, async (req: AuthRequest,
 });
 
 // PUT /admin/orders/:id/status
-router.put("/admin/orders/:id/status", authenticate, requireAdmin, async (req: AuthRequest, res) => {
+router.put("/admin/orders/:id/status", authenticate, requireStaff, async (req: AuthRequest, res) => {
   try {
     const { status } = req.body;
     const VALID_STATUSES = ["pending", "processing", "shipped", "delivered", "cancelled"];

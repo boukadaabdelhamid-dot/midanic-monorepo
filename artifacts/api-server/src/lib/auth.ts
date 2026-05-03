@@ -50,6 +50,19 @@ export function requireAdmin(req: AuthRequest, res: Response, next: NextFunction
   next();
 }
 
+export function requireStaff(req: AuthRequest, res: Response, next: NextFunction) {
+  const role = req.user?.role;
+  if (role !== "admin" && role !== "employee") {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  next();
+}
+
+export function isAdmin(req: AuthRequest): boolean {
+  return req.user?.role === "admin";
+}
+
 export function optionalAuth(req: AuthRequest, _res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith("Bearer ")) {

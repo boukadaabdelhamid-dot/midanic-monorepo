@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider, MutationCache } from "@tanstack/react
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth, forceLogout } from "@/hooks/use-auth";
+import { useMe } from "@/hooks/use-me";
 import { Layout } from "@/components/layout/Layout";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/Login";
@@ -20,6 +21,7 @@ import Accounting from "@/pages/Accounting";
 import Customers from "@/pages/Customers";
 import Caisse from "@/pages/Caisse";
 import RealTime from "@/pages/RealTime";
+import Staff from "@/pages/Staff";
 
 function is401(error: unknown): boolean {
   return (
@@ -42,9 +44,14 @@ const queryClient = new QueryClient({
   },
 });
 
-function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
+function ProtectedRoute({ component: Component, adminOnly = false }: { component: React.ComponentType; adminOnly?: boolean }) {
   const { token } = useAuth();
+  const { isAdmin, isLoading } = useMe();
   if (!token) return <Redirect to="/login" />;
+  if (adminOnly) {
+    if (isLoading) return <Layout><div className="p-6 text-sm text-muted-foreground">…</div></Layout>;
+    if (!isAdmin) return <Redirect to="/home" />;
+  }
   return (
     <Layout>
       <Component />
@@ -71,7 +78,7 @@ function Router() {
         <ProtectedHome />
       </Route>
       <Route path="/dashboard">
-        <ProtectedRoute component={Dashboard} />
+        <ProtectedRoute component={Dashboard} adminOnly />
       </Route>
       <Route path="/orders">
         <ProtectedRoute component={Orders} />
@@ -80,34 +87,37 @@ function Router() {
         <ProtectedRoute component={Products} />
       </Route>
       <Route path="/employees">
-        <ProtectedRoute component={Employees} />
+        <ProtectedRoute component={Employees} adminOnly />
       </Route>
       <Route path="/attendance">
-        <ProtectedRoute component={Attendance} />
+        <ProtectedRoute component={Attendance} adminOnly />
       </Route>
       <Route path="/leaves">
-        <ProtectedRoute component={Leaves} />
+        <ProtectedRoute component={Leaves} adminOnly />
       </Route>
       <Route path="/suppliers">
-        <ProtectedRoute component={Suppliers} />
+        <ProtectedRoute component={Suppliers} adminOnly />
       </Route>
       <Route path="/purchase-orders">
-        <ProtectedRoute component={PurchaseOrders} />
+        <ProtectedRoute component={PurchaseOrders} adminOnly />
       </Route>
       <Route path="/inventory">
         <ProtectedRoute component={Inventory} />
       </Route>
       <Route path="/accounting">
-        <ProtectedRoute component={Accounting} />
+        <ProtectedRoute component={Accounting} adminOnly />
       </Route>
       <Route path="/customers">
         <ProtectedRoute component={Customers} />
+      </Route>
+      <Route path="/staff">
+        <ProtectedRoute component={Staff} adminOnly />
       </Route>
       <Route path="/caisse">
         <ProtectedRoute component={Caisse} />
       </Route>
       <Route path="/realtime">
-        <ProtectedRoute component={RealTime} />
+        <ProtectedRoute component={RealTime} adminOnly />
       </Route>
       <Route component={NotFound} />
     </Switch>

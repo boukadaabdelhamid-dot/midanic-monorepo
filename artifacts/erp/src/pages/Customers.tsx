@@ -5,6 +5,7 @@ import {
   type CustomerSummary, type CustomerNote,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useMe } from "@/hooks/use-me";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -103,6 +104,7 @@ function CustomerDetailPanel({ customerId, onClose }: { customerId: number; onCl
 
 export default function Customers() {
   const qc = useQueryClient();
+  const { isAdmin } = useMe();
   const { data: customers, isLoading } = useGetErpCustomers();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -162,10 +164,12 @@ export default function Customers() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
+                    <TableHead>Nom / الاسم</TableHead>
                     <TableHead>Email</TableHead>
-                    <TableHead>Total Orders</TableHead>
-                    <TableHead>Total Spent</TableHead>
+                    <TableHead>Téléphone</TableHead>
+                    <TableHead>Ville</TableHead>
+                    <TableHead>Commandes</TableHead>
+                    {isAdmin && <TableHead>Total dépensé</TableHead>}
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -174,17 +178,25 @@ export default function Customers() {
                     <TableRow key={c.id} data-testid={`row-customer-${c.id}`}>
                       <TableCell className="font-medium">{c.name}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">{c.email}</TableCell>
+                      <TableCell className="text-sm">{c.phone || "—"}</TableCell>
+                      <TableCell className="text-sm">{c.city || "—"}</TableCell>
                       <TableCell>{Number(c.total_orders ?? 0)}</TableCell>
-                      <TableCell className="font-semibold text-primary">دج {Number(c.total_spent ?? 0).toFixed(2)}</TableCell>
+                      {isAdmin && (
+                        <TableCell className="font-semibold text-primary">دج {Number(c.total_spent ?? 0).toFixed(2)}</TableCell>
+                      )}
                       <TableCell>
-                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setSelectedId(c.id)} data-testid={`btn-view-${c.id}`}>
-                          View / عرض
-                        </Button>
+                        {isAdmin ? (
+                          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setSelectedId(c.id)} data-testid={`btn-view-${c.id}`}>
+                            View / عرض
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
                   {(!customers || customers.length === 0) && (
-                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">No customers yet</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={isAdmin ? 7 : 6} className="text-center py-8 text-muted-foreground">No customers yet</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>

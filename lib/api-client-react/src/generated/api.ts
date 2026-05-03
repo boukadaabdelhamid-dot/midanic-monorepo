@@ -36,11 +36,13 @@ import type {
   CreateProductRequest,
   CreatePurchaseOrderRequest,
   CreateReviewRequest,
+  CreateStaffRequest,
   CreateSupplierRequest,
   CreateTransactionRequest,
   CustomerDetail,
   CustomerNote,
   CustomerSummary,
+  DeleteErpStaff200,
   Employee,
   GetAttendanceParams,
   GetLowStockParams,
@@ -59,6 +61,7 @@ import type {
   PurchaseOrderItem,
   RegisterRequest,
   Review,
+  StaffMember,
   SuccessResponse,
   Supplier,
   Transaction,
@@ -4281,6 +4284,251 @@ export function useGetErpCustomer<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary List staff (admins and employees)
+ */
+export const getGetErpStaffUrl = () => {
+  return `/api/erp/staff`;
+};
+
+export const getErpStaff = async (
+  options?: RequestInit,
+): Promise<StaffMember[]> => {
+  return customFetch<StaffMember[]>(getGetErpStaffUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetErpStaffQueryKey = () => {
+  return [`/api/erp/staff`] as const;
+};
+
+export const getGetErpStaffQueryOptions = <
+  TData = Awaited<ReturnType<typeof getErpStaff>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getErpStaff>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetErpStaffQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getErpStaff>>> = ({
+    signal,
+  }) => getErpStaff({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getErpStaff>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetErpStaffQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getErpStaff>>
+>;
+export type GetErpStaffQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List staff (admins and employees)
+ */
+
+export function useGetErpStaff<
+  TData = Awaited<ReturnType<typeof getErpStaff>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getErpStaff>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetErpStaffQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a staff account (admin or employee)
+ */
+export const getCreateErpStaffUrl = () => {
+  return `/api/erp/staff`;
+};
+
+export const createErpStaff = async (
+  createStaffRequest: CreateStaffRequest,
+  options?: RequestInit,
+): Promise<StaffMember> => {
+  return customFetch<StaffMember>(getCreateErpStaffUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createStaffRequest),
+  });
+};
+
+export const getCreateErpStaffMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createErpStaff>>,
+    TError,
+    { data: BodyType<CreateStaffRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createErpStaff>>,
+  TError,
+  { data: BodyType<CreateStaffRequest> },
+  TContext
+> => {
+  const mutationKey = ["createErpStaff"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createErpStaff>>,
+    { data: BodyType<CreateStaffRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createErpStaff(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateErpStaffMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createErpStaff>>
+>;
+export type CreateErpStaffMutationBody = BodyType<CreateStaffRequest>;
+export type CreateErpStaffMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a staff account (admin or employee)
+ */
+export const useCreateErpStaff = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createErpStaff>>,
+    TError,
+    { data: BodyType<CreateStaffRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createErpStaff>>,
+  TError,
+  { data: BodyType<CreateStaffRequest> },
+  TContext
+> => {
+  return useMutation(getCreateErpStaffMutationOptions(options));
+};
+
+/**
+ * @summary Delete a staff account
+ */
+export const getDeleteErpStaffUrl = (id: number) => {
+  return `/api/erp/staff/${id}`;
+};
+
+export const deleteErpStaff = async (
+  id: number,
+  options?: RequestInit,
+): Promise<DeleteErpStaff200> => {
+  return customFetch<DeleteErpStaff200>(getDeleteErpStaffUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteErpStaffMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteErpStaff>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteErpStaff>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteErpStaff"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteErpStaff>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteErpStaff(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteErpStaffMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteErpStaff>>
+>;
+
+export type DeleteErpStaffMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a staff account
+ */
+export const useDeleteErpStaff = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteErpStaff>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteErpStaff>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteErpStaffMutationOptions(options));
+};
 
 /**
  * @summary Add customer note

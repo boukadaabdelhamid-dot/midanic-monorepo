@@ -566,6 +566,39 @@ export interface CustomerSummary {
   total_spent?: number;
 }
 
+export type StaffMemberRole =
+  (typeof StaffMemberRole)[keyof typeof StaffMemberRole];
+
+export const StaffMemberRole = {
+  admin: "admin",
+  employee: "employee",
+} as const;
+
+export interface StaffMember {
+  id: number;
+  name: string;
+  email: string;
+  role: StaffMemberRole;
+  phone?: string | null;
+  created_at?: string;
+}
+
+export type CreateStaffRequestRole =
+  (typeof CreateStaffRequestRole)[keyof typeof CreateStaffRequestRole];
+
+export const CreateStaffRequestRole = {
+  admin: "admin",
+  employee: "employee",
+} as const;
+
+export interface CreateStaffRequest {
+  name: string;
+  email: string;
+  password: string;
+  role?: CreateStaffRequestRole;
+  phone?: string;
+}
+
 export type CreateCustomerRequestPreferredLang =
   (typeof CreateCustomerRequestPreferredLang)[keyof typeof CreateCustomerRequestPreferredLang];
 
@@ -640,6 +673,10 @@ export const UpdateLeaveStatusBodyStatus = {
 
 export type UpdateLeaveStatusBody = {
   status: UpdateLeaveStatusBodyStatus;
+};
+
+export type DeleteErpStaff200 = {
+  success?: boolean;
 };
 
 export type CreateCustomerNoteBody = {

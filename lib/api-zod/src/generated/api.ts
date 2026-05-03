@@ -993,6 +993,41 @@ export const GetErpCustomerResponse = zod.object({
 });
 
 /**
+ * @summary List staff (admins and employees)
+ */
+export const GetErpStaffResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  email: zod.string(),
+  role: zod.enum(["admin", "employee"]),
+  phone: zod.string().nullish(),
+  created_at: zod.string().optional(),
+});
+export const GetErpStaffResponse = zod.array(GetErpStaffResponseItem);
+
+/**
+ * @summary Create a staff account (admin or employee)
+ */
+export const CreateErpStaffBody = zod.object({
+  name: zod.string(),
+  email: zod.string(),
+  password: zod.string(),
+  role: zod.enum(["admin", "employee"]).optional(),
+  phone: zod.string().optional(),
+});
+
+/**
+ * @summary Delete a staff account
+ */
+export const DeleteErpStaffParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteErpStaffResponse = zod.object({
+  success: zod.boolean().optional(),
+});
+
+/**
  * @summary Add customer note
  */
 export const CreateCustomerNoteParams = zod.object({

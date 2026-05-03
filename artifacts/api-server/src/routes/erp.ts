@@ -2,7 +2,7 @@ import { Router } from "express";
 import { eq, desc, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { db, schema } from "../lib/db";
-import { authenticate, requireAdmin, type AuthRequest } from "../lib/auth";
+import { authenticate, requireAdmin, requireStaff, isAdmin, type AuthRequest } from "../lib/auth";
 import { broadcastToAdmins } from "../lib/ws";
 
 const router = Router();
@@ -193,7 +193,7 @@ router.put("/erp/purchase-orders/:id/receive", authenticate, requireAdmin, async
 });
 
 // ─── Inventory ─────────────────────────────────────────────────────
-router.get("/erp/inventory/stock", authenticate, requireAdmin, async (req, res) => {
+router.get("/erp/inventory/stock", authenticate, requireStaff, async (req, res) => {
   try {
     const products = await db.select({
       id: schema.productsTable.id,
@@ -211,7 +211,7 @@ router.get("/erp/inventory/stock", authenticate, requireAdmin, async (req, res) 
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
-router.get("/erp/inventory", authenticate, requireAdmin, async (req, res) => {
+router.get("/erp/inventory", authenticate, requireStaff, async (req, res) => {
   try {
     const movements = await db.select({
       id: schema.inventoryMovementsTable.id,
@@ -278,23 +278,30 @@ router.get("/erp/accounting-summary", authenticate, requireAdmin, async (req, re
 });
 
 // ─── CRM ───────────────────────────────────────────────────────────
-router.get("/erp/customers", authenticate, requireAdmin, async (req, res) => {
+router.get("/erp/customers", authenticate, requireStaff, async (req: AuthRequest, res) => {
   try {
     const customers = await db.execute(sql`
-      SELECT u.id, u.name, u.email, u.created_at,
+      SELECT u.id, u.name, u.email, u.phone, u.address, u.city, u.created_at,
         COUNT(o.id) as total_orders,
         COALESCE(SUM(o.total_amount), 0) as total_spent
       FROM users u
       LEFT JOIN orders o ON o.user_id = u.id
       WHERE u.role = 'customer'
-      GROUP BY u.id, u.name, u.email, u.created_at
+      GROUP BY u.id, u.name, u.email, u.phone, u.address, u.city, u.created_at
       ORDER BY total_spent DESC
     `);
-    res.json(customers.rows);
+    if (isAdmin(req)) {
+      res.json(customers.rows);
+    } else {
+      res.json(customers.rows.map((r: Record<string, unknown>) => {
+        const { total_spent: _ts, ...rest } = r;
+        return rest;
+      }));
+    }
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
-router.post("/erp/customers", authenticate, requireAdmin, async (req, res) => {
+router.post("/erp/customers", authenticate, requireStaff, async (req, res) => {
   try {
     const { name, email, password, preferredLang, phone, address, city, notes } = req.body || {};
     if (!name || !email) {
@@ -342,6 +349,65 @@ router.post("/erp/customers/:id/notes", authenticate, requireAdmin, async (req, 
     const [note] = await db.insert(schema.customerNotesTable)
       .values({ userId: pid(req, "id"), note: req.body.note }).returning();
     res.status(201).json(note);
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
+});
+
+// ─── Staff (system users with admin/employee role) ────────────────
+router.get("/erp/staff", authenticate, requireAdmin, async (req, res) => {
+  try {
+    const rows = await db.execute(sql`
+      SELECT id, name, email, role, phone, created_at
+      FROM users
+      WHERE role IN ('admin', 'employee')
+      ORDER BY created_at DESC
+    `);
+    res.json(rows.rows);
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
+});
+
+router.post("/erp/staff", authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { name, email, password, role, phone } = req.body || {};
+    if (!name || !email || !password) {
+      res.status(400).json({ error: "name, email and password are required" });
+      return;
+    }
+    if (String(password).length < 6) {
+      res.status(400).json({ error: "Password must be at least 6 characters" });
+      return;
+    }
+    const wantedRole = role === "admin" ? "admin" : "employee";
+    const existing = await db.select({ id: schema.usersTable.id })
+      .from(schema.usersTable).where(eq(schema.usersTable.email, email)).limit(1);
+    if (existing.length > 0) {
+      res.status(409).json({ error: "A user with this email already exists" });
+      return;
+    }
+    const passwordHash = await bcrypt.hash(String(password), 10);
+    const [user] = await db.insert(schema.usersTable).values({
+      name, email, passwordHash,
+      role: wantedRole,
+      phone: phone || null,
+    }).returning();
+    res.status(201).json({
+      id: user.id, name: user.name, email: user.email,
+      role: user.role, phone: user.phone, created_at: user.createdAt,
+    });
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
+});
+
+router.delete("/erp/staff/:id", authenticate, requireAdmin, async (req: AuthRequest, res) => {
+  try {
+    const targetId = pid(req, "id");
+    if (req.user?.id === targetId) {
+      res.status(400).json({ error: "Cannot delete your own account" });
+      return;
+    }
+    const [user] = await db.select().from(schema.usersTable).where(eq(schema.usersTable.id, targetId)).limit(1);
+    if (!user) { res.status(404).json({ error: "Not found" }); return; }
+    if (user.role === "customer") { res.status(400).json({ error: "Not a staff account" }); return; }
+    await db.delete(schema.usersTable).where(eq(schema.usersTable.id, targetId));
+    res.json({ success: true });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
