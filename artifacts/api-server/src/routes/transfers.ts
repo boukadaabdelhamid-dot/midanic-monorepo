@@ -423,7 +423,7 @@ router.post("/erp/transfers/:id/approve", authenticate, requireStaff, requireSto
       if (!u) throw Object.assign(new Error("Status changed by another request"), { http: 409 });
       await tx.insert(schema.stockTransferEventsTable).values({
         transferId: id, status: "approved", actorUserId: req.user!.id,
-        actorStoreId: req.currentStoreId!, notes: req.body?.notes ?? null,
+        actorStoreId: t.destinationStoreId, notes: req.body?.notes ?? null,
       });
       return u;
     });
@@ -452,7 +452,7 @@ router.post("/erp/transfers/:id/reject", authenticate, requireStaff, requireStor
       if (!u) throw Object.assign(new Error("Status changed by another request"), { http: 409 });
       await tx.insert(schema.stockTransferEventsTable).values({
         transferId: id, status: "rejected", actorUserId: req.user!.id,
-        actorStoreId: req.currentStoreId!, notes: req.body?.notes ?? null,
+        actorStoreId: t.destinationStoreId, notes: req.body?.notes ?? null,
       });
       return u;
     });
@@ -525,7 +525,7 @@ router.post("/erp/transfers/:id/prepare", authenticate, requireStaff, requireSto
       if (!u) throw Object.assign(new Error("Status changed by another request"), { http: 409 });
       await tx.insert(schema.stockTransferEventsTable).values({
         transferId: t.id, status: "prepared", actorUserId: req.user!.id,
-        actorStoreId: req.currentStoreId!, notes: req.body?.notes ?? null,
+        actorStoreId: t.sourceStoreId, notes: req.body?.notes ?? null,
       });
       return u;
     });
@@ -554,7 +554,7 @@ router.post("/erp/transfers/:id/ship", authenticate, requireStaff, requireStore,
       if (!u) throw Object.assign(new Error("Status changed by another request"), { http: 409 });
       await tx.insert(schema.stockTransferEventsTable).values({
         transferId: id, status: "in_transit", actorUserId: req.user!.id,
-        actorStoreId: req.currentStoreId!, notes: req.body?.notes ?? null,
+        actorStoreId: t.sourceStoreId, notes: req.body?.notes ?? null,
       });
       return u;
     });
@@ -613,7 +613,7 @@ router.post("/erp/transfers/:id/receive", authenticate, requireStaff, requireSto
       if (!u) throw Object.assign(new Error("Status changed by another request"), { http: 409 });
       await tx.insert(schema.stockTransferEventsTable).values({
         transferId: t.id, status: "received", actorUserId: req.user!.id,
-        actorStoreId: req.currentStoreId!, notes: req.body?.notes ?? null,
+        actorStoreId: t.destinationStoreId, notes: req.body?.notes ?? null,
       });
       return u;
     });
@@ -674,7 +674,7 @@ router.post("/erp/transfers/:id/cancel", authenticate, requireStaff, requireStor
       }
       await tx.insert(schema.stockTransferEventsTable).values({
         transferId: t.id, status: "cancelled", actorUserId: req.user!.id,
-        actorStoreId: req.currentStoreId!, notes: req.body?.notes ?? null,
+        actorStoreId: t.sourceStoreId, notes: req.body?.notes ?? null,
       });
       return u;
     });

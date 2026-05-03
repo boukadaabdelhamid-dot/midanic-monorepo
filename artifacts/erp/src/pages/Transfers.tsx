@@ -10,13 +10,13 @@ import {
   useReceiveErpTransfer,
   useCancelErpTransfer,
   useGetProducts,
-  useGetErpStores,
   getGetErpTransfersQueryKey,
   getGetErpTransferQueryKey,
   type StockTransferSummary,
   type StockTransferDetail,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
 import { useMe } from "@/hooks/use-me";
 import { useStoreContext } from "@/hooks/use-store";
 import { Card, CardContent } from "@/components/ui/card";
@@ -71,12 +71,25 @@ export default function Transfers() {
   const [openCreate, setOpenCreate] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
 
-  // Counterparty options: all active stores except the current one. Employees
-  // are constrained to a single store membership but must still be able to
-  // initiate transfer requests/sends to any other store in the tenant.
-  const { data: allStores } = useGetErpStores();
-  const otherStores = ((allStores ?? []) as Array<{ id: number; nameEn: string; nameAr: string; isActive?: boolean }>)
-    .filter((s) => s.id !== currentStoreId && s.isActive !== false);
+  // Counterparty options: all active tenant stores except the current one.
+  // Single-store employees still need to pick any other store as the
+  // counterparty, so we hit the staff-accessible /erp/stores/all endpoint
+  // (raw fetch — not part of the typed client) instead of /erp/stores
+  // (admin-only) or user.stores (employee-restricted).
+  const { token } = useAuth();
+  const { data: allStores } = useQuery({
+    queryKey: ["/api/erp/stores/all"],
+    enabled: !!token,
+    queryFn: async () => {
+      const base = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
+      const r = await fetch(`${base}/api/erp/stores/all`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) return [] as Array<{ id: number; nameEn: string; nameAr: string; isActive?: boolean }>;
+      return r.json() as Promise<Array<{ id: number; nameEn: string; nameAr: string; isActive?: boolean }>>;
+    },
+  });
+  const otherStores = (allStores ?? []).filter((s) => s.id !== currentStoreId && s.isActive !== false);
   void user;
 
   return (

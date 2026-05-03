@@ -46,6 +46,29 @@ router.get("/erp/stores/mine", authenticate, async (req: AuthRequest, res) => {
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
+// Staff: list ALL active tenant stores (safe projection). Used by features
+// like inter-store transfers where any staff member must be able to pick a
+// counterparty store, regardless of their personal memberships.
+router.get("/erp/stores/all", authenticate, async (req: AuthRequest, res) => {
+  try {
+    const role = req.user?.role;
+    if (role !== "admin" && role !== "employee") {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+    const rows = await db.select({
+      id: schema.storesTable.id,
+      nameAr: schema.storesTable.nameAr,
+      nameEn: schema.storesTable.nameEn,
+      slug: schema.storesTable.slug,
+      isActive: schema.storesTable.isActive,
+    }).from(schema.storesTable)
+      .where(eq(schema.storesTable.isActive, true))
+      .orderBy(schema.storesTable.id);
+    res.json(rows);
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
+});
+
 // Admin: list all stores with item-count to drive UI delete-disable.
 router.get("/erp/stores", authenticate, requireAdmin, async (req, res) => {
   try {
