@@ -150,6 +150,19 @@ export const CreateErpStoreBody = zod.object({
 });
 
 /**
+ * @summary List all active tenant stores (any staff)
+ */
+export const GetErpStoresAllResponseItem = zod.object({
+  id: zod.number(),
+  nameAr: zod.string(),
+  nameEn: zod.string(),
+  slug: zod.string(),
+  isActive: zod.boolean().optional(),
+  createdAt: zod.string().optional(),
+});
+export const GetErpStoresAllResponse = zod.array(GetErpStoresAllResponseItem);
+
+/**
  * @summary Update a store (rename / activate / deactivate)
  */
 export const UpdateErpStoreParams = zod.object({

@@ -726,6 +726,81 @@ export const useCreateErpStore = <
 };
 
 /**
+ * @summary List all active tenant stores (any staff)
+ */
+export const getGetErpStoresAllUrl = () => {
+  return `/api/erp/stores/all`;
+};
+
+export const getErpStoresAll = async (
+  options?: RequestInit,
+): Promise<Store[]> => {
+  return customFetch<Store[]>(getGetErpStoresAllUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetErpStoresAllQueryKey = () => {
+  return [`/api/erp/stores/all`] as const;
+};
+
+export const getGetErpStoresAllQueryOptions = <
+  TData = Awaited<ReturnType<typeof getErpStoresAll>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getErpStoresAll>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetErpStoresAllQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getErpStoresAll>>> = ({
+    signal,
+  }) => getErpStoresAll({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getErpStoresAll>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetErpStoresAllQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getErpStoresAll>>
+>;
+export type GetErpStoresAllQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all active tenant stores (any staff)
+ */
+
+export function useGetErpStoresAll<
+  TData = Awaited<ReturnType<typeof getErpStoresAll>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getErpStoresAll>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetErpStoresAllQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
  * @summary Update a store (rename / activate / deactivate)
  */
 export const getUpdateErpStoreUrl = (id: number) => {
