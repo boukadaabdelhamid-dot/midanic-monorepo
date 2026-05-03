@@ -2,7 +2,7 @@ import { Router } from "express";
 import { eq, and, or, desc, inArray, sql, gte } from "drizzle-orm";
 import { db, schema } from "../lib/db";
 import { authenticate, requireStaff, requireStore, isAdmin, type AuthRequest } from "../lib/auth";
-import { broadcastToAdmins } from "../lib/ws";
+import { broadcastToStaffByStores } from "../lib/ws";
 
 const router = Router();
 
@@ -31,7 +31,7 @@ async function logEvent(
 }
 
 function broadcastTransferChanged(t: { id: number; sourceStoreId: number; destinationStoreId: number; status: TransferStatus }) {
-  broadcastToAdmins({
+  broadcastToStaffByStores([t.sourceStoreId, t.destinationStoreId], {
     type: "stock_transfer_changed",
     storeIds: [t.sourceStoreId, t.destinationStoreId],
     transferId: t.id,

@@ -104,6 +104,25 @@ export function broadcastToStoreUsers(
 }
 
 /**
+ * Broadcast to staff (admins + employees) that have access to ANY of the
+ * given stores. Each matching client receives the payload exactly once,
+ * even if they belong to multiple of the listed stores.
+ */
+export function broadcastToStaffByStores(storeIds: number[], data: Record<string, unknown>) {
+  if (storeIds.length === 0) return;
+  const payload = JSON.stringify(data);
+  const targets = new Set(storeIds);
+  for (const c of activeClients()) {
+    let match = false;
+    for (const id of c.storeIds) {
+      if (targets.has(id)) { match = true; break; }
+    }
+    if (!match) continue;
+    c.ws.send(payload);
+  }
+}
+
+/**
  * Direct delivery to specific user ids regardless of store membership.
  */
 export function broadcastToUsers(userIds: number[], data: Record<string, unknown>) {
