@@ -743,6 +743,17 @@ export const GetOrderResponse = zod
 /**
  * @summary Get all orders (admin)
  */
+export const getAdminOrdersQueryChannelDefault = `all`;
+
+export const GetAdminOrdersQueryParams = zod.object({
+  channel: zod
+    .enum(["all", "online", "pos"])
+    .default(getAdminOrdersQueryChannelDefault)
+    .describe(
+      "Filter by sales channel.\n`online` = web\/mobile storefront orders (no seller),\n`pos` = in-store cashier sales,\n`all` (default) = both.\n",
+    ),
+});
+
 export const GetAdminOrdersResponseItem = zod.object({
   id: zod.number(),
   userId: zod.number().nullish(),

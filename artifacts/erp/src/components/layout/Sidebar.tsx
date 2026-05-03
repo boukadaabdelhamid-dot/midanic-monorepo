@@ -5,19 +5,30 @@ import {
   Calendar, Truck, FileText, BarChart2, CreditCard,
   UserCheck, LogOut, Menu, X, Wallet, Activity, Home,
   ChevronLeft, ChevronRight, Store as StoreIcon, Check,
-  ArrowLeftRight,
+  ArrowLeftRight, Bell,
 } from "lucide-react";
 import { Shield } from "lucide-react";
 import logoPath from "@assets/logo_des_13_midanic_1777739613232.jpeg";
 import { useAuth } from "@/hooks/use-auth";
 import { useMe } from "@/hooks/use-me";
 import { useStoreContext } from "@/hooks/use-store";
-import { useSelectStore } from "@workspace/api-client-react";
+import {
+  useSelectStore, useGetAdminOrders, getGetAdminOrdersQueryKey,
+  GetAdminOrdersChannel,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type NavItem = { href: string; icon: React.ComponentType<{ className?: string }>; labelEn: string; labelAr: string; adminOnly?: boolean };
+type NavItem = {
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  labelEn: string;
+  labelAr: string;
+  adminOnly?: boolean;
+  /** Optional badge key for live counters (e.g. pending online orders). */
+  badge?: "online-orders-pending";
+};
 
 const navItems: NavItem[] = [
   { href: "/home", icon: Home, labelEn: "Home", labelAr: "الرئيسية" },
@@ -26,6 +37,7 @@ const navItems: NavItem[] = [
   { href: "/caisse", icon: Wallet, labelEn: "Caisses", labelAr: "الصناديق" },
   { href: "/caisse/reports", icon: BarChart2, labelEn: "Rapport caisses", labelAr: "تقرير الصناديق", adminOnly: true },
   { href: "/orders", icon: ShoppingCart, labelEn: "Ventes", labelAr: "المبيعات" },
+  { href: "/online-orders", icon: Bell, labelEn: "Commandes en ligne", labelAr: "طلبات المتجر", badge: "online-orders-pending" },
   { href: "/products", icon: Package, labelEn: "Articles", labelAr: "المنتجات" },
   { href: "/purchase-orders", icon: FileText, labelEn: "Achats", labelAr: "المشتريات", adminOnly: true },
   { href: "/inventory", icon: BarChart2, labelEn: "Stock", labelAr: "المخزون" },
@@ -135,11 +147,29 @@ function StoreSwitcher({ collapsed }: { collapsed: boolean }) {
   );
 }
 
+/**
+ * Live count of pending online orders for the current store. Reuses the
+ * same `useGetAdminOrders({ channel: "online" })` query as the inbox page
+ * (distinct queryKey from the legacy Orders list) so the badge refreshes
+ * automatically when the realtime WS invalidates `/api/erp/orders`.
+ */
+function useOnlineOrdersPendingCount(): number {
+  const { currentStoreId } = useStoreContext();
+  const params = { channel: GetAdminOrdersChannel.online };
+  const { data } = useGetAdminOrders(
+    params,
+    { query: { enabled: !!currentStoreId, queryKey: getGetAdminOrdersQueryKey(params) } },
+  );
+  if (!data) return 0;
+  return data.filter((o) => o.status === "pending").length;
+}
+
 export function Sidebar() {
   const [location] = useLocation();
   const { logout } = useAuth();
   const { isAdmin } = useMe();
   const visibleItems = navItems.filter((it) => !it.adminOnly || isAdmin);
+  const onlineOrdersPending = useOnlineOrdersPendingCount();
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     if (typeof window === "undefined") return false;
@@ -172,27 +202,46 @@ export function Sidebar() {
       <StoreSwitcher collapsed={isCollapsed} />
 
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-        {visibleItems.map(({ href, icon: Icon, labelEn, labelAr }) => {
+        {visibleItems.map(({ href, icon: Icon, labelEn, labelAr, badge }) => {
           const active = location === href || location.startsWith(href + "/");
+          const badgeCount = badge === "online-orders-pending" ? onlineOrdersPending : 0;
           return (
             <Link key={href} href={href} onClick={() => setOpen(false)}>
               <div
                 data-testid={`nav-${href.replace("/", "")}`}
                 title={isCollapsed ? `${labelEn} / ${labelAr}` : undefined}
                 className={cn(
-                  "flex items-center rounded-md text-sm font-medium transition-colors cursor-pointer",
+                  "flex items-center rounded-md text-sm font-medium transition-colors cursor-pointer relative",
                   isCollapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5",
                   active
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                 )}
               >
-                <Icon className="h-4 w-4 shrink-0" />
+                <div className="relative shrink-0">
+                  <Icon className="h-4 w-4" />
+                  {isCollapsed && badgeCount > 0 && (
+                    <span
+                      className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold flex items-center justify-center"
+                      data-testid={`nav-badge-${href.replace("/", "")}`}
+                    >
+                      {badgeCount > 99 ? "99+" : badgeCount}
+                    </span>
+                  )}
+                </div>
                 {!isCollapsed && (
                   <div className="flex-1 min-w-0">
                     <div className="truncate">{labelEn}</div>
                     <div className="truncate text-xs opacity-70" dir="rtl">{labelAr}</div>
                   </div>
+                )}
+                {!isCollapsed && badgeCount > 0 && (
+                  <span
+                    className="ml-auto min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[11px] font-semibold flex items-center justify-center"
+                    data-testid={`nav-badge-${href.replace("/", "")}`}
+                  >
+                    {badgeCount > 99 ? "99+" : badgeCount}
+                  </span>
                 )}
               </div>
             </Link>

@@ -640,6 +640,18 @@ paths:
       summary: Get all orders (admin)
       security:
         - bearerAuth: []
+      parameters:
+        - in: query
+          name: channel
+          description: |
+            Filter by sales channel.
+            `online` = web/mobile storefront orders (no seller),
+            `pos` = in-store cashier sales,
+            `all` (default) = both.
+          schema:
+            type: string
+            enum: [all, online, pos]
+            default: all
       responses:
         "200":
           description: All orders

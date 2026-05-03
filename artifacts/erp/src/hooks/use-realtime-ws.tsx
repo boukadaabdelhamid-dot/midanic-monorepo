@@ -130,8 +130,23 @@ export function useRealtimeWS(): void {
             if (t) toastRef.current(t);
             break;
           }
-          case "new_order":
+          case "new_order": {
+            // Generated query keys for the admin orders list/detail are
+            // rooted at "/api/admin/orders"; the legacy "/api/erp/orders"
+            // prefix is kept for any other in-app caches keyed that way.
+            invalidatePrefix("/api/admin/orders");
+            invalidatePrefix("/api/erp/orders");
+            // Online (storefront) orders have no seller. Pop a toast for
+            // staff of the current store so the inbox is acted on quickly.
+            const sellerId = (msg as { sellerUserId?: number | null }).sellerUserId ?? null;
+            const evtStoreId = (msg as { storeId?: number }).storeId;
+            if (sellerId === null && evtStoreId === storeIdRef.current) {
+              toastRef.current({ title: "طلب جديد من المتجر", description: "Nouvelle commande en ligne reçue" });
+            }
+            break;
+          }
           case "order_status_changed":
+            invalidatePrefix("/api/admin/orders");
             invalidatePrefix("/api/erp/orders");
             break;
           case "low_stock":

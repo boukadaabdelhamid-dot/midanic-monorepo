@@ -56,6 +56,7 @@ import type {
   DeleteErpStaff200,
   Employee,
   GenerateBarcodeResponse,
+  GetAdminOrdersParams,
   GetAttendanceParams,
   GetErpCaisseReportsParams,
   GetErpCaisseTransfersParams,
@@ -2651,41 +2652,57 @@ export function useGetOrder<
 /**
  * @summary Get all orders (admin)
  */
-export const getGetAdminOrdersUrl = () => {
-  return `/api/admin/orders`;
+export const getGetAdminOrdersUrl = (params?: GetAdminOrdersParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/admin/orders?${stringifiedParams}`
+    : `/api/admin/orders`;
 };
 
 export const getAdminOrders = async (
+  params?: GetAdminOrdersParams,
   options?: RequestInit,
 ): Promise<Order[]> => {
-  return customFetch<Order[]>(getGetAdminOrdersUrl(), {
+  return customFetch<Order[]>(getGetAdminOrdersUrl(params), {
     ...options,
     method: "GET",
   });
 };
 
-export const getGetAdminOrdersQueryKey = () => {
-  return [`/api/admin/orders`] as const;
+export const getGetAdminOrdersQueryKey = (params?: GetAdminOrdersParams) => {
+  return [`/api/admin/orders`, ...(params ? [params] : [])] as const;
 };
 
 export const getGetAdminOrdersQueryOptions = <
   TData = Awaited<ReturnType<typeof getAdminOrders>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof getAdminOrders>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}) => {
+>(
+  params?: GetAdminOrdersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAdminOrders>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
   const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetAdminOrdersQueryKey();
+  const queryKey = queryOptions?.queryKey ?? getGetAdminOrdersQueryKey(params);
 
   const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminOrders>>> = ({
     signal,
-  }) => getAdminOrders({ signal, ...requestOptions });
+  }) => getAdminOrders(params, { signal, ...requestOptions });
 
   return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
     Awaited<ReturnType<typeof getAdminOrders>>,
@@ -2706,15 +2723,18 @@ export type GetAdminOrdersQueryError = ErrorType<unknown>;
 export function useGetAdminOrders<
   TData = Awaited<ReturnType<typeof getAdminOrders>>,
   TError = ErrorType<unknown>,
->(options?: {
-  query?: UseQueryOptions<
-    Awaited<ReturnType<typeof getAdminOrders>>,
-    TError,
-    TData
-  >;
-  request?: SecondParameter<typeof customFetch>;
-}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-  const queryOptions = getGetAdminOrdersQueryOptions(options);
+>(
+  params?: GetAdminOrdersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getAdminOrders>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAdminOrdersQueryOptions(params, options);
 
   const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
     queryKey: QueryKey;

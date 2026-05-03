@@ -1044,6 +1044,26 @@ export type GetProductsParams = {
   limit?: number;
 };
 
+export type GetAdminOrdersParams = {
+  /**
+ * Filter by sales channel.
+`online` = web/mobile storefront orders (no seller),
+`pos` = in-store cashier sales,
+`all` (default) = both.
+
+ */
+  channel?: GetAdminOrdersChannel;
+};
+
+export type GetAdminOrdersChannel =
+  (typeof GetAdminOrdersChannel)[keyof typeof GetAdminOrdersChannel];
+
+export const GetAdminOrdersChannel = {
+  all: "all",
+  online: "online",
+  pos: "pos",
+} as const;
+
 export type GetLowStockParams = {
   /**
    * Stock level below which a product is considered low-stock

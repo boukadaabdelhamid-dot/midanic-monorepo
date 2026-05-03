@@ -14,6 +14,7 @@ import Stores from "@/pages/Stores";
 import Home from "@/pages/Home";
 import Dashboard from "@/pages/Dashboard";
 import Orders from "@/pages/Orders";
+import OnlineOrders from "@/pages/OnlineOrders";
 import Products from "@/pages/Products";
 import Employees from "@/pages/Employees";
 import Attendance from "@/pages/Attendance";
@@ -101,6 +102,9 @@ function Router() {
       </Route>
       <Route path="/orders">
         <ProtectedRoute component={Orders} />
+      </Route>
+      <Route path="/online-orders">
+        <ProtectedRoute component={OnlineOrders} />
       </Route>
       <Route path="/products">
         <ProtectedRoute component={Products} />

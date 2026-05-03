@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { eq, desc, sql, lt, and, inArray } from "drizzle-orm";
+import { eq, desc, sql, lt, and, inArray, isNull, isNotNull } from "drizzle-orm";
 import { db, schema } from "../lib/db";
 import { authenticate, requireAdmin, requireStaff, requireStore, optionalAuth, type AuthRequest } from "../lib/auth";
 import { resolvePublicStore } from "../lib/store-context";
-import { broadcastToAdmins, broadcastToStoreUsers } from "../lib/ws";
+import { broadcastToAdmins, broadcastToStoreUsers, broadcastToStaffByStores } from "../lib/ws";
 import { ensureCaisse } from "./caisses";
 
 
@@ -207,9 +207,12 @@ async function handleCreateOrder(req: AuthRequest, res: import("express").Respon
       return { order, enrichedItems, totalAmount, sellerUserId, sellerCaisseId };
     });
 
-    broadcastToAdmins({
+    // Broadcast to all staff (admins + employees) of this store so the
+    // online-orders inbox can pop a toast for non-admin staff too.
+    broadcastToStaffByStores([storeId], {
       type: "new_order",
       storeId,
+      sellerUserId: result.sellerUserId,
       order: { id: result.order.id, customerName, customerPhone, customerAddress, totalAmount: result.totalAmount, createdAt: result.order.createdAt },
     });
 
@@ -314,8 +317,24 @@ router.get("/orders/:id", authenticate, async (req: AuthRequest, res) => {
 router.get("/admin/orders", authenticate, requireStaff, requireStore, async (req: AuthRequest, res) => {
   try {
     const storeId = req.currentStoreId!;
+    // Optional `channel` filter — distinguishes online (web/mobile storefront)
+    // orders from POS sales recorded by staff. We infer the channel from
+    // `seller_user_id`: NULL = online (no cashier), NOT NULL = POS.
+    const rawChannel = req.query.channel;
+    const channel = typeof rawChannel === "string" ? rawChannel : "all";
+    if (!["all", "online", "pos"].includes(channel)) {
+      res.status(400).json({ error: "Invalid channel. Must be one of: all, online, pos" });
+      return;
+    }
+    const channelFilter =
+      channel === "online" ? isNull(schema.ordersTable.sellerUserId)
+      : channel === "pos" ? isNotNull(schema.ordersTable.sellerUserId)
+      : undefined;
+    const whereClause = channelFilter
+      ? and(eq(schema.ordersTable.storeId, storeId), channelFilter)
+      : eq(schema.ordersTable.storeId, storeId);
     const orders = await db.select().from(schema.ordersTable)
-      .where(eq(schema.ordersTable.storeId, storeId))
+      .where(whereClause)
       .orderBy(desc(schema.ordersTable.createdAt));
     const sellerIds = Array.from(new Set(orders.map(o => o.sellerUserId).filter((x): x is number => !!x)));
     const sellers = sellerIds.length
