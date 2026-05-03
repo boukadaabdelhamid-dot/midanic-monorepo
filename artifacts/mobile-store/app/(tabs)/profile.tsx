@@ -156,7 +156,7 @@ export default function ProfileScreen() {
             <MenuRow
               icon="layers"
               label={t("إدارة الطلبات", "Manage Orders")}
-              onPress={() => router.push("/admin/orders")}
+              onPress={() => router.push("/admin")}
             />
           )}
         </View>

@@ -37,7 +37,7 @@ function RootLayoutNav() {
         <Stack.Screen name="order/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="auth/login" options={{ headerShown: false }} />
         <Stack.Screen name="auth/register" options={{ headerShown: false }} />
-        <Stack.Screen name="admin/orders" options={{ headerShown: false }} />
+        <Stack.Screen name="admin" options={{ headerShown: false }} />
       </Stack>
       <NotificationBanner />
     </>
