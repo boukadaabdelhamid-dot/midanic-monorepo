@@ -296,7 +296,7 @@ router.get("/erp/customers", authenticate, requireAdmin, async (req, res) => {
 
 router.post("/erp/customers", authenticate, requireAdmin, async (req, res) => {
   try {
-    const { name, email, password, preferredLang } = req.body || {};
+    const { name, email, password, preferredLang, phone, address, city, notes } = req.body || {};
     if (!name || !email) {
       res.status(400).json({ error: "name and email are required" });
       return;
@@ -313,9 +313,14 @@ router.post("/erp/customers", authenticate, requireAdmin, async (req, res) => {
       name, email, passwordHash,
       role: "customer",
       preferredLang: preferredLang === "en" ? "en" : "ar",
+      phone: phone || null,
+      address: address || null,
+      city: city || null,
+      notes: notes || null,
     }).returning();
     res.status(201).json({
       id: user.id, name: user.name, email: user.email,
+      phone: user.phone, address: user.address, city: user.city,
       total_orders: 0, total_spent: "0",
     });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }

@@ -558,6 +558,9 @@ export interface CustomerSummary {
   id: number;
   name: string;
   email: string;
+  phone?: string | null;
+  address?: string | null;
+  city?: string | null;
   created_at?: string;
   total_orders?: number;
   total_spent?: number;
@@ -576,6 +579,10 @@ export interface CreateCustomerRequest {
   email: string;
   password?: string;
   preferredLang?: CreateCustomerRequestPreferredLang;
+  phone?: string;
+  address?: string;
+  city?: string;
+  notes?: string;
 }
 
 export interface CustomerNote {

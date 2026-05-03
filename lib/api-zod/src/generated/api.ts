@@ -923,6 +923,9 @@ export const GetErpCustomersResponseItem = zod.object({
   id: zod.number(),
   name: zod.string(),
   email: zod.string(),
+  phone: zod.string().nullish(),
+  address: zod.string().nullish(),
+  city: zod.string().nullish(),
   created_at: zod.string().optional(),
   total_orders: zod.number().optional(),
   total_spent: zod.number().optional(),
@@ -937,6 +940,10 @@ export const CreateErpCustomerBody = zod.object({
   email: zod.string(),
   password: zod.string().optional(),
   preferredLang: zod.enum(["ar", "en"]).optional(),
+  phone: zod.string().optional(),
+  address: zod.string().optional(),
+  city: zod.string().optional(),
+  notes: zod.string().optional(),
 });
 
 /**

@@ -106,7 +106,7 @@ export default function Customers() {
   const { data: customers, isLoading } = useGetErpCustomers();
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [form, setForm] = useState({ name: "", email: "", password: "", phone: "", address: "", city: "", notes: "" });
   const [createError, setCreateError] = useState<string | null>(null);
   const createCustomer = useCreateErpCustomer();
 
@@ -117,12 +117,20 @@ export default function Customers() {
       return;
     }
     createCustomer.mutate(
-      { data: { name: form.name.trim(), email: form.email.trim(), password: form.password || undefined } },
+      { data: {
+        name: form.name.trim(),
+        email: form.email.trim(),
+        password: form.password || undefined,
+        phone: form.phone.trim() || undefined,
+        address: form.address.trim() || undefined,
+        city: form.city.trim() || undefined,
+        notes: form.notes.trim() || undefined,
+      } },
       {
         onSuccess: () => {
           qc.invalidateQueries({ queryKey: getGetErpCustomersQueryKey() });
           setCreateOpen(false);
-          setForm({ name: "", email: "", password: "" });
+          setForm({ name: "", email: "", password: "", phone: "", address: "", city: "", notes: "" });
         },
         onError: (err: unknown) => {
           const msg = (err as { message?: string })?.message ?? "Failed to create customer";
@@ -193,24 +201,59 @@ export default function Customers() {
       </Dialog>
 
       <Dialog open={createOpen} onOpenChange={(v) => { setCreateOpen(v); if (!v) setCreateError(null); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nouveau client / عميل جديد</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div>
-              <Label htmlFor="cust-name">Nom / الاسم *</Label>
-              <Input id="cust-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="input-customer-name" autoFocus />
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Informations de base / المعلومات الأساسية</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor="cust-name">Nom / الاسم *</Label>
+                  <Input id="cust-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="input-customer-name" autoFocus />
+                </div>
+                <div>
+                  <Label htmlFor="cust-email">Email / البريد *</Label>
+                  <Input id="cust-email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} data-testid="input-customer-email" />
+                </div>
+                <div>
+                  <Label htmlFor="cust-phone">Téléphone / الهاتف</Label>
+                  <Input id="cust-phone" type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="+213 ..." data-testid="input-customer-phone" />
+                </div>
+                <div>
+                  <Label htmlFor="cust-city">Ville / المدينة</Label>
+                  <Input id="cust-city" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} data-testid="input-customer-city" />
+                </div>
+              </div>
             </div>
+
             <div>
-              <Label htmlFor="cust-email">Email / البريد *</Label>
-              <Input id="cust-email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} data-testid="input-customer-email" />
+              <Label htmlFor="cust-address">Adresse / العنوان</Label>
+              <Input id="cust-address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} data-testid="input-customer-address" />
             </div>
+
             <div>
-              <Label htmlFor="cust-pwd">Mot de passe / كلمة المرور</Label>
-              <Input id="cust-pwd" type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Auto-généré si vide / يُولّد تلقائياً" data-testid="input-customer-password" />
-              <p className="text-[11px] text-muted-foreground mt-1">Min. 6 caractères. Laissez vide pour générer automatiquement.</p>
+              <Label htmlFor="cust-notes">Notes / ملاحظات</Label>
+              <textarea
+                id="cust-notes"
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                rows={2}
+                className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                data-testid="input-customer-notes"
+              />
             </div>
+
+            <div>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Accès / الدخول</h4>
+              <div>
+                <Label htmlFor="cust-pwd">Mot de passe / كلمة المرور</Label>
+                <Input id="cust-pwd" type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Auto-généré si vide / يُولّد تلقائياً" data-testid="input-customer-password" />
+                <p className="text-[11px] text-muted-foreground mt-1">Min. 6 caractères. Laissez vide pour générer automatiquement.</p>
+              </div>
+            </div>
+
             {createError && <p className="text-sm text-red-600" data-testid="text-create-error">{createError}</p>}
           </div>
           <DialogFooter className="gap-2">

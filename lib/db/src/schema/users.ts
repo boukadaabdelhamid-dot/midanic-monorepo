@@ -12,6 +12,10 @@ export const usersTable = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   role: userRoleEnum("role").notNull().default("customer"),
   preferredLang: langEnum("preferred_lang").notNull().default("ar"),
+  phone: text("phone"),
+  address: text("address"),
+  city: text("city"),
+  notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

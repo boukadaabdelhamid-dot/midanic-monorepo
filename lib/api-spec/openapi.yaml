@@ -1887,6 +1887,15 @@ components:
           type: string
         email:
           type: string
+        phone:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
         created_at:
           type: string
         total_orders:
@@ -1907,6 +1916,14 @@ components:
         preferredLang:
           type: string
           enum: [ar, en]
+        phone:
+          type: string
+        address:
+          type: string
+        city:
+          type: string
+        notes:
+          type: string
       required: [name, email]
 
     CustomerDetail:
