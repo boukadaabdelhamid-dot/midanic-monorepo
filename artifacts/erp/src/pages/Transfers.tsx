@@ -10,6 +10,7 @@ import {
   useReceiveErpTransfer,
   useCancelErpTransfer,
   useGetProducts,
+  useGetErpStores,
   getGetErpTransfersQueryKey,
   getGetErpTransferQueryKey,
   type StockTransferSummary,
@@ -70,8 +71,13 @@ export default function Transfers() {
   const [openCreate, setOpenCreate] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
 
-  const stores = (user as { stores?: Array<{ id: number; nameEn: string; nameAr: string }> } | null)?.stores ?? [];
-  const otherStores = stores.filter((s) => s.id !== currentStoreId);
+  // Counterparty options: all active stores except the current one. Employees
+  // are constrained to a single store membership but must still be able to
+  // initiate transfer requests/sends to any other store in the tenant.
+  const { data: allStores } = useGetErpStores();
+  const otherStores = ((allStores ?? []) as Array<{ id: number; nameEn: string; nameAr: string; isActive?: boolean }>)
+    .filter((s) => s.id !== currentStoreId && s.isActive !== false);
+  void user;
 
   return (
     <div className="space-y-4">
