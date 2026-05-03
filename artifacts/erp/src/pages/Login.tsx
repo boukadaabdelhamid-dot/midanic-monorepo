@@ -3,8 +3,9 @@ import { useLocation } from "wouter";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useLogin } from "@workspace/api-client-react";
+import { useLogin, useSelectStore } from "@workspace/api-client-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useStoreContext } from "@/hooks/use-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,7 +22,9 @@ type FormData = z.infer<typeof schema>;
 export default function Login() {
   const [, setLocation] = useLocation();
   const { setToken } = useAuth();
+  const { setStores, setCurrentStoreId, clear } = useStoreContext();
   const loginMutation = useLogin();
+  const selectStore = useSelectStore();
 
   const {
     register,
@@ -36,7 +39,27 @@ export default function Login() {
       {
         onSuccess: (res) => {
           setToken(res.token);
-          setLocation("/dashboard");
+          clear();
+          const stores = res.stores ?? [];
+          if (stores.length === 0) {
+            // customer or no store assigned
+            setLocation("/home");
+          } else if (stores.length === 1) {
+            // auto-select the only store
+            selectStore.mutate(
+              { data: { storeId: stores[0].id } },
+              {
+                onSuccess: (sres) => {
+                  setToken(sres.token);
+                  setStores(stores, sres.currentStoreId);
+                  setLocation("/home");
+                },
+              }
+            );
+          } else {
+            setStores(stores, null);
+            setLocation("/select-store");
+          }
         },
         onError: () => {
           setError("email", { message: "Invalid credentials / بيانات غير صحيحة" });

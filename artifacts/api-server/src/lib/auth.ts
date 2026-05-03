@@ -15,16 +15,19 @@ function resolveJwtSecret(): string {
 
 const JWT_SECRET: string = resolveJwtSecret();
 
-export function signToken(payload: { id: number; email: string; role: string }) {
+export type JwtPayload = { id: number; email: string; role: string; currentStoreId?: number | null };
+
+export function signToken(payload: JwtPayload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
 }
 
-export function verifyToken(token: string) {
-  return jwt.verify(token, JWT_SECRET) as { id: number; email: string; role: string };
+export function verifyToken(token: string): JwtPayload {
+  return jwt.verify(token, JWT_SECRET) as JwtPayload;
 }
 
 export interface AuthRequest extends Request {
-  user?: { id: number; email: string; role: string };
+  user?: JwtPayload;
+  currentStoreId?: number;
 }
 
 export function authenticate(req: AuthRequest, res: Response, next: NextFunction) {
@@ -36,6 +39,9 @@ export function authenticate(req: AuthRequest, res: Response, next: NextFunction
   try {
     const token = authHeader.slice(7);
     req.user = verifyToken(token);
+    if (typeof req.user.currentStoreId === "number") {
+      req.currentStoreId = req.user.currentStoreId;
+    }
     next();
   } catch {
     res.status(401).json({ error: "Invalid token" });
@@ -59,6 +65,18 @@ export function requireStaff(req: AuthRequest, res: Response, next: NextFunction
   next();
 }
 
+/**
+ * Ensure a current store is selected. Used on every tenant-scoped ERP route.
+ * Must be placed AFTER authenticate.
+ */
+export function requireStore(req: AuthRequest, res: Response, next: NextFunction) {
+  if (typeof req.currentStoreId !== "number") {
+    res.status(400).json({ error: "No store selected. Call /auth/select-store first." });
+    return;
+  }
+  next();
+}
+
 export function isAdmin(req: AuthRequest): boolean {
   return req.user?.role === "admin";
 }
@@ -68,6 +86,9 @@ export function optionalAuth(req: AuthRequest, _res: Response, next: NextFunctio
   if (authHeader?.startsWith("Bearer ")) {
     try {
       req.user = verifyToken(authHeader.slice(7));
+      if (typeof req.user.currentStoreId === "number") {
+        req.currentStoreId = req.user.currentStoreId;
+      }
     } catch {
       // ignore — auth is optional
     }

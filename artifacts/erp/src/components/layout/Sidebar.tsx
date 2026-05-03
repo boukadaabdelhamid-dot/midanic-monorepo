@@ -4,12 +4,15 @@ import {
   LayoutDashboard, ShoppingCart, Package, Users, Clock,
   Calendar, Truck, FileText, BarChart2, CreditCard,
   UserCheck, LogOut, Menu, X, Wallet, Activity, Home,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Store as StoreIcon, Check,
 } from "lucide-react";
 import { Shield } from "lucide-react";
 import logoPath from "@assets/logo_des_13_midanic_1777739613232.jpeg";
 import { useAuth } from "@/hooks/use-auth";
 import { useMe } from "@/hooks/use-me";
+import { useStoreContext } from "@/hooks/use-store";
+import { useSelectStore } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -28,12 +31,106 @@ const navItems: NavItem[] = [
   { href: "/suppliers", icon: Truck, labelEn: "Fournisseurs", labelAr: "الموردون", adminOnly: true },
   { href: "/employees", icon: Users, labelEn: "Employés", labelAr: "الموظفون", adminOnly: true },
   { href: "/staff", icon: Shield, labelEn: "Accès / Staff", labelAr: "الصلاحيات", adminOnly: true },
+  { href: "/stores", icon: StoreIcon, labelEn: "Magasins", labelAr: "المتاجر", adminOnly: true },
   { href: "/attendance", icon: Clock, labelEn: "Présences", labelAr: "الحضور", adminOnly: true },
   { href: "/leaves", icon: Calendar, labelEn: "Congés", labelAr: "الإجازات", adminOnly: true },
   { href: "/accounting", icon: CreditCard, labelEn: "Comptabilité", labelAr: "المحاسبة", adminOnly: true },
 ];
 
 const COLLAPSE_KEY = "midanic.erp.sidebarCollapsed";
+
+function StoreSwitcher({ collapsed }: { collapsed: boolean }) {
+  const { user } = useMe();
+  const { currentStoreId, stores: ctxStores, setStores, setCurrentStoreId } = useStoreContext();
+  const { setToken } = useAuth();
+  const qc = useQueryClient();
+  const selectStore = useSelectStore();
+  const [open, setOpen] = useState(false);
+
+  const userStores = (user as { stores?: Array<{ id: number; nameAr: string; nameEn: string; slug: string }> } | null)?.stores ?? [];
+  const stores = ctxStores.length > 0 ? ctxStores : userStores;
+  // Hydrate context from /auth/me on first load (e.g., page refresh) so the
+  // switcher works even before another login event populates context.
+  useEffect(() => {
+    if (ctxStores.length === 0 && userStores.length > 0) {
+      setStores(userStores, currentStoreId);
+    }
+  }, [ctxStores.length, userStores, currentStoreId, setStores]);
+  const current = stores.find((s) => s.id === currentStoreId);
+
+  if (!stores.length) return null;
+
+  const switchTo = (storeId: number) => {
+    if (storeId === currentStoreId) { setOpen(false); return; }
+    selectStore.mutate({ data: { storeId } }, {
+      onSuccess: (res) => {
+        setToken(res.token);
+        setCurrentStoreId(res.currentStoreId);
+        setStores(stores, res.currentStoreId);
+        qc.clear();
+        setOpen(false);
+      },
+    });
+  };
+
+  if (stores.length === 1) {
+    if (collapsed) return null;
+    return (
+      <div className="px-3 py-2 border-b border-sidebar-border">
+        <div className="flex items-center gap-2 text-xs text-sidebar-foreground/70">
+          <StoreIcon className="h-3.5 w-3.5 shrink-0" />
+          <span className="truncate" title={current?.nameEn}>{current?.nameEn}</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={cn("relative border-b border-sidebar-border", collapsed ? "py-2 flex justify-center" : "p-2")}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "rounded-md text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition flex items-center",
+          collapsed ? "h-9 w-9 justify-center" : "w-full px-2 py-2 gap-2 text-left"
+        )}
+        title={collapsed ? current?.nameEn : undefined}
+        data-testid="button-store-switcher"
+      >
+        <StoreIcon className="h-4 w-4 shrink-0 text-primary" />
+        {!collapsed && (
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] uppercase tracking-wide text-sidebar-foreground/50">Magasin</div>
+            <div className="text-sm font-medium truncate">{current?.nameEn ?? "—"}</div>
+          </div>
+        )}
+        {!collapsed && <ChevronRight className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-90")} />}
+      </button>
+      {open && (
+        <div className={cn(
+          "absolute z-50 mt-1 rounded-md border bg-popover text-popover-foreground shadow-lg overflow-hidden",
+          collapsed ? "left-full ml-2 top-0 w-56" : "left-2 right-2 top-full"
+        )}>
+          {stores.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => switchTo(s.id)}
+              className="w-full px-3 py-2 text-sm flex items-center gap-2 hover:bg-accent"
+              data-testid={`switch-store-${s.id}`}
+            >
+              {s.id === currentStoreId ? <Check className="h-3.5 w-3.5 text-primary" /> : <span className="w-3.5" />}
+              <div className="flex-1 min-w-0 text-left">
+                <div className="truncate">{s.nameEn}</div>
+                <div className="text-xs text-muted-foreground truncate" dir="rtl">{s.nameAr}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function Sidebar() {
   const [location] = useLocation();
@@ -68,6 +165,8 @@ export function Sidebar() {
           </div>
         )}
       </div>
+
+      <StoreSwitcher collapsed={isCollapsed} />
 
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
         {visibleItems.map(({ href, icon: Icon, labelEn, labelAr }) => {

@@ -1,12 +1,14 @@
 import { pgTable, serial, text, timestamp, integer, numeric, pgEnum, boolean, date } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 import { productsTable } from "./products";
+import { storesTable } from "./stores";
 
 // ─── Employees ───────────────────────────────────────────────────────────────
 export const employeeStatusEnum = pgEnum("employee_status", ["active", "inactive", "on_leave"]);
 
 export const employeesTable = pgTable("employees", {
   id: serial("id").primaryKey(),
+  storeId: integer("store_id").references(() => storesTable.id).notNull(),
   name: text("name").notNull(),
   email: text("email").unique(),
   phone: text("phone"),
@@ -21,6 +23,7 @@ export const attendanceStatusEnum = pgEnum("attendance_status", ["present", "abs
 
 export const attendanceTable = pgTable("attendance", {
   id: serial("id").primaryKey(),
+  storeId: integer("store_id").references(() => storesTable.id).notNull(),
   employeeId: integer("employee_id").references(() => employeesTable.id).notNull(),
   date: date("date").notNull(),
   status: attendanceStatusEnum("status").notNull().default("present"),
@@ -35,6 +38,7 @@ export const leaveStatusEnum = pgEnum("leave_status", ["pending", "approved", "r
 
 export const leavesTable = pgTable("leaves", {
   id: serial("id").primaryKey(),
+  storeId: integer("store_id").references(() => storesTable.id).notNull(),
   employeeId: integer("employee_id").references(() => employeesTable.id).notNull(),
   type: leaveTypeEnum("type").notNull(),
   startDate: date("start_date").notNull(),
@@ -47,6 +51,7 @@ export const leavesTable = pgTable("leaves", {
 // ─── Suppliers ────────────────────────────────────────────────────────────────
 export const suppliersTable = pgTable("suppliers", {
   id: serial("id").primaryKey(),
+  storeId: integer("store_id").references(() => storesTable.id).notNull(),
   name: text("name").notNull(),
   contactName: text("contact_name"),
   email: text("email"),
@@ -60,6 +65,7 @@ export const purchaseStatusEnum = pgEnum("purchase_status", ["pending", "receive
 
 export const purchaseOrdersTable = pgTable("purchase_orders", {
   id: serial("id").primaryKey(),
+  storeId: integer("store_id").references(() => storesTable.id).notNull(),
   supplierId: integer("supplier_id").references(() => suppliersTable.id).notNull(),
   status: purchaseStatusEnum("status").notNull().default("pending"),
   totalAmount: numeric("total_amount", { precision: 10, scale: 2 }).notNull().default("0"),
@@ -81,6 +87,7 @@ export const inventoryMovementTypeEnum = pgEnum("inventory_movement_type", ["in"
 
 export const inventoryMovementsTable = pgTable("inventory_movements", {
   id: serial("id").primaryKey(),
+  storeId: integer("store_id").references(() => storesTable.id).notNull(),
   productId: integer("product_id").references(() => productsTable.id).notNull(),
   type: inventoryMovementTypeEnum("type").notNull(),
   quantity: integer("quantity").notNull(),
@@ -97,6 +104,7 @@ export const transactionCategoryEnum = pgEnum("transaction_category", [
 
 export const transactionsTable = pgTable("transactions", {
   id: serial("id").primaryKey(),
+  storeId: integer("store_id").references(() => storesTable.id).notNull(),
   type: transactionTypeEnum("type").notNull(),
   category: transactionCategoryEnum("category").notNull(),
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
@@ -109,6 +117,7 @@ export const transactionsTable = pgTable("transactions", {
 // ─── CRM ──────────────────────────────────────────────────────────────────────
 export const customerNotesTable = pgTable("customer_notes", {
   id: serial("id").primaryKey(),
+  storeId: integer("store_id").references(() => storesTable.id).notNull(),
   userId: integer("user_id").references(() => usersTable.id).notNull(),
   note: text("note").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),

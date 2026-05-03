@@ -37,6 +37,7 @@ import type {
   CreatePurchaseOrderRequest,
   CreateReviewRequest,
   CreateStaffRequest,
+  CreateStoreRequest,
   CreateSupplierRequest,
   CreateTransactionRequest,
   CustomerDetail,
@@ -61,13 +62,18 @@ import type {
   PurchaseOrderItem,
   RegisterRequest,
   Review,
+  SelectStoreRequest,
+  SelectStoreResponse,
+  SetErpStaffStoresBody,
   StaffMember,
+  Store,
   SuccessResponse,
   Supplier,
   Transaction,
   UpdateCartRequest,
   UpdateLeaveStatusBody,
   UpdateOrderStatusRequest,
+  UpdateStoreRequest,
   UploadImageBody,
   UploadedImage,
   User,
@@ -392,6 +398,497 @@ export function useGetMe<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Switch to another store the user has access to (re-issues JWT)
+ */
+export const getSelectStoreUrl = () => {
+  return `/api/auth/select-store`;
+};
+
+export const selectStore = async (
+  selectStoreRequest: SelectStoreRequest,
+  options?: RequestInit,
+): Promise<SelectStoreResponse> => {
+  return customFetch<SelectStoreResponse>(getSelectStoreUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(selectStoreRequest),
+  });
+};
+
+export const getSelectStoreMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof selectStore>>,
+    TError,
+    { data: BodyType<SelectStoreRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof selectStore>>,
+  TError,
+  { data: BodyType<SelectStoreRequest> },
+  TContext
+> => {
+  const mutationKey = ["selectStore"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof selectStore>>,
+    { data: BodyType<SelectStoreRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return selectStore(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SelectStoreMutationResult = NonNullable<
+  Awaited<ReturnType<typeof selectStore>>
+>;
+export type SelectStoreMutationBody = BodyType<SelectStoreRequest>;
+export type SelectStoreMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Switch to another store the user has access to (re-issues JWT)
+ */
+export const useSelectStore = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof selectStore>>,
+    TError,
+    { data: BodyType<SelectStoreRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof selectStore>>,
+  TError,
+  { data: BodyType<SelectStoreRequest> },
+  TContext
+> => {
+  return useMutation(getSelectStoreMutationOptions(options));
+};
+
+/**
+ * @summary List active stores (storefront switcher)
+ */
+export const getGetPublicStoresUrl = () => {
+  return `/api/stores/public`;
+};
+
+export const getPublicStores = async (
+  options?: RequestInit,
+): Promise<Store[]> => {
+  return customFetch<Store[]>(getGetPublicStoresUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPublicStoresQueryKey = () => {
+  return [`/api/stores/public`] as const;
+};
+
+export const getGetPublicStoresQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPublicStores>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getPublicStores>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetPublicStoresQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getPublicStores>>> = ({
+    signal,
+  }) => getPublicStores({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPublicStores>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPublicStoresQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPublicStores>>
+>;
+export type GetPublicStoresQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List active stores (storefront switcher)
+ */
+
+export function useGetPublicStores<
+  TData = Awaited<ReturnType<typeof getPublicStores>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getPublicStores>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPublicStoresQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List all stores (admin)
+ */
+export const getGetErpStoresUrl = () => {
+  return `/api/erp/stores`;
+};
+
+export const getErpStores = async (options?: RequestInit): Promise<Store[]> => {
+  return customFetch<Store[]>(getGetErpStoresUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetErpStoresQueryKey = () => {
+  return [`/api/erp/stores`] as const;
+};
+
+export const getGetErpStoresQueryOptions = <
+  TData = Awaited<ReturnType<typeof getErpStores>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getErpStores>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetErpStoresQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getErpStores>>> = ({
+    signal,
+  }) => getErpStores({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getErpStores>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetErpStoresQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getErpStores>>
+>;
+export type GetErpStoresQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all stores (admin)
+ */
+
+export function useGetErpStores<
+  TData = Awaited<ReturnType<typeof getErpStores>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getErpStores>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetErpStoresQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a new store
+ */
+export const getCreateErpStoreUrl = () => {
+  return `/api/erp/stores`;
+};
+
+export const createErpStore = async (
+  createStoreRequest: CreateStoreRequest,
+  options?: RequestInit,
+): Promise<Store> => {
+  return customFetch<Store>(getCreateErpStoreUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createStoreRequest),
+  });
+};
+
+export const getCreateErpStoreMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createErpStore>>,
+    TError,
+    { data: BodyType<CreateStoreRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createErpStore>>,
+  TError,
+  { data: BodyType<CreateStoreRequest> },
+  TContext
+> => {
+  const mutationKey = ["createErpStore"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createErpStore>>,
+    { data: BodyType<CreateStoreRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createErpStore(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateErpStoreMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createErpStore>>
+>;
+export type CreateErpStoreMutationBody = BodyType<CreateStoreRequest>;
+export type CreateErpStoreMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a new store
+ */
+export const useCreateErpStore = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createErpStore>>,
+    TError,
+    { data: BodyType<CreateStoreRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createErpStore>>,
+  TError,
+  { data: BodyType<CreateStoreRequest> },
+  TContext
+> => {
+  return useMutation(getCreateErpStoreMutationOptions(options));
+};
+
+/**
+ * @summary Update a store (rename / activate / deactivate)
+ */
+export const getUpdateErpStoreUrl = (id: number) => {
+  return `/api/erp/stores/${id}`;
+};
+
+export const updateErpStore = async (
+  id: number,
+  updateStoreRequest: UpdateStoreRequest,
+  options?: RequestInit,
+): Promise<Store> => {
+  return customFetch<Store>(getUpdateErpStoreUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateStoreRequest),
+  });
+};
+
+export const getUpdateErpStoreMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateErpStore>>,
+    TError,
+    { id: number; data: BodyType<UpdateStoreRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateErpStore>>,
+  TError,
+  { id: number; data: BodyType<UpdateStoreRequest> },
+  TContext
+> => {
+  const mutationKey = ["updateErpStore"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateErpStore>>,
+    { id: number; data: BodyType<UpdateStoreRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateErpStore(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateErpStoreMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateErpStore>>
+>;
+export type UpdateErpStoreMutationBody = BodyType<UpdateStoreRequest>;
+export type UpdateErpStoreMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update a store (rename / activate / deactivate)
+ */
+export const useUpdateErpStore = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateErpStore>>,
+    TError,
+    { id: number; data: BodyType<UpdateStoreRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateErpStore>>,
+  TError,
+  { id: number; data: BodyType<UpdateStoreRequest> },
+  TContext
+> => {
+  return useMutation(getUpdateErpStoreMutationOptions(options));
+};
+
+/**
+ * @summary Delete a store (only if it has no data)
+ */
+export const getDeleteErpStoreUrl = (id: number) => {
+  return `/api/erp/stores/${id}`;
+};
+
+export const deleteErpStore = async (
+  id: number,
+  options?: RequestInit,
+): Promise<SuccessResponse> => {
+  return customFetch<SuccessResponse>(getDeleteErpStoreUrl(id), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteErpStoreMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteErpStore>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteErpStore>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["deleteErpStore"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteErpStore>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteErpStore(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteErpStoreMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteErpStore>>
+>;
+
+export type DeleteErpStoreMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a store (only if it has no data)
+ */
+export const useDeleteErpStore = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteErpStore>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteErpStore>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getDeleteErpStoreMutationOptions(options));
+};
 
 /**
  * @summary List products
@@ -4444,6 +4941,93 @@ export const useCreateErpStaff = <
   TContext
 > => {
   return useMutation(getCreateErpStaffMutationOptions(options));
+};
+
+/**
+ * @summary Replace the set of stores a staff member can access
+ */
+export const getSetErpStaffStoresUrl = (id: number) => {
+  return `/api/erp/staff/${id}/stores`;
+};
+
+export const setErpStaffStores = async (
+  id: number,
+  setErpStaffStoresBody: SetErpStaffStoresBody,
+  options?: RequestInit,
+): Promise<SuccessResponse> => {
+  return customFetch<SuccessResponse>(getSetErpStaffStoresUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(setErpStaffStoresBody),
+  });
+};
+
+export const getSetErpStaffStoresMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setErpStaffStores>>,
+    TError,
+    { id: number; data: BodyType<SetErpStaffStoresBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof setErpStaffStores>>,
+  TError,
+  { id: number; data: BodyType<SetErpStaffStoresBody> },
+  TContext
+> => {
+  const mutationKey = ["setErpStaffStores"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof setErpStaffStores>>,
+    { id: number; data: BodyType<SetErpStaffStoresBody> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return setErpStaffStores(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SetErpStaffStoresMutationResult = NonNullable<
+  Awaited<ReturnType<typeof setErpStaffStores>>
+>;
+export type SetErpStaffStoresMutationBody = BodyType<SetErpStaffStoresBody>;
+export type SetErpStaffStoresMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Replace the set of stores a staff member can access
+ */
+export const useSetErpStaffStores = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof setErpStaffStores>>,
+    TError,
+    { id: number; data: BodyType<SetErpStaffStoresBody> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof setErpStaffStores>>,
+  TError,
+  { id: number; data: BodyType<SetErpStaffStoresBody> },
+  TContext
+> => {
+  return useMutation(getSetErpStaffStoresMutationOptions(options));
 };
 
 /**

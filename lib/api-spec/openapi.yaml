@@ -86,6 +86,122 @@ paths:
               schema:
                 $ref: "#/components/schemas/User"
 
+  /auth/select-store:
+    post:
+      operationId: selectStore
+      tags: [auth]
+      summary: Switch to another store the user has access to (re-issues JWT)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SelectStoreRequest"
+      responses:
+        "200":
+          description: Selected store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SelectStoreResponse"
+
+  /stores/public:
+    get:
+      operationId: getPublicStores
+      tags: [storage]
+      summary: List active stores (storefront switcher)
+      responses:
+        "200":
+          description: Stores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Store"
+
+  /erp/stores:
+    get:
+      operationId: getErpStores
+      tags: [erp]
+      summary: List all stores (admin)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Stores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Store"
+    post:
+      operationId: createErpStore
+      tags: [erp]
+      summary: Create a new store
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStoreRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Store"
+
+  /erp/stores/{id}:
+    patch:
+      operationId: updateErpStore
+      tags: [erp]
+      summary: Update a store (rename / activate / deactivate)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStoreRequest"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Store"
+    delete:
+      operationId: deleteErpStore
+      tags: [erp]
+      summary: Delete a store (only if it has no data)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
   # ── Products ──────────────────────────────────────────────────────
   /products:
     get:
@@ -1090,6 +1206,37 @@ paths:
               schema:
                 $ref: "#/components/schemas/StaffMember"
 
+  /erp/staff/{id}/stores:
+    put:
+      operationId: setErpStaffStores
+      tags: [erp]
+      summary: Replace the set of stores a staff member can access
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                storeIds:
+                  type: array
+                  items: { type: integer }
+              required: [storeIds]
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
   /erp/staff/{id}:
     delete:
       operationId: deleteErpStaff
@@ -1248,7 +1395,65 @@ components:
           type: string
         user:
           $ref: "#/components/schemas/User"
+        stores:
+          type: array
+          items:
+            $ref: "#/components/schemas/Store"
+        currentStoreId:
+          type: integer
+          nullable: true
       required: [token, user]
+
+    Store:
+      type: object
+      properties:
+        id:
+          type: integer
+        nameAr:
+          type: string
+        nameEn:
+          type: string
+        slug:
+          type: string
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+      required: [id, nameAr, nameEn, slug]
+
+    SelectStoreRequest:
+      type: object
+      properties:
+        storeId:
+          type: integer
+      required: [storeId]
+
+    SelectStoreResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        currentStoreId:
+          type: integer
+        store:
+          $ref: "#/components/schemas/Store"
+      required: [token, currentStoreId, store]
+
+    CreateStoreRequest:
+      type: object
+      properties:
+        nameAr: { type: string }
+        nameEn: { type: string }
+        slug:   { type: string }
+        isActive: { type: boolean }
+      required: [nameAr, nameEn, slug]
+
+    UpdateStoreRequest:
+      type: object
+      properties:
+        nameAr:   { type: string }
+        nameEn:   { type: string }
+        isActive: { type: boolean }
 
     User:
       type: object
@@ -1261,10 +1466,17 @@ components:
           type: string
         role:
           type: string
-          enum: [customer, admin]
+          enum: [customer, admin, employee]
         preferredLang:
           type: string
           enum: [ar, en]
+        stores:
+          type: array
+          items:
+            $ref: "#/components/schemas/Store"
+        currentStoreId:
+          type: integer
+          nullable: true
       required: [id, name, email, role]
 
     # Products
@@ -1981,6 +2193,10 @@ components:
           nullable: true
         created_at:
           type: string
+        stores:
+          type: array
+          items:
+            $ref: "#/components/schemas/Store"
       required: [id, name, email, role]
 
     CreateStaffRequest:
@@ -1992,6 +2208,10 @@ components:
           type: string
         password:
           type: string
+        storeIds:
+          type: array
+          items:
+            type: integer
         role:
           type: string
           enum: [admin, employee]

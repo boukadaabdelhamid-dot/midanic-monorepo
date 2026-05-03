@@ -38,6 +38,7 @@ export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 export const UserRole = {
   customer: "customer",
   admin: "admin",
+  employee: "employee",
 } as const;
 
 export type UserPreferredLang =
@@ -48,17 +49,53 @@ export const UserPreferredLang = {
   en: "en",
 } as const;
 
+export interface Store {
+  id: number;
+  nameAr: string;
+  nameEn: string;
+  slug: string;
+  isActive?: boolean;
+  createdAt?: string;
+}
+
 export interface User {
   id: number;
   name: string;
   email: string;
   role: UserRole;
   preferredLang?: UserPreferredLang;
+  stores?: Store[];
+  currentStoreId?: number | null;
 }
 
 export interface AuthResponse {
   token: string;
   user: User;
+  stores?: Store[];
+  currentStoreId?: number | null;
+}
+
+export interface SelectStoreRequest {
+  storeId: number;
+}
+
+export interface SelectStoreResponse {
+  token: string;
+  currentStoreId: number;
+  store: Store;
+}
+
+export interface CreateStoreRequest {
+  nameAr: string;
+  nameEn: string;
+  slug: string;
+  isActive?: boolean;
+}
+
+export interface UpdateStoreRequest {
+  nameAr?: string;
+  nameEn?: string;
+  isActive?: boolean;
 }
 
 export interface Product {
@@ -581,6 +618,7 @@ export interface StaffMember {
   role: StaffMemberRole;
   phone?: string | null;
   created_at?: string;
+  stores?: Store[];
 }
 
 export type CreateStaffRequestRole =
@@ -595,6 +633,7 @@ export interface CreateStaffRequest {
   name: string;
   email: string;
   password: string;
+  storeIds?: number[];
   role?: CreateStaffRequestRole;
   phone?: string;
 }
@@ -673,6 +712,10 @@ export const UpdateLeaveStatusBodyStatus = {
 
 export type UpdateLeaveStatusBody = {
   status: UpdateLeaveStatusBodyStatus;
+};
+
+export type SetErpStaffStoresBody = {
+  storeIds: number[];
 };
 
 export type DeleteErpStaff200 = {

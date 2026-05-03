@@ -3,9 +3,12 @@ import { setAuthTokenGetter } from "@workspace/api-client-react";
 
 setAuthTokenGetter(() => localStorage.getItem("midanic_token"));
 
+const STORE_KEY = "midanic.erp.currentStoreId";
+
 /** Call this from outside React components (e.g. QueryClient error handler) */
 export function forceLogout() {
   localStorage.removeItem("midanic_token");
+  localStorage.removeItem(STORE_KEY);
   window.location.href = `${import.meta.env.BASE_URL}login`.replace(/\/+/g, "/");
 }
 
@@ -29,6 +32,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = () => {
     localStorage.removeItem("midanic_token");
+    localStorage.removeItem(STORE_KEY);
     setTokenState(null);
   };
 

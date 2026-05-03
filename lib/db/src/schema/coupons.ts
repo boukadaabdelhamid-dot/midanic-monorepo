@@ -1,12 +1,14 @@
 import { pgTable, serial, text, timestamp, integer, numeric, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { storesTable } from "./stores";
 
 export const couponTypeEnum = pgEnum("coupon_type", ["percent", "fixed"]);
 
 export const couponsTable = pgTable("coupons", {
   id: serial("id").primaryKey(),
-  code: text("code").notNull().unique(),
+  storeId: integer("store_id").references(() => storesTable.id).notNull(),
+  code: text("code").notNull(),
   type: couponTypeEnum("type").notNull(),
   value: numeric("value", { precision: 10, scale: 2 }).notNull(),
   minOrder: numeric("min_order", { precision: 10, scale: 2 }).notNull().default("0"),

@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { eq, ilike, and, sql } from "drizzle-orm";
 import { db, schema } from "../lib/db";
-import { authenticate, requireAdmin, type AuthRequest } from "../lib/auth";
+import { authenticate, requireAdmin, requireStore, optionalAuth, type AuthRequest } from "../lib/auth";
+import { resolvePublicStore } from "../lib/store-context";
 
 const router = Router();
 
@@ -11,16 +12,25 @@ const pid = (req: { params: Record<string, string | string[]> }, key: string): n
   return n;
 };
 
-// GET /products
-router.get("/products", async (req, res) => {
+// GET /products — public storefront list (filtered by store)
+// For ERP, the same client sends Authorization+selected store; we still filter by req.currentStoreId
+router.get("/products", optionalAuth, async (req: AuthRequest, res, next) => {
+  // optionalAuth populates req.currentStoreId from a valid JWT if present.
+  // Anonymous, customer (no store), or invalid bearer → fall back to public.
+  if (req.currentStoreId) return handleListProducts(req, res);
+  return resolvePublicStore(req, res, () => handleListProducts(req, res));
+});
+
+async function handleListProducts(req: AuthRequest, res: import("express").Response) {
   try {
+    const storeId = req.currentStoreId!;
     const { search, categoryId, page = "1", limit = "20" } = req.query as Record<string, string>;
     const offset = (parseInt(page) - 1) * parseInt(limit);
 
-    const conditions = [];
+    const conditions = [eq(schema.productsTable.storeId, storeId)];
     if (search) {
       conditions.push(
-        sql`(${ilike(schema.productsTable.nameAr, `%${search}%`)} OR ${ilike(schema.productsTable.nameEn, `%${search}%`)})`
+        sql`(${ilike(schema.productsTable.nameAr, `%${search}%`)} OR ${ilike(schema.productsTable.nameEn, `%${search}%`)})`,
       );
     }
     if (categoryId) {
@@ -28,27 +38,31 @@ router.get("/products", async (req, res) => {
     }
 
     const products = await db.select().from(schema.productsTable)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .where(and(...conditions))
       .limit(parseInt(limit))
       .offset(offset)
       .orderBy(schema.productsTable.createdAt);
 
     const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(schema.productsTable)
-      .where(conditions.length > 0 ? and(...conditions) : undefined);
+      .where(and(...conditions));
 
     res.set("Cache-Control", "no-store");
     res.json({ products, total: Number(count), page: parseInt(page), limit: parseInt(limit) });
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Internal server error" });
-  }
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
+}
+
+// GET /products/:id — public, store-scoped
+router.get("/products/:id", optionalAuth, async (req: AuthRequest, res) => {
+  if (req.currentStoreId) return handleGetProduct(req, res);
+  return resolvePublicStore(req, res, () => handleGetProduct(req, res));
 });
 
-// GET /products/:id
-router.get("/products/:id", async (req, res) => {
+async function handleGetProduct(req: AuthRequest, res: import("express").Response) {
   try {
+    const storeId = req.currentStoreId!;
+    const id = parseInt(req.params["id"] as string);
     const [product] = await db.select().from(schema.productsTable)
-      .where(eq(schema.productsTable.id, pid(req, "id"))).limit(1);
+      .where(and(eq(schema.productsTable.id, id), eq(schema.productsTable.storeId, storeId))).limit(1);
     if (!product) { res.status(404).json({ error: "Product not found" }); return; }
 
     const reviews = await db.select({
@@ -64,15 +78,13 @@ router.get("/products/:id", async (req, res) => {
       .orderBy(schema.productReviewsTable.createdAt);
 
     res.json({ ...product, reviews });
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
+}
 
 // POST /products (admin)
-router.post("/products", authenticate, requireAdmin, async (req: AuthRequest, res) => {
+router.post("/products", authenticate, requireAdmin, requireStore, async (req: AuthRequest, res) => {
   try {
+    const storeId = req.currentStoreId!;
     const {
       nameAr, nameEn, descriptionAr, descriptionEn, price, imageUrl, stock, categoryId,
       reference, barcode, costPrice, catalogueType,
@@ -82,6 +94,7 @@ router.post("/products", authenticate, requireAdmin, async (req: AuthRequest, re
       isActive, isExposed,
     } = req.body;
     const [product] = await db.insert(schema.productsTable).values({
+      storeId,
       nameAr, nameEn,
       descriptionAr: descriptionAr || "",
       descriptionEn: descriptionEn || "",
@@ -108,86 +121,83 @@ router.post("/products", authenticate, requireAdmin, async (req: AuthRequest, re
       isExposed: isExposed || false,
     }).returning();
     res.status(201).json(product);
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Internal server error" });
-  }
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
-// PUT /products/:id (admin)
-router.put("/products/:id", authenticate, requireAdmin, async (req: AuthRequest, res) => {
+// PUT /products/:id (admin) — store-scoped
+router.put("/products/:id", authenticate, requireAdmin, requireStore, async (req: AuthRequest, res) => {
   try {
+    const storeId = req.currentStoreId!;
+    const id = pid(req, "id");
+    // Drop any storeId from body — never let client move products across stores
+    const body = { ...req.body };
+    delete body.storeId;
     const [product] = await db.update(schema.productsTable)
-      .set(req.body)
-      .where(eq(schema.productsTable.id, pid(req, "id")))
+      .set(body)
+      .where(and(eq(schema.productsTable.id, id), eq(schema.productsTable.storeId, storeId)))
       .returning();
     if (!product) { res.status(404).json({ error: "Not found" }); return; }
     res.json(product);
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Internal server error" });
-  }
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
-// DELETE /products/:id (admin)
-router.delete("/products/:id", authenticate, requireAdmin, async (req: AuthRequest, res) => {
+// DELETE /products/:id (admin) — store-scoped
+router.delete("/products/:id", authenticate, requireAdmin, requireStore, async (req: AuthRequest, res) => {
   try {
-    await db.delete(schema.productsTable).where(eq(schema.productsTable.id, pid(req, "id")));
+    const storeId = req.currentStoreId!;
+    await db.delete(schema.productsTable)
+      .where(and(eq(schema.productsTable.id, pid(req, "id")), eq(schema.productsTable.storeId, storeId)));
     res.json({ success: true });
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Internal server error" });
-  }
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
-// GET /categories
-router.get("/categories", async (req, res) => {
-  try {
-    const categories = await db.select().from(schema.categoriesTable).orderBy(schema.categoriesTable.id);
-    res.json(categories);
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Internal server error" });
-  }
+// GET /categories — public
+router.get("/categories", optionalAuth, async (req: AuthRequest, res) => {
+  const handler = async () => {
+    try {
+      const storeId = req.currentStoreId!;
+      const categories = await db.select().from(schema.categoriesTable)
+        .where(eq(schema.categoriesTable.storeId, storeId))
+        .orderBy(schema.categoriesTable.id);
+      res.json(categories);
+    } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
+  };
+  if (req.currentStoreId) return handler();
+  return resolvePublicStore(req, res, handler);
 });
 
 // POST /categories (admin)
-router.post("/categories", authenticate, requireAdmin, async (req: AuthRequest, res) => {
+router.post("/categories", authenticate, requireAdmin, requireStore, async (req: AuthRequest, res) => {
   try {
-    const [cat] = await db.insert(schema.categoriesTable).values(req.body).returning();
+    const storeId = req.currentStoreId!;
+    const body = { ...req.body, storeId };
+    const [cat] = await db.insert(schema.categoriesTable).values(body).returning();
     res.status(201).json(cat);
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Internal server error" });
-  }
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
-// PUT /categories/:id (admin)
-router.put("/categories/:id", authenticate, requireAdmin, async (req: AuthRequest, res) => {
+router.put("/categories/:id", authenticate, requireAdmin, requireStore, async (req: AuthRequest, res) => {
   try {
-    const [cat] = await db.update(schema.categoriesTable).set(req.body)
-      .where(eq(schema.categoriesTable.id, pid(req, "id"))).returning();
+    const storeId = req.currentStoreId!;
+    const body = { ...req.body }; delete body.storeId;
+    const [cat] = await db.update(schema.categoriesTable).set(body)
+      .where(and(eq(schema.categoriesTable.id, pid(req, "id")), eq(schema.categoriesTable.storeId, storeId)))
+      .returning();
     if (!cat) { res.status(404).json({ error: "Not found" }); return; }
     res.json(cat);
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Internal server error" });
-  }
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
-// DELETE /categories/:id (admin)
-router.delete("/categories/:id", authenticate, requireAdmin, async (req: AuthRequest, res) => {
+router.delete("/categories/:id", authenticate, requireAdmin, requireStore, async (req: AuthRequest, res) => {
   try {
+    const storeId = req.currentStoreId!;
     const id = pid(req, "id");
-    await db.delete(schema.categoriesTable).where(eq(schema.categoriesTable.id, id));
+    await db.delete(schema.categoriesTable)
+      .where(and(eq(schema.categoriesTable.id, id), eq(schema.categoriesTable.storeId, storeId)));
     res.json({ success: true });
   } catch (err: unknown) {
     const e = err as { statusCode?: number; code?: string; message?: string };
-    if (e.statusCode === 400) {
-      res.status(400).json({ error: e.message ?? "Bad request" });
-      return;
-    }
-    // PostgreSQL FK violation code 23503
+    if (e.statusCode === 400) { res.status(400).json({ error: e.message ?? "Bad request" }); return; }
     if (e.code === "23503") {
       res.status(409).json({ error: "Cannot delete category: products are assigned to it. Reassign or delete those products first." });
       return;
@@ -197,7 +207,7 @@ router.delete("/categories/:id", authenticate, requireAdmin, async (req: AuthReq
   }
 });
 
-// POST /products/:id/reviews
+// POST /products/:id/reviews (no store filter; review references product id which is implicitly scoped)
 router.post("/products/:id/reviews", authenticate, async (req: AuthRequest, res) => {
   try {
     const { rating, comment } = req.body;
@@ -218,10 +228,7 @@ router.post("/products/:id/reviews", authenticate, async (req: AuthRequest, res)
       .where(eq(schema.productsTable.id, productId));
 
     res.status(201).json(review);
-  } catch (err) {
-    req.log.error(err);
-    res.status(500).json({ error: "Internal server error" });
-  }
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
 export default router;

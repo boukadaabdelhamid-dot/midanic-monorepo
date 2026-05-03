@@ -3,11 +3,13 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
 import { productsTable } from "./products";
+import { storesTable } from "./stores";
 
 export const orderStatusEnum = pgEnum("order_status", ["pending", "processing", "shipped", "delivered", "cancelled"]);
 
 export const ordersTable = pgTable("orders", {
   id: serial("id").primaryKey(),
+  storeId: integer("store_id").references(() => storesTable.id).notNull(),
   userId: integer("user_id").references(() => usersTable.id),
   customerName: text("customer_name").notNull(),
   customerPhone: text("customer_phone").notNull(),

@@ -3,10 +3,13 @@ import { QueryClient, QueryClientProvider, MutationCache } from "@tanstack/react
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth, forceLogout } from "@/hooks/use-auth";
+import { StoreProvider, useStoreContext } from "@/hooks/use-store";
 import { useMe } from "@/hooks/use-me";
 import { Layout } from "@/components/layout/Layout";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/Login";
+import SelectStore from "@/pages/SelectStore";
+import Stores from "@/pages/Stores";
 import Home from "@/pages/Home";
 import Dashboard from "@/pages/Dashboard";
 import Orders from "@/pages/Orders";
@@ -46,12 +49,13 @@ const queryClient = new QueryClient({
 
 function ProtectedRoute({ component: Component, adminOnly = false }: { component: React.ComponentType; adminOnly?: boolean }) {
   const { token } = useAuth();
-  const { isAdmin, isLoading } = useMe();
+  const { currentStoreId } = useStoreContext();
+  const { isAdmin, isLoading, user } = useMe();
   if (!token) return <Redirect to="/login" />;
-  if (adminOnly) {
-    if (isLoading) return <Layout><div className="p-6 text-sm text-muted-foreground">…</div></Layout>;
-    if (!isAdmin) return <Redirect to="/home" />;
-  }
+  if (isLoading) return <Layout><div className="p-6 text-sm text-muted-foreground">…</div></Layout>;
+  const stores = (user as { stores?: unknown[] } | null)?.stores ?? [];
+  if (!currentStoreId && stores.length > 0) return <Redirect to="/select-store" />;
+  if (adminOnly && !isAdmin) return <Redirect to="/home" />;
   return (
     <Layout>
       <Component />
@@ -61,8 +65,13 @@ function ProtectedRoute({ component: Component, adminOnly = false }: { component
 
 function ProtectedHome() {
   const { token } = useAuth();
+  const { currentStoreId } = useStoreContext();
+  const { user, isLoading } = useMe();
   if (!token) return <Redirect to="/login" />;
-  return <Home />;
+  if (isLoading) return <Layout><div className="p-6 text-sm text-muted-foreground">…</div></Layout>;
+  const stores = (user as { stores?: unknown[] } | null)?.stores ?? [];
+  if (!currentStoreId && stores.length > 0) return <Redirect to="/select-store" />;
+  return <Layout><Home /></Layout>;
 }
 
 function Router() {
@@ -71,8 +80,12 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
+      <Route path="/select-store" component={SelectStore} />
       <Route path="/">
         {token ? <Redirect to="/home" /> : <Redirect to="/login" />}
+      </Route>
+      <Route path="/stores">
+        <ProtectedRoute component={Stores} adminOnly />
       </Route>
       <Route path="/home">
         <ProtectedHome />
@@ -128,12 +141,14 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
-          </WouterRouter>
-          <Toaster />
-        </TooltipProvider>
+        <StoreProvider>
+          <TooltipProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <Router />
+            </WouterRouter>
+            <Toaster />
+          </TooltipProvider>
+        </StoreProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

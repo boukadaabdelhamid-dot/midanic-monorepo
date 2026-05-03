@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
-  useGetErpStaff, useCreateErpStaff, useDeleteErpStaff,
+  useGetErpStaff, useCreateErpStaff, useDeleteErpStaff, useSetErpStaffStores,
+  useGetErpStores,
   getGetErpStaffQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -16,11 +17,20 @@ import { Shield, UserPlus, Trash2, Crown, User } from "lucide-react";
 export default function Staff() {
   const qc = useQueryClient();
   const { data: staff, isLoading } = useGetErpStaff();
+  const { data: stores } = useGetErpStores();
   const create = useCreateErpStaff();
   const del = useDeleteErpStaff();
+  const setStores = useSetErpStaffStores();
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", password: "", role: "employee" as "employee" | "admin", phone: "" });
+  const [form, setForm] = useState({ name: "", email: "", password: "", role: "employee" as "employee" | "admin", phone: "", storeIds: [] as number[] });
   const [error, setError] = useState<string | null>(null);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editStoreIds, setEditStoreIds] = useState<number[]>([]);
+
+  const allStores = stores ?? [];
+  const toggleStore = (id: number, current: number[], set: (v: number[]) => void) => {
+    set(current.includes(id) ? current.filter((x) => x !== id) : [...current, id]);
+  };
 
   const handleCreate = () => {
     setError(null);
@@ -32,19 +42,28 @@ export default function Staff() {
       setError("Mot de passe min. 6 caractères / كلمة المرور 6 أحرف على الأقل");
       return;
     }
+    if (form.storeIds.length === 0) {
+      setError("Sélectionnez au moins un magasin / اختر متجراً واحداً على الأقل");
+      return;
+    }
+    if (form.role === "employee" && form.storeIds.length > 1) {
+      setError("Un employé ne peut être lié qu'à un seul magasin / الموظف يرتبط بمتجر واحد فقط");
+      return;
+    }
     create.mutate(
       { data: {
         name: form.name.trim(),
         email: form.email.trim(),
         password: form.password,
         role: form.role,
+        storeIds: form.storeIds,
         phone: form.phone.trim() || undefined,
       } },
       {
         onSuccess: () => {
           qc.invalidateQueries({ queryKey: getGetErpStaffQueryKey() });
           setOpen(false);
-          setForm({ name: "", email: "", password: "", role: "employee", phone: "" });
+          setForm({ name: "", email: "", password: "", role: "employee", phone: "", storeIds: [] });
         },
         onError: (err: unknown) => {
           setError((err as { message?: string })?.message ?? "Échec de la création");
@@ -101,6 +120,7 @@ export default function Staff() {
                     <TableHead>Nom / الاسم</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Téléphone</TableHead>
+                    <TableHead>Magasins</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -121,7 +141,23 @@ export default function Staff() {
                       <TableCell className="font-medium">{s.name}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{s.email}</TableCell>
                       <TableCell className="text-sm">{s.phone || "—"}</TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="text-xs">
+                        {((s as { stores?: Array<{ id: number; nameEn: string }> }).stores ?? []).map((st) => (
+                          <span key={st.id} className="inline-block mr-1 mb-0.5 px-1.5 py-0.5 rounded bg-muted">{st.nameEn}</span>
+                        ))}
+                      </TableCell>
+                      <TableCell className="text-right space-x-1">
+                        <Button
+                          size="sm" variant="ghost"
+                          className="h-7 text-xs"
+                          onClick={() => {
+                            setEditId(s.id);
+                            setEditStoreIds(((s as { stores?: Array<{ id: number }> }).stores ?? []).map((x) => x.id));
+                          }}
+                          data-testid={`btn-edit-stores-${s.id}`}
+                        >
+                          <Shield className="h-3.5 w-3.5" />
+                        </Button>
                         <Button
                           size="sm" variant="ghost"
                           className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
@@ -134,7 +170,7 @@ export default function Staff() {
                     </TableRow>
                   ))}
                   {(!staff || staff.length === 0) && (
-                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Aucun compte</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Aucun compte</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -190,12 +226,78 @@ export default function Staff() {
               <Label htmlFor="staff-pwd">Mot de passe / كلمة المرور * (min 6)</Label>
               <Input id="staff-pwd" type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} data-testid="input-staff-password" />
             </div>
+            <div>
+              <Label>Magasins / المتاجر *</Label>
+              <div className="grid grid-cols-1 gap-1 mt-1 max-h-40 overflow-y-auto border rounded-md p-2">
+                {allStores.length === 0 && <p className="text-xs text-muted-foreground">Aucun magasin disponible</p>}
+                {allStores.map((s) => (
+                  <label key={s.id} className="flex items-center gap-2 text-sm py-1 px-1 rounded hover:bg-accent cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.storeIds.includes(s.id)}
+                      onChange={() => {
+                        if (form.role === "employee") {
+                          setForm({ ...form, storeIds: form.storeIds.includes(s.id) ? [] : [s.id] });
+                        } else {
+                          toggleStore(s.id, form.storeIds, (v) => setForm({ ...form, storeIds: v }));
+                        }
+                      }}
+                      data-testid={`store-checkbox-${s.id}`}
+                    />
+                    <span className="flex-1">{s.nameEn} <span className="text-xs text-muted-foreground" dir="rtl">{s.nameAr}</span></span>
+                  </label>
+                ))}
+              </div>
+              {form.role === "employee" && (
+                <p className="text-[11px] text-muted-foreground mt-1">Un employé est lié à un seul magasin / موظف لمتجر واحد</p>
+              )}
+            </div>
             {error && <p className="text-sm text-red-600" data-testid="text-staff-error">{error}</p>}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Annuler / إلغاء</Button>
             <Button onClick={handleCreate} disabled={create.isPending} data-testid="button-save-staff">
               {create.isPending ? "..." : "Enregistrer / حفظ"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={editId !== null} onOpenChange={(v) => { if (!v) setEditId(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Magasins accessibles / المتاجر المتاحة</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            {allStores.map((s) => (
+              <label key={s.id} className="flex items-center gap-2 text-sm py-1.5 px-2 rounded hover:bg-accent cursor-pointer border">
+                <input
+                  type="checkbox"
+                  checked={editStoreIds.includes(s.id)}
+                  onChange={() => toggleStore(s.id, editStoreIds, setEditStoreIds)}
+                  data-testid={`edit-store-checkbox-${s.id}`}
+                />
+                <span className="flex-1">{s.nameEn} <span className="text-xs text-muted-foreground" dir="rtl">{s.nameAr}</span></span>
+              </label>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditId(null)}>Annuler</Button>
+            <Button
+              onClick={() => {
+                if (editId == null) return;
+                setStores.mutate(
+                  { id: editId, data: { storeIds: editStoreIds } },
+                  { onSuccess: () => {
+                      qc.invalidateQueries({ queryKey: getGetErpStaffQueryKey() });
+                      setEditId(null);
+                    } }
+                );
+              }}
+              disabled={setStores.isPending}
+              data-testid="button-save-staff-stores"
+            >
+              {setStores.isPending ? "..." : "Enregistrer"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -38,9 +38,35 @@ export const LoginResponse = zod.object({
     id: zod.number(),
     name: zod.string(),
     email: zod.string(),
-    role: zod.enum(["customer", "admin"]),
+    role: zod.enum(["customer", "admin", "employee"]),
     preferredLang: zod.enum(["ar", "en"]).optional(),
+    stores: zod
+      .array(
+        zod.object({
+          id: zod.number(),
+          nameAr: zod.string(),
+          nameEn: zod.string(),
+          slug: zod.string(),
+          isActive: zod.boolean().optional(),
+          createdAt: zod.string().optional(),
+        }),
+      )
+      .optional(),
+    currentStoreId: zod.number().nullish(),
   }),
+  stores: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        nameAr: zod.string(),
+        nameEn: zod.string(),
+        slug: zod.string(),
+        isActive: zod.boolean().optional(),
+        createdAt: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  currentStoreId: zod.number().nullish(),
 });
 
 /**
@@ -50,8 +76,110 @@ export const GetMeResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
   email: zod.string(),
-  role: zod.enum(["customer", "admin"]),
+  role: zod.enum(["customer", "admin", "employee"]),
   preferredLang: zod.enum(["ar", "en"]).optional(),
+  stores: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        nameAr: zod.string(),
+        nameEn: zod.string(),
+        slug: zod.string(),
+        isActive: zod.boolean().optional(),
+        createdAt: zod.string().optional(),
+      }),
+    )
+    .optional(),
+  currentStoreId: zod.number().nullish(),
+});
+
+/**
+ * @summary Switch to another store the user has access to (re-issues JWT)
+ */
+export const SelectStoreBody = zod.object({
+  storeId: zod.number(),
+});
+
+export const SelectStoreResponse = zod.object({
+  token: zod.string(),
+  currentStoreId: zod.number(),
+  store: zod.object({
+    id: zod.number(),
+    nameAr: zod.string(),
+    nameEn: zod.string(),
+    slug: zod.string(),
+    isActive: zod.boolean().optional(),
+    createdAt: zod.string().optional(),
+  }),
+});
+
+/**
+ * @summary List active stores (storefront switcher)
+ */
+export const GetPublicStoresResponseItem = zod.object({
+  id: zod.number(),
+  nameAr: zod.string(),
+  nameEn: zod.string(),
+  slug: zod.string(),
+  isActive: zod.boolean().optional(),
+  createdAt: zod.string().optional(),
+});
+export const GetPublicStoresResponse = zod.array(GetPublicStoresResponseItem);
+
+/**
+ * @summary List all stores (admin)
+ */
+export const GetErpStoresResponseItem = zod.object({
+  id: zod.number(),
+  nameAr: zod.string(),
+  nameEn: zod.string(),
+  slug: zod.string(),
+  isActive: zod.boolean().optional(),
+  createdAt: zod.string().optional(),
+});
+export const GetErpStoresResponse = zod.array(GetErpStoresResponseItem);
+
+/**
+ * @summary Create a new store
+ */
+export const CreateErpStoreBody = zod.object({
+  nameAr: zod.string(),
+  nameEn: zod.string(),
+  slug: zod.string(),
+  isActive: zod.boolean().optional(),
+});
+
+/**
+ * @summary Update a store (rename / activate / deactivate)
+ */
+export const UpdateErpStoreParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateErpStoreBody = zod.object({
+  nameAr: zod.string().optional(),
+  nameEn: zod.string().optional(),
+  isActive: zod.boolean().optional(),
+});
+
+export const UpdateErpStoreResponse = zod.object({
+  id: zod.number(),
+  nameAr: zod.string(),
+  nameEn: zod.string(),
+  slug: zod.string(),
+  isActive: zod.boolean().optional(),
+  createdAt: zod.string().optional(),
+});
+
+/**
+ * @summary Delete a store (only if it has no data)
+ */
+export const DeleteErpStoreParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeleteErpStoreResponse = zod.object({
+  success: zod.boolean(),
 });
 
 /**
@@ -1002,6 +1130,18 @@ export const GetErpStaffResponseItem = zod.object({
   role: zod.enum(["admin", "employee"]),
   phone: zod.string().nullish(),
   created_at: zod.string().optional(),
+  stores: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        nameAr: zod.string(),
+        nameEn: zod.string(),
+        slug: zod.string(),
+        isActive: zod.boolean().optional(),
+        createdAt: zod.string().optional(),
+      }),
+    )
+    .optional(),
 });
 export const GetErpStaffResponse = zod.array(GetErpStaffResponseItem);
 
@@ -1012,8 +1152,24 @@ export const CreateErpStaffBody = zod.object({
   name: zod.string(),
   email: zod.string(),
   password: zod.string(),
+  storeIds: zod.array(zod.number()).optional(),
   role: zod.enum(["admin", "employee"]).optional(),
   phone: zod.string().optional(),
+});
+
+/**
+ * @summary Replace the set of stores a staff member can access
+ */
+export const SetErpStaffStoresParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const SetErpStaffStoresBody = zod.object({
+  storeIds: zod.array(zod.number()),
+});
+
+export const SetErpStaffStoresResponse = zod.object({
+  success: zod.boolean(),
 });
 
 /**

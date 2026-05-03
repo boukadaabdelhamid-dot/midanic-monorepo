@@ -1,7 +1,8 @@
 import { Router } from "express";
-import { eq, desc, sql, lt } from "drizzle-orm";
+import { eq, desc, sql, lt, and } from "drizzle-orm";
 import { db, schema } from "../lib/db";
-import { authenticate, requireAdmin, requireStaff, optionalAuth, type AuthRequest } from "../lib/auth";
+import { authenticate, requireAdmin, requireStaff, requireStore, optionalAuth, type AuthRequest } from "../lib/auth";
+import { resolvePublicStore } from "../lib/store-context";
 import { broadcastToAdmins } from "../lib/ws";
 
 
@@ -13,9 +14,17 @@ const pid = (req: { params: Record<string, string | string[]> }, key: string): n
   return n;
 };
 
-// POST /orders — atomic checkout wrapped in a DB transaction
-router.post("/orders", optionalAuth, async (req: AuthRequest, res) => {
+// POST /orders — atomic checkout. Resolves the store from the public storefront
+// (?store=<slug> / X-Store-Slug header), or — if the customer happens to be
+// logged in via JWT with a currentStoreId — uses that.
+router.post("/orders", optionalAuth, async (req: AuthRequest, res, next) => {
+  if (typeof req.currentStoreId === "number") return handleCreateOrder(req, res);
+  return resolvePublicStore(req, res, () => handleCreateOrder(req, res));
+});
+
+async function handleCreateOrder(req: AuthRequest, res: import("express").Response) {
   try {
+    const storeId = req.currentStoreId!;
     const { customerName, customerPhone, customerAddress, items, couponCode } = req.body;
 
     if (!customerName || !customerPhone || !customerAddress) {
@@ -24,8 +33,6 @@ router.post("/orders", optionalAuth, async (req: AuthRequest, res) => {
     }
 
     let orderItems: { productId: number; quantity: number }[] = items || [];
-
-    // Validate each item quantity before anything else
     for (const item of orderItems) {
       if (!Number.isInteger(item.quantity) || item.quantity < 1) {
         res.status(400).json({ error: `Invalid quantity for product ${item.productId}: must be a positive integer` });
@@ -33,7 +40,6 @@ router.post("/orders", optionalAuth, async (req: AuthRequest, res) => {
       }
     }
 
-    // Consolidate duplicate productIds to avoid stock check/update races on the same row
     const consolidated = new Map<number, number>();
     for (const item of orderItems) {
       consolidated.set(item.productId, (consolidated.get(item.productId) ?? 0) + item.quantity);
@@ -42,7 +48,10 @@ router.post("/orders", optionalAuth, async (req: AuthRequest, res) => {
 
     if (req.user && orderItems.length === 0) {
       const cartItems = await db.select().from(schema.cartItemsTable)
-        .where(eq(schema.cartItemsTable.userId, req.user.id));
+        .where(and(
+          eq(schema.cartItemsTable.userId, req.user.id),
+          eq(schema.cartItemsTable.storeId, storeId),
+        ));
       orderItems = cartItems.map(c => ({ productId: c.productId, quantity: c.quantity }));
     }
 
@@ -51,19 +60,20 @@ router.post("/orders", optionalAuth, async (req: AuthRequest, res) => {
       return;
     }
 
-    // Run the entire checkout atomically
     const result = await db.transaction(async (tx) => {
       let subtotal = 0;
       const enrichedItems: { productId: number; quantity: number; unitPrice: number; product: typeof schema.productsTable.$inferSelect }[] = [];
 
       for (const item of orderItems) {
-        // Lock the product row to prevent concurrent stock overwrites
         const [product] = await tx.select().from(schema.productsTable)
-          .where(eq(schema.productsTable.id, item.productId))
+          .where(and(
+            eq(schema.productsTable.id, item.productId),
+            eq(schema.productsTable.storeId, storeId),
+          ))
           .for("update")
           .limit(1);
 
-        if (!product) throw Object.assign(new Error(`Product ${item.productId} not found`), { status: 400 });
+        if (!product) throw Object.assign(new Error(`Product ${item.productId} not found in this store`), { status: 400 });
         if (product.stock < item.quantity) {
           throw Object.assign(
             new Error(`Insufficient stock for ${product.nameEn}: ${product.stock} available`),
@@ -74,12 +84,14 @@ router.post("/orders", optionalAuth, async (req: AuthRequest, res) => {
         enrichedItems.push({ ...item, unitPrice: parseFloat(product.price), product });
       }
 
-      // Validate and apply coupon
       let discountAmount = 0;
       let appliedCoupon: typeof schema.couponsTable.$inferSelect | null = null;
       if (couponCode) {
         const [coupon] = await tx.select().from(schema.couponsTable)
-          .where(eq(schema.couponsTable.code, (couponCode as string).toUpperCase()))
+          .where(and(
+            eq(schema.couponsTable.code, (couponCode as string).toUpperCase()),
+            eq(schema.couponsTable.storeId, storeId),
+          ))
           .for("update")
           .limit(1);
 
@@ -92,7 +104,7 @@ router.post("/orders", optionalAuth, async (req: AuthRequest, res) => {
         }
         if (coupon.minOrder && subtotal < parseFloat(coupon.minOrder)) {
           throw Object.assign(
-            new Error(`Minimum order of SAR ${coupon.minOrder} required for this coupon`),
+            new Error(`Minimum order of ${coupon.minOrder} required for this coupon`),
             { status: 400 }
           );
         }
@@ -105,6 +117,7 @@ router.post("/orders", optionalAuth, async (req: AuthRequest, res) => {
       const totalAmount = Math.max(0, subtotal - discountAmount);
 
       const [order] = await tx.insert(schema.ordersTable).values({
+        storeId,
         userId: req.user?.id ?? null,
         customerName, customerPhone, customerAddress,
         totalAmount: totalAmount.toFixed(2),
@@ -126,6 +139,7 @@ router.post("/orders", optionalAuth, async (req: AuthRequest, res) => {
           .where(eq(schema.productsTable.id, item.productId));
 
         await tx.insert(schema.inventoryMovementsTable).values({
+          storeId,
           productId: item.productId,
           type: "out",
           quantity: item.quantity,
@@ -133,7 +147,6 @@ router.post("/orders", optionalAuth, async (req: AuthRequest, res) => {
           reference: `ORDER-${order.id}`,
         });
 
-        // Collect low-stock items for post-commit broadcast
         if (newStock < 5) {
           enrichedItems.find(e => e.productId === item.productId)!.product = { ...item.product, stock: newStock };
         }
@@ -146,10 +159,15 @@ router.post("/orders", optionalAuth, async (req: AuthRequest, res) => {
       }
 
       if (req.user) {
-        await tx.delete(schema.cartItemsTable).where(eq(schema.cartItemsTable.userId, req.user.id));
+        await tx.delete(schema.cartItemsTable)
+          .where(and(
+            eq(schema.cartItemsTable.userId, req.user.id),
+            eq(schema.cartItemsTable.storeId, storeId),
+          ));
       }
 
       await tx.insert(schema.transactionsTable).values({
+        storeId,
         type: "income",
         category: "sales",
         amount: totalAmount.toFixed(2),
@@ -161,15 +179,15 @@ router.post("/orders", optionalAuth, async (req: AuthRequest, res) => {
       return { order, enrichedItems, totalAmount };
     });
 
-    // Broadcast after transaction commits successfully
     broadcastToAdmins({
       type: "new_order",
+      storeId,
       order: { id: result.order.id, customerName, customerPhone, customerAddress, totalAmount: result.totalAmount, createdAt: result.order.createdAt },
     });
 
     for (const item of result.enrichedItems) {
       if (item.product.stock < 5) {
-        broadcastToAdmins({ type: "low_stock", product: { id: item.productId, nameEn: item.product.nameEn, nameAr: item.product.nameAr, stock: item.product.stock } });
+        broadcastToAdmins({ type: "low_stock", storeId, product: { id: item.productId, nameEn: item.product.nameEn, nameAr: item.product.nameAr, stock: item.product.stock } });
       }
     }
 
@@ -186,9 +204,9 @@ router.post("/orders", optionalAuth, async (req: AuthRequest, res) => {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });
   }
-});
+}
 
-// GET /orders (user's orders)
+// GET /orders (logged-in customer's own orders — across all stores they've ordered from)
 router.get("/orders", authenticate, async (req: AuthRequest, res) => {
   try {
     const orders = await db.select().from(schema.ordersTable)
@@ -201,14 +219,20 @@ router.get("/orders", authenticate, async (req: AuthRequest, res) => {
   }
 });
 
-// GET /orders/:id
 router.get("/orders/:id", authenticate, async (req: AuthRequest, res) => {
   try {
     const [order] = await db.select().from(schema.ordersTable)
       .where(eq(schema.ordersTable.id, pid(req, "id"))).limit(1);
     if (!order) { res.status(404).json({ error: "Order not found" }); return; }
-    if (order.userId !== req.user!.id && req.user!.role !== "admin") {
-      res.status(403).json({ error: "Forbidden" }); return;
+    // Customers can see their own order regardless of store. Staff must be on
+    // the same store as the order.
+    const isOwner = order.userId === req.user!.id;
+    const isStaff = req.user!.role === "admin" || req.user!.role === "employee";
+    if (!isOwner) {
+      if (!isStaff) { res.status(403).json({ error: "Forbidden" }); return; }
+      if (typeof req.currentStoreId !== "number" || order.storeId !== req.currentStoreId) {
+        res.status(404).json({ error: "Order not found" }); return;
+      }
     }
 
     const orderItems = await db.select({
@@ -232,10 +256,13 @@ router.get("/orders/:id", authenticate, async (req: AuthRequest, res) => {
   }
 });
 
-// GET /admin/orders
-router.get("/admin/orders", authenticate, requireStaff, async (req: AuthRequest, res) => {
+// GET /admin/orders — store-scoped
+router.get("/admin/orders", authenticate, requireStaff, requireStore, async (req: AuthRequest, res) => {
   try {
-    const orders = await db.select().from(schema.ordersTable).orderBy(desc(schema.ordersTable.createdAt));
+    const storeId = req.currentStoreId!;
+    const orders = await db.select().from(schema.ordersTable)
+      .where(eq(schema.ordersTable.storeId, storeId))
+      .orderBy(desc(schema.ordersTable.createdAt));
     res.json(orders);
   } catch (err) {
     req.log.error(err);
@@ -243,9 +270,9 @@ router.get("/admin/orders", authenticate, requireStaff, async (req: AuthRequest,
   }
 });
 
-// PUT /admin/orders/:id/status
-router.put("/admin/orders/:id/status", authenticate, requireStaff, async (req: AuthRequest, res) => {
+router.put("/admin/orders/:id/status", authenticate, requireStaff, requireStore, async (req: AuthRequest, res) => {
   try {
+    const storeId = req.currentStoreId!;
     const { status } = req.body;
     const VALID_STATUSES = ["pending", "processing", "shipped", "delivered", "cancelled"];
     if (!VALID_STATUSES.includes(status)) {
@@ -254,7 +281,7 @@ router.put("/admin/orders/:id/status", authenticate, requireStaff, async (req: A
     }
     const [order] = await db.update(schema.ordersTable)
       .set({ status, updatedAt: new Date() })
-      .where(eq(schema.ordersTable.id, pid(req, "id")))
+      .where(and(eq(schema.ordersTable.id, pid(req, "id")), eq(schema.ordersTable.storeId, storeId)))
       .returning();
     if (!order) { res.status(404).json({ error: "Order not found" }); return; }
     res.json(order);
@@ -264,13 +291,13 @@ router.put("/admin/orders/:id/status", authenticate, requireStaff, async (req: A
   }
 });
 
-// GET /admin/low-stock — dedicated low-stock alert endpoint
-router.get("/admin/low-stock", authenticate, requireAdmin, async (req: AuthRequest, res) => {
+router.get("/admin/low-stock", authenticate, requireAdmin, requireStore, async (req: AuthRequest, res) => {
   try {
+    const storeId = req.currentStoreId!;
     const raw = parseInt((req.query["threshold"] as string) || "5");
     const threshold = isNaN(raw) ? 5 : Math.max(0, raw);
     const lowStock = await db.select().from(schema.productsTable)
-      .where(lt(schema.productsTable.stock, threshold))
+      .where(and(lt(schema.productsTable.stock, threshold), eq(schema.productsTable.storeId, storeId)))
       .orderBy(schema.productsTable.stock);
     res.json(lowStock);
   } catch (err) {
@@ -279,20 +306,24 @@ router.get("/admin/low-stock", authenticate, requireAdmin, async (req: AuthReque
   }
 });
 
-// GET /admin/analytics
-router.get("/admin/analytics", authenticate, requireAdmin, async (req: AuthRequest, res) => {
+router.get("/admin/analytics", authenticate, requireAdmin, requireStore, async (req: AuthRequest, res) => {
   try {
-    const [{ totalOrders }] = await db.select({ totalOrders: sql<number>`count(*)` }).from(schema.ordersTable);
-    const [{ totalRevenue }] = await db.select({ totalRevenue: sql<number>`coalesce(sum(total_amount), 0)` }).from(schema.ordersTable);
+    const storeId = req.currentStoreId!;
+    const [{ totalOrders }] = await db.select({ totalOrders: sql<number>`count(*)` })
+      .from(schema.ordersTable).where(eq(schema.ordersTable.storeId, storeId));
+    const [{ totalRevenue }] = await db.select({ totalRevenue: sql<number>`coalesce(sum(total_amount), 0)` })
+      .from(schema.ordersTable).where(eq(schema.ordersTable.storeId, storeId));
     const [{ totalExpenses }] = await db.select({ totalExpenses: sql<number>`coalesce(sum(amount), 0)` })
-      .from(schema.transactionsTable).where(eq(schema.transactionsTable.type, "expense"));
+      .from(schema.transactionsTable)
+      .where(and(eq(schema.transactionsTable.type, "expense"), eq(schema.transactionsTable.storeId, storeId)));
     const [{ pendingOrders }] = await db.select({ pendingOrders: sql<number>`count(*)` })
-      .from(schema.ordersTable).where(eq(schema.ordersTable.status, "pending"));
+      .from(schema.ordersTable)
+      .where(and(eq(schema.ordersTable.status, "pending"), eq(schema.ordersTable.storeId, storeId)));
 
     const dailySales = await db.execute(sql`
       SELECT DATE(created_at) as date, COUNT(*) as orders, SUM(total_amount) as revenue
       FROM orders
-      WHERE created_at >= NOW() - INTERVAL '30 days'
+      WHERE created_at >= NOW() - INTERVAL '30 days' AND store_id = ${storeId}
       GROUP BY DATE(created_at)
       ORDER BY DATE(created_at)
     `);
@@ -301,13 +332,16 @@ router.get("/admin/analytics", authenticate, requireAdmin, async (req: AuthReque
       SELECT p.id, p.name_ar, p.name_en, SUM(oi.quantity) as sold, SUM(oi.quantity * oi.unit_price) as revenue
       FROM order_items oi
       JOIN products p ON p.id = oi.product_id
+      JOIN orders o ON o.id = oi.order_id
+      WHERE o.store_id = ${storeId}
       GROUP BY p.id, p.name_ar, p.name_en
       ORDER BY sold DESC
       LIMIT 5
     `);
 
     const lowStock = await db.select().from(schema.productsTable)
-      .where(lt(schema.productsTable.stock, 5)).orderBy(schema.productsTable.stock);
+      .where(and(lt(schema.productsTable.stock, 5), eq(schema.productsTable.storeId, storeId)))
+      .orderBy(schema.productsTable.stock);
 
     res.json({
       totalOrders: Number(totalOrders),
