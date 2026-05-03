@@ -63,6 +63,13 @@ export function useRealtimeWS(): void {
             invalidatePrefix("/api/erp/products");
             invalidatePrefix("/api/erp/inventory");
             break;
+          case "caisse_changed":
+            invalidatePrefix("/api/erp/caisses");
+            break;
+          case "caisse_transfer_changed":
+            invalidatePrefix("/api/erp/caisse-transfers");
+            invalidatePrefix("/api/erp/caisses");
+            break;
           default:
             break;
         }

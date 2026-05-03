@@ -470,6 +470,14 @@ export const ValidateCouponResponse = zod.object({
 export const GetMyOrdersResponseItem = zod.object({
   id: zod.number(),
   userId: zod.number().nullish(),
+  sellerUserId: zod.number().nullish(),
+  sellerUser: zod
+    .object({
+      id: zod.number(),
+      name: zod.string().nullish(),
+      email: zod.string().nullish(),
+    })
+    .nullish(),
   customerName: zod.string(),
   customerPhone: zod.string(),
   customerAddress: zod.string(),
@@ -517,6 +525,14 @@ export const GetOrderResponse = zod
   .object({
     id: zod.number(),
     userId: zod.number().nullish(),
+    sellerUserId: zod.number().nullish(),
+    sellerUser: zod
+      .object({
+        id: zod.number(),
+        name: zod.string().nullish(),
+        email: zod.string().nullish(),
+      })
+      .nullish(),
     customerName: zod.string(),
     customerPhone: zod.string(),
     customerAddress: zod.string(),
@@ -560,6 +576,14 @@ export const GetOrderResponse = zod
 export const GetAdminOrdersResponseItem = zod.object({
   id: zod.number(),
   userId: zod.number().nullish(),
+  sellerUserId: zod.number().nullish(),
+  sellerUser: zod
+    .object({
+      id: zod.number(),
+      name: zod.string().nullish(),
+      email: zod.string().nullish(),
+    })
+    .nullish(),
   customerName: zod.string(),
   customerPhone: zod.string(),
   customerAddress: zod.string(),
@@ -598,6 +622,14 @@ export const UpdateOrderStatusBody = zod.object({
 export const UpdateOrderStatusResponse = zod.object({
   id: zod.number(),
   userId: zod.number().nullish(),
+  sellerUserId: zod.number().nullish(),
+  sellerUser: zod
+    .object({
+      id: zod.number(),
+      name: zod.string().nullish(),
+      email: zod.string().nullish(),
+    })
+    .nullish(),
   customerName: zod.string(),
   customerPhone: zod.string(),
   customerAddress: zod.string(),
@@ -1459,6 +1491,261 @@ export const CancelErpTransferResponse = zod.object({
 });
 
 /**
+ * @summary List caisses visible to current user in current store
+ */
+export const GetErpCaissesResponseItem = zod
+  .object({
+    id: zod.number(),
+    storeId: zod.number(),
+    ownerUserId: zod.number().nullish(),
+    kind: zod.enum(["staff", "main"]),
+    balance: zod.string(),
+    createdAt: zod.string(),
+  })
+  .and(
+    zod.object({
+      owner: zod
+        .object({
+          id: zod.number(),
+          name: zod.string().nullish(),
+          email: zod.string().nullish(),
+        })
+        .nullish(),
+    }),
+  );
+export const GetErpCaissesResponse = zod.array(GetErpCaissesResponseItem);
+
+/**
+ * @summary Get caisse detail with recent movements
+ */
+export const GetErpCaisseParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetErpCaisseResponse = zod
+  .object({
+    id: zod.number(),
+    storeId: zod.number(),
+    ownerUserId: zod.number().nullish(),
+    kind: zod.enum(["staff", "main"]),
+    balance: zod.string(),
+    createdAt: zod.string(),
+  })
+  .and(
+    zod.object({
+      owner: zod
+        .object({
+          id: zod.number(),
+          name: zod.string().nullish(),
+          email: zod.string().nullish(),
+        })
+        .nullish(),
+      movements: zod
+        .array(
+          zod.object({
+            id: zod.number(),
+            caisseId: zod.number(),
+            type: zod.enum(["credit", "debit"]),
+            amount: zod.string(),
+            reason: zod.enum([
+              "sale",
+              "transfer_in",
+              "transfer_out",
+              "transfer_hold",
+              "transfer_refund",
+              "admin_deposit",
+              "admin_withdraw",
+              "adjustment",
+            ]),
+            counterpartyCaisseId: zod.number().nullish(),
+            orderId: zod.number().nullish(),
+            caisseTransferId: zod.number().nullish(),
+            actorUserId: zod.number(),
+            notes: zod.string().nullish(),
+            createdAt: zod.string(),
+            actorUser: zod
+              .object({
+                id: zod.number(),
+                name: zod.string().nullish(),
+                email: zod.string().nullish(),
+              })
+              .nullish(),
+            counterparty: zod
+              .object({
+                id: zod.number().optional(),
+                kind: zod.string().optional(),
+                ownerUserId: zod.number().nullish(),
+                owner: zod
+                  .object({
+                    id: zod.number(),
+                    name: zod.string().nullish(),
+                    email: zod.string().nullish(),
+                  })
+                  .nullish(),
+              })
+              .nullish(),
+          }),
+        )
+        .optional(),
+    }),
+  );
+
+/**
+ * @summary List caisse transfers (inbox / outbox / all)
+ */
+export const GetErpCaisseTransfersQueryParams = zod.object({
+  box: zod.enum(["inbox", "outbox", "all"]).optional(),
+  status: zod.enum(["pending", "accepted", "rejected", "cancelled"]).optional(),
+});
+
+export const GetErpCaisseTransfersResponseItem = zod
+  .object({
+    id: zod.number(),
+    storeId: zod.number(),
+    senderCaisseId: zod.number(),
+    recipientCaisseId: zod.number(),
+    amount: zod.string(),
+    status: zod.enum(["pending", "accepted", "rejected", "cancelled"]),
+    notes: zod.string().nullish(),
+    requestedByUserId: zod.number(),
+    decidedByUserId: zod.number().nullish(),
+    createdAt: zod.string(),
+    decidedAt: zod.string().nullish(),
+  })
+  .and(
+    zod.object({
+      senderCaisse: zod
+        .object({
+          id: zod.number().optional(),
+          kind: zod.string().optional(),
+          ownerUserId: zod.number().nullish(),
+          owner: zod
+            .object({
+              id: zod.number(),
+              name: zod.string().nullish(),
+              email: zod.string().nullish(),
+            })
+            .nullish(),
+        })
+        .nullish(),
+      recipientCaisse: zod
+        .object({
+          id: zod.number().optional(),
+          kind: zod.string().optional(),
+          ownerUserId: zod.number().nullish(),
+          owner: zod
+            .object({
+              id: zod.number(),
+              name: zod.string().nullish(),
+              email: zod.string().nullish(),
+            })
+            .nullish(),
+        })
+        .nullish(),
+      requestedByUser: zod
+        .object({
+          id: zod.number(),
+          name: zod.string().nullish(),
+          email: zod.string().nullish(),
+        })
+        .nullish(),
+      decidedByUser: zod
+        .object({
+          id: zod.number(),
+          name: zod.string().nullish(),
+          email: zod.string().nullish(),
+        })
+        .nullish(),
+    }),
+  );
+export const GetErpCaisseTransfersResponse = zod.array(
+  GetErpCaisseTransfersResponseItem,
+);
+
+/**
+ * @summary Initiate a staff-to-staff caisse transfer (funds held)
+ */
+export const CreateErpCaisseTransferBody = zod.object({
+  recipientUserId: zod.number(),
+  amount: zod.string(),
+  notes: zod.string().optional(),
+});
+
+/**
+ * @summary Recipient accepts a pending transfer
+ */
+export const AcceptErpCaisseTransferParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const AcceptErpCaisseTransferResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary Recipient rejects a pending transfer (funds returned to sender)
+ */
+export const RejectErpCaisseTransferParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const RejectErpCaisseTransferResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary Sender cancels a still-pending transfer (funds returned)
+ */
+export const CancelErpCaisseTransferParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const CancelErpCaisseTransferResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary Admin moves cash from a staff caisse into the store's main caisse
+ */
+export const AdminDepositErpCaisseBody = zod.object({
+  caisseId: zod.number(),
+  amount: zod.string(),
+  notes: zod.string().optional(),
+});
+
+export const AdminDepositErpCaisseResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary Admin moves cash from the main caisse into a staff caisse
+ */
+export const AdminWithdrawErpCaisseBody = zod.object({
+  caisseId: zod.number(),
+  amount: zod.string(),
+  notes: zod.string().optional(),
+});
+
+export const AdminWithdrawErpCaisseResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
+ * @summary Admin applies a signed adjustment to a caisse with a required reason
+ */
+export const AdminAdjustErpCaisseBody = zod.object({
+  caisseId: zod.number(),
+  delta: zod
+    .string()
+    .describe("Signed amount; positive=credit, negative=debit"),
+  notes: zod.string().describe("Required reason"),
+});
+
+export const AdminAdjustErpCaisseResponse = zod.object({
+  success: zod.boolean(),
+});
+
+/**
  * @summary List customers (CRM)
  */
 export const GetErpCustomersResponseItem = zod.object({
@@ -1504,6 +1791,14 @@ export const GetErpCustomerResponse = zod.object({
       zod.object({
         id: zod.number(),
         userId: zod.number().nullish(),
+        sellerUserId: zod.number().nullish(),
+        sellerUser: zod
+          .object({
+            id: zod.number(),
+            name: zod.string().nullish(),
+            email: zod.string().nullish(),
+          })
+          .nullish(),
         customerName: zod.string(),
         customerPhone: zod.string(),
         customerAddress: zod.string(),

@@ -1,9 +1,10 @@
 import { Router } from "express";
-import { eq, desc, sql, lt, and } from "drizzle-orm";
+import { eq, desc, sql, lt, and, inArray } from "drizzle-orm";
 import { db, schema } from "../lib/db";
 import { authenticate, requireAdmin, requireStaff, requireStore, optionalAuth, type AuthRequest } from "../lib/auth";
 import { resolvePublicStore } from "../lib/store-context";
 import { broadcastToAdmins } from "../lib/ws";
+import { ensureCaisse } from "./caisses";
 
 
 const router = Router();
@@ -116,9 +117,15 @@ async function handleCreateOrder(req: AuthRequest, res: import("express").Respon
 
       const totalAmount = Math.max(0, subtotal - discountAmount);
 
+      // Track seller for POS sales: any authenticated staff member (admin
+       // or employee) creating an order is recorded as the seller, so we
+       // can credit their virtual caisse and audit who collected the cash.
+      const sellerUserId = (req.user && (req.user.role === "admin" || req.user.role === "employee"))
+        ? req.user.id : null;
       const [order] = await tx.insert(schema.ordersTable).values({
         storeId,
         userId: req.user?.id ?? null,
+        sellerUserId,
         customerName, customerPhone, customerAddress,
         totalAmount: totalAmount.toFixed(2),
         discountAmount: discountAmount.toFixed(2),
@@ -176,7 +183,26 @@ async function handleCreateOrder(req: AuthRequest, res: import("express").Respon
         reference: `ORDER-${order.id}`,
       });
 
-      return { order, enrichedItems, totalAmount };
+      // Credit the seller's virtual caisse for staff/admin POS sales.
+      // Storefront (customer-placed) orders have no seller and skip this.
+      if (sellerUserId !== null && totalAmount > 0) {
+        const sellerCaisse = await ensureCaisse(storeId, sellerUserId, tx);
+        const amountStr = totalAmount.toFixed(2);
+        await tx.update(schema.caissesTable)
+          .set({ balance: sql`${schema.caissesTable.balance} + ${amountStr}` })
+          .where(eq(schema.caissesTable.id, sellerCaisse.id));
+        await tx.insert(schema.caisseMovementsTable).values({
+          caisseId: sellerCaisse.id,
+          type: "credit",
+          amount: amountStr,
+          reason: "sale",
+          orderId: order.id,
+          actorUserId: sellerUserId,
+          notes: `POS sale to ${customerName}`,
+        });
+      }
+
+      return { order, enrichedItems, totalAmount, sellerUserId };
     });
 
     broadcastToAdmins({
@@ -277,7 +303,13 @@ router.get("/admin/orders", authenticate, requireStaff, requireStore, async (req
     const orders = await db.select().from(schema.ordersTable)
       .where(eq(schema.ordersTable.storeId, storeId))
       .orderBy(desc(schema.ordersTable.createdAt));
-    res.json(orders);
+    const sellerIds = Array.from(new Set(orders.map(o => o.sellerUserId).filter((x): x is number => !!x)));
+    const sellers = sellerIds.length
+      ? await db.select({ id: schema.usersTable.id, name: schema.usersTable.name, email: schema.usersTable.email })
+          .from(schema.usersTable).where(inArray(schema.usersTable.id, sellerIds))
+      : [];
+    const sellerMap = new Map(sellers.map(s => [s.id, s]));
+    res.json(orders.map(o => ({ ...o, sellerUser: o.sellerUserId ? sellerMap.get(o.sellerUserId) ?? null : null })));
   } catch (err) {
     req.log.error(err);
     res.status(500).json({ error: "Internal server error" });

@@ -11,6 +11,7 @@ export const ordersTable = pgTable("orders", {
   id: serial("id").primaryKey(),
   storeId: integer("store_id").references(() => storesTable.id).notNull(),
   userId: integer("user_id").references(() => usersTable.id),
+  sellerUserId: integer("seller_user_id").references(() => usersTable.id),
   customerName: text("customer_name").notNull(),
   customerPhone: text("customer_phone").notNull(),
   customerAddress: text("customer_address").notNull(),

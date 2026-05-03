@@ -1,4 +1,5 @@
-import { pgTable, serial, text, timestamp, integer, numeric, pgEnum, boolean, date } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, numeric, pgEnum, boolean, date, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { usersTable } from "./users";
 import { productsTable } from "./products";
 import { storesTable } from "./stores";
@@ -171,3 +172,70 @@ export type InventoryMovement = typeof inventoryMovementsTable.$inferSelect;
 export type StockTransfer = typeof stockTransfersTable.$inferSelect;
 export type StockTransferItem = typeof stockTransferItemsTable.$inferSelect;
 export type StockTransferEvent = typeof stockTransferEventsTable.$inferSelect;
+
+// ─── Caisses (virtual cashboxes per staff + main) ─────────────────────────────
+export const caisseKindEnum = pgEnum("caisse_kind", ["staff", "main"]);
+export const caisseMovementTypeEnum = pgEnum("caisse_movement_type", ["credit", "debit"]);
+export const caisseMovementReasonEnum = pgEnum("caisse_movement_reason", [
+  "sale",
+  "transfer_in",
+  "transfer_out",
+  "transfer_hold",
+  "transfer_refund",
+  "admin_deposit",
+  "admin_withdraw",
+  "adjustment",
+]);
+export const caisseTransferStatusEnum = pgEnum("caisse_transfer_status", [
+  "pending", "accepted", "rejected", "cancelled",
+]);
+
+export const caissesTable = pgTable("caisses", {
+  id: serial("id").primaryKey(),
+  storeId: integer("store_id").references(() => storesTable.id).notNull(),
+  ownerUserId: integer("owner_user_id").references(() => usersTable.id),
+  kind: caisseKindEnum("kind").notNull(),
+  balance: numeric("balance", { precision: 12, scale: 2 }).notNull().default("0"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (t) => ({
+  // One main caisse per store
+  uniqMain: uniqueIndex("caisses_one_main_per_store")
+    .on(t.storeId)
+    .where(sql`${t.kind} = 'main'`),
+  // One staff caisse per (store, owner)
+  uniqStaff: uniqueIndex("caisses_one_per_owner_store")
+    .on(t.storeId, t.ownerUserId)
+    .where(sql`${t.ownerUserId} IS NOT NULL`),
+}));
+
+export const caisseTransfersTable = pgTable("caisse_transfers", {
+  id: serial("id").primaryKey(),
+  storeId: integer("store_id").references(() => storesTable.id).notNull(),
+  senderCaisseId: integer("sender_caisse_id").references(() => caissesTable.id).notNull(),
+  recipientCaisseId: integer("recipient_caisse_id").references(() => caissesTable.id).notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  status: caisseTransferStatusEnum("status").notNull().default("pending"),
+  notes: text("notes"),
+  requestedByUserId: integer("requested_by_user_id").references(() => usersTable.id).notNull(),
+  decidedByUserId: integer("decided_by_user_id").references(() => usersTable.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  decidedAt: timestamp("decided_at"),
+});
+
+export const caisseMovementsTable = pgTable("caisse_movements", {
+  id: serial("id").primaryKey(),
+  caisseId: integer("caisse_id").references(() => caissesTable.id).notNull(),
+  type: caisseMovementTypeEnum("type").notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  reason: caisseMovementReasonEnum("reason").notNull(),
+  counterpartyCaisseId: integer("counterparty_caisse_id").references(() => caissesTable.id),
+  orderId: integer("order_id"),
+  caisseTransferId: integer("caisse_transfer_id").references(() => caisseTransfersTable.id),
+  actorUserId: integer("actor_user_id").references(() => usersTable.id).notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type Caisse = typeof caissesTable.$inferSelect;
+export type CaisseMovement = typeof caisseMovementsTable.$inferSelect;
+export type CaisseTransfer = typeof caisseTransfersTable.$inferSelect;

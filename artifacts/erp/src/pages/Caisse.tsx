@@ -1,247 +1,568 @@
-import React, { useState } from "react";
-import { useGetTransactions, useCreateTransaction, getGetTransactionsQueryKey } from "@workspace/api-client-react";
+import React, { useMemo, useState } from "react";
+import {
+  useGetErpCaisses, useGetErpCaisseTransfers, useCreateErpCaisseTransfer,
+  useAcceptErpCaisseTransfer, useRejectErpCaisseTransfer, useCancelErpCaisseTransfer,
+  useAdminDepositErpCaisse, useAdminWithdrawErpCaisse, useAdminAdjustErpCaisse,
+  useGetErpStaff, useGetErpCaisse,
+  getGetErpCaissesQueryKey, getGetErpCaisseTransfersQueryKey,
+  type CaisseSummary, type CaisseTransferSummary, type CaisseMovement,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useMe } from "@/hooks/use-me";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Wallet, ArrowUpCircle, ArrowDownCircle, Plus, Minus } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Wallet, Send, Inbox, ArrowDownLeft, ArrowUpRight, Settings, Building2,
+  CheckCircle2, XCircle, Clock, Plus, Minus, Sliders,
+} from "lucide-react";
 import { format } from "date-fns";
-import { type CreateTransactionRequestType } from "@workspace/api-client-react";
+import { useToast } from "@/hooks/use-toast";
 
-type CaisseEntry = { label: string; amount: string; note: string };
-const emptyEntry: CaisseEntry = { label: "", amount: "", note: "" };
+const fmtAmount = (v: string | number | undefined | null) => {
+  const n = typeof v === "number" ? v : parseFloat(v ?? "0");
+  return n.toLocaleString("fr-DZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+const personLabel = (p: any): string =>
+  p?.name || p?.email || "—";
+
+const caisseLabel = (c: any): string => {
+  if (!c) return "—";
+  if (c.kind === "main") return "Caisse principale / الصندوق الرئيسي";
+  return personLabel(c.owner);
+};
+
+const transferStatusBadge = (s: string) => {
+  const cfg: Record<string, { cls: string; icon: React.ReactNode; label: string }> = {
+    pending: { cls: "bg-amber-100 text-amber-700 border-amber-200", icon: <Clock className="h-3 w-3" />, label: "En attente / قيد الانتظار" },
+    accepted: { cls: "bg-emerald-100 text-emerald-700 border-emerald-200", icon: <CheckCircle2 className="h-3 w-3" />, label: "Acceptée / مقبولة" },
+    rejected: { cls: "bg-red-100 text-red-700 border-red-200", icon: <XCircle className="h-3 w-3" />, label: "Refusée / مرفوضة" },
+    cancelled: { cls: "bg-gray-100 text-gray-700 border-gray-200", icon: <XCircle className="h-3 w-3" />, label: "Annulée / ملغاة" },
+  };
+  const c = cfg[s] ?? cfg.pending;
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded border ${c.cls}`}>
+      {c.icon}{c.label}
+    </span>
+  );
+};
+
+const reasonLabel: Record<string, string> = {
+  sale: "Vente / بيع",
+  transfer_in: "Transfert reçu / تحويل وارد",
+  transfer_out: "Transfert envoyé / تحويل صادر",
+  transfer_hold: "Transfert (en attente) / حجز تحويل",
+  transfer_refund: "Remboursement transfert / استرجاع",
+  admin_deposit: "Dépôt → principale / إيداع",
+  admin_withdraw: "Retrait ← principale / سحب",
+  adjustment: "Ajustement / تعديل",
+};
 
 export default function Caisse() {
+  const { user, isAdmin } = useMe();
+  const { toast } = useToast();
   const qc = useQueryClient();
-  const { data: transactions } = useGetTransactions();
-  const createTx = useCreateTransaction();
 
-  const [openDialog, setOpenDialog] = useState<"in" | "out" | null>(null);
-  const [entry, setEntry] = useState<CaisseEntry>(emptyEntry);
-  const [sessionOpen, setSessionOpen] = useState(true);
+  const { data: caisses, isLoading: loadingCaisses } = useGetErpCaisses();
+  const { data: transfers } = useGetErpCaisseTransfers({ box: "all" });
 
-  const today = new Date().toISOString().slice(0, 10);
-
-  const todayTx = (transactions ?? []).filter(
-    (t) => t.date && t.date.slice(0, 10) === today && ["sales", "other", "cash"].includes(t.category ?? "")
+  const myCaisse = useMemo(
+    () => (caisses ?? []).find(c => c.ownerUserId === user?.id) ?? null,
+    [caisses, user?.id],
+  );
+  const mainCaisse = useMemo(
+    () => (caisses ?? []).find(c => c.kind === "main") ?? null,
+    [caisses],
+  );
+  const otherStaffCaisses = useMemo(
+    () => (caisses ?? []).filter(c => c.kind === "staff" && c.ownerUserId !== user?.id),
+    [caisses, user?.id],
   );
 
-  const totalIn = todayTx
-    .filter((t) => t.type === "income")
-    .reduce((s, t) => s + parseFloat(t.amount ?? "0"), 0);
+  const inbox = (transfers ?? []).filter(t => t.recipientCaisse?.ownerUserId === user?.id && t.status === "pending");
+  const outbox = (transfers ?? []).filter(t => t.senderCaisse?.ownerUserId === user?.id);
 
-  const totalOut = todayTx
-    .filter((t) => t.type === "expense")
-    .reduce((s, t) => s + parseFloat(t.amount ?? "0"), 0);
+  const refreshAll = () => {
+    qc.invalidateQueries({ queryKey: getGetErpCaissesQueryKey() });
+    qc.invalidateQueries({ queryKey: getGetErpCaisseTransfersQueryKey() });
+  };
 
-  const balance = totalIn - totalOut;
+  // ── mutations ───────────────────────────────────────────────────
+  const accept = useAcceptErpCaisseTransfer();
+  const reject = useRejectErpCaisseTransfer();
+  const cancel = useCancelErpCaisseTransfer();
+  const handleAccept = (id: number) => accept.mutate({ id }, { onSuccess: () => { toast({ title: "Transfert accepté / تم القبول" }); refreshAll(); }, onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }) });
+  const handleReject = (id: number) => reject.mutate({ id }, { onSuccess: () => { toast({ title: "Transfert refusé / تم الرفض" }); refreshAll(); }, onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }) });
+  const handleCancel = (id: number) => cancel.mutate({ id }, { onSuccess: () => { toast({ title: "Annulé / تم الإلغاء" }); refreshAll(); }, onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }) });
 
-  const handleSave = () => {
-    if (!entry.amount || !openDialog) return;
-    createTx.mutate(
+  // ── dialogs state ───────────────────────────────────────────────
+  const [sendOpen, setSendOpen] = useState(false);
+  const [adminAction, setAdminAction] = useState<null | { type: "deposit" | "withdraw" | "adjust"; caisse: CaisseSummary }>(null);
+  const [detailCaisseId, setDetailCaisseId] = useState<number | null>(null);
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <Wallet className="h-6 w-6 text-amber-500" />
+          Caisses / الصناديق
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Gérez votre caisse, transférez entre collègues et supervisez la caisse principale.
+          / أدر صندوقك، حوّل بين الزملاء وراقب الصندوق الرئيسي.
+        </p>
+      </div>
+
+      {loadingCaisses ? (
+        <div className="text-sm text-muted-foreground">Chargement... / جاري التحميل...</div>
+      ) : (
+        <>
+          {/* My caisse + Main caisse summary */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {myCaisse && (
+              <Card className="border-2 border-amber-200 bg-amber-50/40" data-testid="card-my-caisse">
+                <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Wallet className="h-5 w-5 text-amber-600" />
+                    Ma caisse / صندوقي
+                  </CardTitle>
+                  <Button size="sm" variant="outline" onClick={() => setDetailCaisseId(myCaisse.id)}>
+                    Détails / التفاصيل
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-3xl font-bold text-amber-700" data-testid="text-my-balance">دج {fmtAmount(myCaisse.balance)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Propriétaire: {personLabel(myCaisse.owner)}</p>
+                  <div className="mt-3 flex gap-2">
+                    <Button size="sm" className="bg-[#1B3057] hover:bg-[#152544]" onClick={() => setSendOpen(true)} data-testid="button-send-transfer">
+                      <Send className="h-4 w-4 mr-1.5" /> Envoyer / إرسال
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {mainCaisse && (
+              <Card className="border-2 border-blue-200 bg-blue-50/40" data-testid="card-main-caisse">
+                <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Building2 className="h-5 w-5 text-blue-600" />
+                    Caisse principale / الصندوق الرئيسي
+                  </CardTitle>
+                  <Button size="sm" variant="outline" onClick={() => setDetailCaisseId(mainCaisse.id)}>
+                    Détails / التفاصيل
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-3xl font-bold text-blue-700" data-testid="text-main-balance">دج {fmtAmount(mainCaisse.balance)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {isAdmin ? "Visible et gérée par les administrateurs" : "Lecture seule / للقراءة فقط"}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          {/* Inbox / Outbox transfers */}
+          <Tabs defaultValue="inbox" className="w-full">
+            <TabsList>
+              <TabsTrigger value="inbox" data-testid="tab-inbox">
+                <Inbox className="h-4 w-4 mr-1.5" />
+                Reçus / الواردة {inbox.length > 0 && <span className="ml-1.5 inline-flex items-center justify-center text-xs bg-red-500 text-white rounded-full h-5 min-w-5 px-1">{inbox.length}</span>}
+              </TabsTrigger>
+              <TabsTrigger value="outbox" data-testid="tab-outbox">
+                <Send className="h-4 w-4 mr-1.5" /> Envoyés / المرسلة
+              </TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger value="admin" data-testid="tab-admin">
+                  <Settings className="h-4 w-4 mr-1.5" /> Admin
+                </TabsTrigger>
+              )}
+            </TabsList>
+
+            <TabsContent value="inbox" className="mt-3">
+              <TransfersTable
+                rows={inbox}
+                emptyMsg="Aucun transfert en attente / لا توجد تحويلات معلقة"
+                renderActions={(t) => (
+                  <div className="flex gap-2">
+                    <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => handleAccept(t.id)} disabled={accept.isPending} data-testid={`button-accept-${t.id}`}>
+                      <CheckCircle2 className="h-4 w-4 mr-1" /> Accepter / قبول
+                    </Button>
+                    <Button size="sm" variant="destructive" onClick={() => handleReject(t.id)} disabled={reject.isPending} data-testid={`button-reject-${t.id}`}>
+                      <XCircle className="h-4 w-4 mr-1" /> Refuser / رفض
+                    </Button>
+                  </div>
+                )}
+              />
+            </TabsContent>
+
+            <TabsContent value="outbox" className="mt-3">
+              <TransfersTable
+                rows={outbox}
+                emptyMsg="Aucun transfert envoyé / لم تُرسل أية تحويلات"
+                renderActions={(t) => t.status === "pending" ? (
+                  <Button size="sm" variant="outline" onClick={() => handleCancel(t.id)} disabled={cancel.isPending} data-testid={`button-cancel-${t.id}`}>
+                    Annuler / إلغاء
+                  </Button>
+                ) : null}
+              />
+            </TabsContent>
+
+            {isAdmin && (
+              <TabsContent value="admin" className="mt-3 space-y-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Toutes les caisses du magasin / كل صناديق المتجر</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Propriétaire</TableHead>
+                          <TableHead className="text-right">Solde / الرصيد</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {(caisses ?? []).map(c => (
+                          <TableRow key={c.id} data-testid={`row-caisse-${c.id}`}>
+                            <TableCell>
+                              {c.kind === "main"
+                                ? <span className="text-xs font-medium px-2 py-0.5 rounded bg-blue-100 text-blue-700">Principale</span>
+                                : <span className="text-xs font-medium px-2 py-0.5 rounded bg-amber-100 text-amber-700">Staff</span>}
+                            </TableCell>
+                            <TableCell>{caisseLabel(c)}</TableCell>
+                            <TableCell className="text-right font-bold">دج {fmtAmount(c.balance)}</TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex gap-1 justify-end flex-wrap">
+                                <Button size="sm" variant="ghost" onClick={() => setDetailCaisseId(c.id)}>Détails</Button>
+                                {c.kind === "staff" && (
+                                  <>
+                                    <Button size="sm" variant="outline" className="text-emerald-700" onClick={() => setAdminAction({ type: "deposit", caisse: c })} data-testid={`button-deposit-${c.id}`}>
+                                      <ArrowUpRight className="h-3.5 w-3.5 mr-1" /> Dépôt
+                                    </Button>
+                                    <Button size="sm" variant="outline" className="text-blue-700" onClick={() => setAdminAction({ type: "withdraw", caisse: c })} data-testid={`button-withdraw-${c.id}`}>
+                                      <ArrowDownLeft className="h-3.5 w-3.5 mr-1" /> Retrait
+                                    </Button>
+                                  </>
+                                )}
+                                <Button size="sm" variant="outline" className="text-amber-700" onClick={() => setAdminAction({ type: "adjust", caisse: c })} data-testid={`button-adjust-${c.id}`}>
+                                  <Sliders className="h-3.5 w-3.5 mr-1" /> Ajuster
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    {otherStaffCaisses.length === 0 && (caisses?.length ?? 0) <= 2 && (
+                      <p className="text-center text-sm text-muted-foreground py-4">
+                        Aucun autre staff dans ce magasin pour le moment.
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
+          </Tabs>
+        </>
+      )}
+
+      <SendTransferDialog open={sendOpen} onClose={() => setSendOpen(false)} onSent={refreshAll} myBalance={myCaisse?.balance ?? "0.00"} />
+      {adminAction && (
+        <AdminCaisseDialog
+          action={adminAction}
+          onClose={() => setAdminAction(null)}
+          onDone={refreshAll}
+          mainCaisseId={mainCaisse?.id ?? null}
+        />
+      )}
+      {detailCaisseId !== null && (
+        <CaisseDetailDialog id={detailCaisseId} onClose={() => setDetailCaisseId(null)} />
+      )}
+    </div>
+  );
+}
+
+// ─── Sub-components ─────────────────────────────────────────────────
+
+function TransfersTable({
+  rows, emptyMsg, renderActions,
+}: {
+  rows: CaisseTransferSummary[];
+  emptyMsg: string;
+  renderActions?: (t: CaisseTransferSummary) => React.ReactNode;
+}) {
+  return (
+    <Card className="border shadow-sm">
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Date</TableHead>
+              <TableHead>De / من</TableHead>
+              <TableHead>À / إلى</TableHead>
+              <TableHead className="text-right">Montant / المبلغ</TableHead>
+              <TableHead>Statut / الحالة</TableHead>
+              {renderActions && <TableHead className="text-right">Actions</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={renderActions ? 6 : 5} className="text-center py-8 text-muted-foreground">{emptyMsg}</TableCell>
+              </TableRow>
+            ) : rows.map(t => (
+              <TableRow key={t.id} data-testid={`row-transfer-${t.id}`}>
+                <TableCell className="text-sm text-muted-foreground">{t.createdAt ? format(new Date(t.createdAt), "MMM d HH:mm") : "—"}</TableCell>
+                <TableCell>{caisseLabel(t.senderCaisse)}</TableCell>
+                <TableCell>{caisseLabel(t.recipientCaisse)}</TableCell>
+                <TableCell className="text-right font-bold">دج {fmtAmount(t.amount)}</TableCell>
+                <TableCell>{transferStatusBadge(t.status)}</TableCell>
+                {renderActions && <TableCell className="text-right">{renderActions(t)}</TableCell>}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SendTransferDialog({
+  open, onClose, onSent, myBalance,
+}: { open: boolean; onClose: () => void; onSent: () => void; myBalance: string }) {
+  const { user } = useMe();
+  const { toast } = useToast();
+  const { data: staff } = useGetErpStaff({ query: { enabled: open } as any });
+  const create = useCreateErpCaisseTransfer();
+  const [recipient, setRecipient] = useState<string>("");
+  const [amount, setAmount] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const recipients = (staff ?? []).filter(s => s.id !== user?.id);
+
+  const handleSubmit = () => {
+    const r = parseInt(recipient);
+    const a = parseFloat(amount);
+    if (!r || !a || a <= 0) {
+      toast({ title: "Champs requis / حقول مطلوبة", variant: "destructive" });
+      return;
+    }
+    if (a > parseFloat(myBalance)) {
+      toast({ title: "Solde insuffisant / رصيد غير كافٍ", variant: "destructive" });
+      return;
+    }
+    create.mutate(
+      { data: { recipientUserId: r, amount: a.toFixed(2), notes: notes || undefined } },
       {
-        data: {
-          type: openDialog === "in" ? "income" as CreateTransactionRequestType : "expense" as CreateTransactionRequestType,
-          category: "other",
-          amount: entry.amount,
-          description: `[Caisse] ${entry.label}${entry.note ? " – " + entry.note : ""}`,
-          date: today,
+        onSuccess: () => {
+          toast({ title: "Transfert envoyé / تم الإرسال" });
+          setRecipient(""); setAmount(""); setNotes("");
+          onSent(); onClose();
         },
+        onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
       },
-      {
-        onSettled: () => {
-          qc.invalidateQueries({ queryKey: getGetTransactionsQueryKey() });
-          setOpenDialog(null);
-          setEntry(emptyEntry);
-        },
-      }
     );
   };
 
   return (
-    <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Wallet className="h-6 w-6 text-amber-500" />
-            Caisse / الصندوق
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {format(new Date(), "EEEE, MMMM d yyyy")} · Session:{" "}
-            <span className={sessionOpen ? "text-emerald-600 font-semibold" : "text-red-500 font-semibold"}>
-              {sessionOpen ? "Ouverte / مفتوحة" : "Fermée / مغلقة"}
-            </span>
-          </p>
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Envoyer à un collègue / إرسال إلى زميل</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <div className="text-xs text-muted-foreground">Mon solde: <span className="font-bold">دج {fmtAmount(myBalance)}</span></div>
+          <div>
+            <Label className="text-xs mb-1 block">Destinataire / المستلم *</Label>
+            <Select value={recipient} onValueChange={setRecipient}>
+              <SelectTrigger data-testid="select-recipient"><SelectValue placeholder="Choisir un collègue..." /></SelectTrigger>
+              <SelectContent>
+                {recipients.map(s => (
+                  <SelectItem key={s.id} value={String(s.id)}>{s.name || s.email} ({s.role})</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label className="text-xs mb-1 block">Montant (دج) *</Label>
+            <Input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-9 text-lg font-bold" data-testid="input-transfer-amount" />
+          </div>
+          <div>
+            <Label className="text-xs mb-1 block">Note / ملاحظة</Label>
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Optionnel..." />
+          </div>
         </div>
-        <Button
-          variant={sessionOpen ? "destructive" : "default"}
-          size="sm"
-          onClick={() => setSessionOpen(!sessionOpen)}
-        >
-          {sessionOpen ? "Fermer la session / إغلاق" : "Ouvrir la session / فتح"}
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-2 border-emerald-100 bg-emerald-50/50">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 bg-emerald-100 rounded-full">
-              <ArrowUpCircle className="h-6 w-6 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Entrées du jour / دخل اليوم</p>
-              <p className="text-2xl font-bold text-emerald-600">دج {totalIn.toLocaleString("fr-DZ", { minimumFractionDigits: 2 })}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-2 border-red-100 bg-red-50/50">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 bg-red-100 rounded-full">
-              <ArrowDownCircle className="h-6 w-6 text-red-500" />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Sorties du jour / مصروف اليوم</p>
-              <p className="text-2xl font-bold text-red-500">دج {totalOut.toLocaleString("fr-DZ", { minimumFractionDigits: 2 })}</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className={`border-2 ${balance >= 0 ? "border-blue-100 bg-blue-50/50" : "border-red-100 bg-red-50/50"}`}>
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className={`p-3 rounded-full ${balance >= 0 ? "bg-blue-100" : "bg-red-100"}`}>
-              <Wallet className={`h-6 w-6 ${balance >= 0 ? "text-blue-600" : "text-red-600"}`} />
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Solde / الرصيد</p>
-              <p className={`text-2xl font-bold ${balance >= 0 ? "text-blue-700" : "text-red-600"}`}>
-                دج {balance.toLocaleString("fr-DZ", { minimumFractionDigits: 2 })}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {sessionOpen && (
-        <div className="flex gap-3">
-          <Button
-            className="flex-1 h-14 text-base bg-emerald-500 hover:bg-emerald-600"
-            onClick={() => { setEntry(emptyEntry); setOpenDialog("in"); }}
-            data-testid="button-cash-in"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Entrée / إدخال نقدي
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Annuler / إلغاء</Button>
+          <Button className="bg-[#1B3057] hover:bg-[#152544]" onClick={handleSubmit} disabled={create.isPending} data-testid="button-confirm-transfer">
+            <Send className="h-4 w-4 mr-1.5" /> Envoyer / إرسال
           </Button>
-          <Button
-            className="flex-1 h-14 text-base bg-red-500 hover:bg-red-600"
-            onClick={() => { setEntry(emptyEntry); setOpenDialog("out"); }}
-            data-testid="button-cash-out"
-          >
-            <Minus className="h-5 w-5 mr-2" />
-            Sortie / إخراج نقدي
-          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AdminCaisseDialog({
+  action, onClose, onDone, mainCaisseId,
+}: {
+  action: { type: "deposit" | "withdraw" | "adjust"; caisse: CaisseSummary };
+  onClose: () => void;
+  onDone: () => void;
+  mainCaisseId: number | null;
+}) {
+  const { toast } = useToast();
+  const deposit = useAdminDepositErpCaisse();
+  const withdraw = useAdminWithdrawErpCaisse();
+  const adjust = useAdminAdjustErpCaisse();
+  const [amount, setAmount] = useState("");
+  const [delta, setDelta] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const titleMap = {
+    deposit: "Dépôt vers principale / إيداع للصندوق الرئيسي",
+    withdraw: "Retrait depuis principale / سحب من الصندوق الرئيسي",
+    adjust: "Ajustement de solde / تعديل الرصيد",
+  };
+
+  const handleSubmit = () => {
+    if (action.type === "adjust") {
+      const d = parseFloat(delta);
+      if (isNaN(d) || d === 0 || !notes.trim()) {
+        toast({ title: "Delta non nul + raison requis", variant: "destructive" });
+        return;
+      }
+      adjust.mutate(
+        { data: { caisseId: action.caisse.id, delta: d.toFixed(2), notes: notes.trim() } },
+        { onSuccess: () => { toast({ title: "Ajusté / تم التعديل" }); onDone(); onClose(); }, onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }) },
+      );
+      return;
+    }
+    const a = parseFloat(amount);
+    if (!a || a <= 0) { toast({ title: "Montant invalide", variant: "destructive" }); return; }
+    const payload = { data: { caisseId: action.caisse.id, amount: a.toFixed(2), notes: notes || undefined } };
+    const fn = action.type === "deposit" ? deposit : withdraw;
+    fn.mutate(payload, {
+      onSuccess: () => { toast({ title: "Opération réussie / تمت العملية" }); onDone(); onClose(); },
+      onError: (e: any) => toast({ title: "Erreur", description: e?.message, variant: "destructive" }),
+    });
+  };
+
+  const pending = deposit.isPending || withdraw.isPending || adjust.isPending;
+
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{titleMap[action.type]}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <div className="text-xs text-muted-foreground">
+            Caisse: <span className="font-medium">{caisseLabel(action.caisse)}</span> ·
+            Solde: <span className="font-bold">دج {fmtAmount(action.caisse.balance)}</span>
+          </div>
+          {action.type === "adjust" ? (
+            <>
+              <div>
+                <Label className="text-xs mb-1 block">Delta signé (دج) *</Label>
+                <Input type="number" step="0.01" value={delta} onChange={(e) => setDelta(e.target.value)} placeholder="ex: 500 ou -250" className="h-9 text-lg font-bold" data-testid="input-adjust-delta" />
+                <p className="text-[11px] text-muted-foreground mt-1">Positif = crédit, négatif = débit</p>
+              </div>
+              <div>
+                <Label className="text-xs mb-1 block">Raison / السبب *</Label>
+                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Justification obligatoire..." data-testid="input-adjust-notes" />
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <Label className="text-xs mb-1 block">Montant (دج) *</Label>
+                <Input type="number" min="0" step="0.01" value={amount} onChange={(e) => setAmount(e.target.value)} className="h-9 text-lg font-bold" data-testid="input-admin-amount" />
+              </div>
+              <div>
+                <Label className="text-xs mb-1 block">Note / ملاحظة</Label>
+                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} />
+              </div>
+              {action.type === "deposit" && mainCaisseId === null && (
+                <p className="text-xs text-red-600">Aucune caisse principale trouvée.</p>
+              )}
+            </>
+          )}
         </div>
-      )}
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Annuler</Button>
+          <Button onClick={handleSubmit} disabled={pending} className="bg-[#1B3057] hover:bg-[#152544]" data-testid="button-confirm-admin">
+            Confirmer / تأكيد
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
-      <Card className="border shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Mouvements du jour / حركات اليوم ({todayTx.length})</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="overflow-x-auto">
+function CaisseDetailDialog({ id, onClose }: { id: number; onClose: () => void }) {
+  const { data, isLoading } = useGetErpCaisse(id);
+  return (
+    <Dialog open onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Mouvements / حركات الصندوق</DialogTitle>
+        </DialogHeader>
+        {isLoading ? <p className="text-sm text-muted-foreground">Chargement...</p> : !data ? <p className="text-sm text-muted-foreground">Introuvable</p> : (
+          <>
+            <div className="flex items-center justify-between border-b pb-2 mb-2">
+              <div>
+                <p className="text-sm font-medium">{caisseLabel(data)}</p>
+                <p className="text-xs text-muted-foreground">{data.kind === "main" ? "Caisse principale" : "Caisse staff"}</p>
+              </div>
+              <p className="text-2xl font-bold">دج {fmtAmount(data.balance)}</p>
+            </div>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Heure / الوقت</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Montant / المبلغ</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Raison</TableHead>
+                  <TableHead>Contrepartie</TableHead>
+                  <TableHead>Acteur</TableHead>
+                  <TableHead className="text-right">Montant</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {todayTx.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-10 text-muted-foreground">
-                      Aucun mouvement aujourd'hui / لا توجد حركات اليوم
+                {(data.movements ?? []).length === 0 ? (
+                  <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">Aucun mouvement</TableCell></TableRow>
+                ) : (data.movements ?? []).map((m: CaisseMovement) => (
+                  <TableRow key={m.id}>
+                    <TableCell className="text-xs text-muted-foreground">{m.createdAt ? format(new Date(m.createdAt), "MMM d HH:mm") : "—"}</TableCell>
+                    <TableCell className="text-sm">{reasonLabel[m.reason] ?? m.reason}{m.notes ? <div className="text-[11px] text-muted-foreground italic">{m.notes}</div> : null}</TableCell>
+                    <TableCell className="text-sm">{m.counterparty ? caisseLabel(m.counterparty as any) : "—"}</TableCell>
+                    <TableCell className="text-sm">{personLabel(m.actorUser)}</TableCell>
+                    <TableCell className={`text-right font-bold ${m.type === "credit" ? "text-emerald-600" : "text-red-600"}`}>
+                      {m.type === "credit" ? "+" : "-"} دج {fmtAmount(m.amount)}
                     </TableCell>
                   </TableRow>
-                ) : (
-                  [...todayTx].reverse().map((t) => (
-                    <TableRow key={t.id}>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {t.date ? format(new Date(t.date), "HH:mm") : "—"}
-                      </TableCell>
-                      <TableCell>
-                        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${t.type === "income" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
-                          {t.type === "income" ? <ArrowUpCircle className="h-3 w-3" /> : <ArrowDownCircle className="h-3 w-3" />}
-                          {t.type === "income" ? "Entrée" : "Sortie"}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-sm max-w-xs truncate">{t.description}</TableCell>
-                      <TableCell className={`text-right font-bold ${t.type === "income" ? "text-emerald-600" : "text-red-600"}`}>
-                        {t.type === "income" ? "+" : "-"} دج {parseFloat(t.amount ?? "0").toLocaleString("fr-DZ", { minimumFractionDigits: 2 })}
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                ))}
               </TableBody>
             </Table>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Dialog open={openDialog !== null} onOpenChange={(o) => !o && setOpenDialog(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className={openDialog === "in" ? "text-emerald-600" : "text-red-600"}>
-              {openDialog === "in" ? "✚ Entrée de caisse / إدخال نقدي" : "✖ Sortie de caisse / إخراج نقدي"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div>
-              <Label className="text-xs mb-1 block">Libellé / التسمية *</Label>
-              <Input
-                value={entry.label}
-                onChange={(e) => setEntry((f) => ({ ...f, label: e.target.value }))}
-                placeholder={openDialog === "in" ? "Vente, versement..." : "Achat, dépense..."}
-                className="h-9"
-              />
-            </div>
-            <div>
-              <Label className="text-xs mb-1 block">Montant (دج) *</Label>
-              <Input
-                type="number"
-                min="0"
-                value={entry.amount}
-                onChange={(e) => setEntry((f) => ({ ...f, amount: e.target.value }))}
-                placeholder="0.00"
-                className="h-9 text-lg font-bold"
-              />
-            </div>
-            <div>
-              <Label className="text-xs mb-1 block">Note / ملاحظة</Label>
-              <Input
-                value={entry.note}
-                onChange={(e) => setEntry((f) => ({ ...f, note: e.target.value }))}
-                placeholder="Optionnel..."
-                className="h-9"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenDialog(null)}>Annuler / إلغاء</Button>
-            <Button
-              onClick={handleSave}
-              disabled={createTx.isPending || !entry.amount || !entry.label}
-              className={openDialog === "in" ? "bg-emerald-500 hover:bg-emerald-600" : "bg-red-500 hover:bg-red-600"}
-              data-testid="button-save-cash"
-            >
-              Enregistrer / حفظ
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

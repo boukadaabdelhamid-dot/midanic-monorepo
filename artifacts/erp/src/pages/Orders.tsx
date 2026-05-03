@@ -104,6 +104,7 @@ function OrdersHistory() {
                 <TableRow>
                   <TableHead>Order #</TableHead>
                   <TableHead>Customer</TableHead>
+                  <TableHead>Vendeur / البائع</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Status / الحالة</TableHead>
@@ -115,6 +116,9 @@ function OrdersHistory() {
                   <TableRow key={order.id} data-testid={`row-order-${order.id}`}>
                     <TableCell className="font-medium">#{order.id}</TableCell>
                     <TableCell className="text-muted-foreground">{order.customerName}</TableCell>
+                    <TableCell className="text-sm">
+                      {order.sellerUser?.name || order.sellerUser?.email || <span className="text-muted-foreground italic">—</span>}
+                    </TableCell>
                     <TableCell className="font-semibold text-primary">
                       دج {order.totalAmount}
                     </TableCell>
@@ -148,7 +152,7 @@ function OrdersHistory() {
                 ))}
                 {(!orders || orders.length === 0) && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       No orders yet
                     </TableCell>
                   </TableRow>

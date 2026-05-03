@@ -8,6 +8,7 @@ import ordersRouter from "./orders";
 import erpRouter from "./erp";
 import storesRouter from "./stores";
 import transfersRouter from "./transfers";
+import caissesRouter from "./caisses";
 
 const router: IRouter = Router();
 
@@ -19,6 +20,7 @@ router.use(cartRouter);
 router.use(ordersRouter);
 router.use(storesRouter);
 router.use(transfersRouter);
+router.use(caissesRouter);
 router.use(erpRouter);
 
 export default router;

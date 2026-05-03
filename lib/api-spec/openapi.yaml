@@ -1360,6 +1360,214 @@ paths:
               schema:
                 $ref: "#/components/schemas/StockTransfer"
 
+  # ── ERP: Caisses (virtual cashboxes) ─────────────────────────────
+  /erp/caisses:
+    get:
+      operationId: getErpCaisses
+      tags: [erp]
+      summary: List caisses visible to current user in current store
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Caisses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CaisseSummary"
+
+  /erp/caisses/{id}:
+    get:
+      operationId: getErpCaisse
+      tags: [erp]
+      summary: Get caisse detail with recent movements
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Caisse detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaisseDetail"
+
+  /erp/caisse-transfers:
+    get:
+      operationId: getErpCaisseTransfers
+      tags: [erp]
+      summary: List caisse transfers (inbox / outbox / all)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: box
+          schema:
+            type: string
+            enum: [inbox, outbox, all]
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, accepted, rejected, cancelled]
+      responses:
+        "200":
+          description: Transfers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CaisseTransferSummary"
+    post:
+      operationId: createErpCaisseTransfer
+      tags: [erp]
+      summary: Initiate a staff-to-staff caisse transfer (funds held)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCaisseTransferRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CaisseTransfer"
+
+  /erp/caisse-transfers/{id}/accept:
+    post:
+      operationId: acceptErpCaisseTransfer
+      tags: [erp]
+      summary: Recipient accepts a pending transfer
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /erp/caisse-transfers/{id}/reject:
+    post:
+      operationId: rejectErpCaisseTransfer
+      tags: [erp]
+      summary: Recipient rejects a pending transfer (funds returned to sender)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /erp/caisse-transfers/{id}/cancel:
+    post:
+      operationId: cancelErpCaisseTransfer
+      tags: [erp]
+      summary: Sender cancels a still-pending transfer (funds returned)
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /erp/caisses/admin/deposit:
+    post:
+      operationId: adminDepositErpCaisse
+      tags: [erp]
+      summary: Admin moves cash from a staff caisse into the store's main caisse
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminCaisseAmountRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /erp/caisses/admin/withdraw:
+    post:
+      operationId: adminWithdrawErpCaisse
+      tags: [erp]
+      summary: Admin moves cash from the main caisse into a staff caisse
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminCaisseAmountRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
+  /erp/caisses/admin/adjust:
+    post:
+      operationId: adminAdjustErpCaisse
+      tags: [erp]
+      summary: Admin applies a signed adjustment to a caisse with a required reason
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminCaisseAdjustRequest"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+
   # ── ERP: CRM ─────────────────────────────────────────────────────
   /erp/customers:
     get:
@@ -1940,6 +2148,12 @@ components:
           type: integer
         userId:
           type: integer
+          nullable: true
+        sellerUserId:
+          type: integer
+          nullable: true
+        sellerUser:
+          $ref: "#/components/schemas/UserLite"
           nullable: true
         customerName:
           type: string
@@ -2525,6 +2739,148 @@ components:
       properties:
         notes:
           type: string
+
+    Caisse:
+      type: object
+      properties:
+        id: { type: integer }
+        storeId: { type: integer }
+        ownerUserId: { type: integer, nullable: true }
+        kind:
+          type: string
+          enum: [staff, main]
+        balance: { type: string }
+        createdAt: { type: string }
+      required: [id, storeId, kind, balance, createdAt]
+
+    CaisseSummary:
+      allOf:
+        - $ref: "#/components/schemas/Caisse"
+        - type: object
+          properties:
+            owner:
+              $ref: "#/components/schemas/UserLite"
+              nullable: true
+
+    CaisseMovement:
+      type: object
+      properties:
+        id: { type: integer }
+        caisseId: { type: integer }
+        type:
+          type: string
+          enum: [credit, debit]
+        amount: { type: string }
+        reason:
+          type: string
+          enum: [sale, transfer_in, transfer_out, transfer_hold, transfer_refund, admin_deposit, admin_withdraw, adjustment]
+        counterpartyCaisseId: { type: integer, nullable: true }
+        orderId: { type: integer, nullable: true }
+        caisseTransferId: { type: integer, nullable: true }
+        actorUserId: { type: integer }
+        notes: { type: string, nullable: true }
+        createdAt: { type: string }
+        actorUser:
+          $ref: "#/components/schemas/UserLite"
+          nullable: true
+        counterparty:
+          type: object
+          nullable: true
+          properties:
+            id: { type: integer }
+            kind: { type: string }
+            ownerUserId: { type: integer, nullable: true }
+            owner:
+              $ref: "#/components/schemas/UserLite"
+              nullable: true
+      required: [id, caisseId, type, amount, reason, actorUserId, createdAt]
+
+    CaisseDetail:
+      allOf:
+        - $ref: "#/components/schemas/Caisse"
+        - type: object
+          properties:
+            owner:
+              $ref: "#/components/schemas/UserLite"
+              nullable: true
+            movements:
+              type: array
+              items:
+                $ref: "#/components/schemas/CaisseMovement"
+
+    CaisseTransfer:
+      type: object
+      properties:
+        id: { type: integer }
+        storeId: { type: integer }
+        senderCaisseId: { type: integer }
+        recipientCaisseId: { type: integer }
+        amount: { type: string }
+        status:
+          type: string
+          enum: [pending, accepted, rejected, cancelled]
+        notes: { type: string, nullable: true }
+        requestedByUserId: { type: integer }
+        decidedByUserId: { type: integer, nullable: true }
+        createdAt: { type: string }
+        decidedAt: { type: string, nullable: true }
+      required: [id, storeId, senderCaisseId, recipientCaisseId, amount, status, requestedByUserId, createdAt]
+
+    CaisseTransferSummary:
+      allOf:
+        - $ref: "#/components/schemas/CaisseTransfer"
+        - type: object
+          properties:
+            senderCaisse:
+              type: object
+              nullable: true
+              properties:
+                id: { type: integer }
+                kind: { type: string }
+                ownerUserId: { type: integer, nullable: true }
+                owner:
+                  $ref: "#/components/schemas/UserLite"
+                  nullable: true
+            recipientCaisse:
+              type: object
+              nullable: true
+              properties:
+                id: { type: integer }
+                kind: { type: string }
+                ownerUserId: { type: integer, nullable: true }
+                owner:
+                  $ref: "#/components/schemas/UserLite"
+                  nullable: true
+            requestedByUser:
+              $ref: "#/components/schemas/UserLite"
+              nullable: true
+            decidedByUser:
+              $ref: "#/components/schemas/UserLite"
+              nullable: true
+
+    CreateCaisseTransferRequest:
+      type: object
+      properties:
+        recipientUserId: { type: integer }
+        amount: { type: string }
+        notes: { type: string }
+      required: [recipientUserId, amount]
+
+    AdminCaisseAmountRequest:
+      type: object
+      properties:
+        caisseId: { type: integer }
+        amount: { type: string }
+        notes: { type: string }
+      required: [caisseId, amount]
+
+    AdminCaisseAdjustRequest:
+      type: object
+      properties:
+        caisseId: { type: integer }
+        delta: { type: string, description: "Signed amount; positive=credit, negative=debit" }
+        notes: { type: string, description: "Required reason" }
+      required: [caisseId, delta, notes]
 
     Transaction:
       type: object

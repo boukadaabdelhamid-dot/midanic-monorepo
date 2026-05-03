@@ -20,13 +20,20 @@ import type {
   AccountingSummary,
   AddToCartRequest,
   AdjustInventoryRequest,
+  AdminCaisseAdjustRequest,
+  AdminCaisseAmountRequest,
   Analytics,
   Attendance,
   AuthResponse,
+  CaisseDetail,
+  CaisseSummary,
+  CaisseTransfer,
+  CaisseTransferSummary,
   CartItem,
   Category,
   CouponValidationResponse,
   CreateAttendanceRequest,
+  CreateCaisseTransferRequest,
   CreateCategoryRequest,
   CreateCustomerNoteBody,
   CreateCustomerRequest,
@@ -47,6 +54,7 @@ import type {
   DeleteErpStaff200,
   Employee,
   GetAttendanceParams,
+  GetErpCaisseTransfersParams,
   GetErpTransfersParams,
   GetLowStockParams,
   GetProductsParams,
@@ -5408,6 +5416,871 @@ export const useCancelErpTransfer = <
   TContext
 > => {
   return useMutation(getCancelErpTransferMutationOptions(options));
+};
+
+/**
+ * @summary List caisses visible to current user in current store
+ */
+export const getGetErpCaissesUrl = () => {
+  return `/api/erp/caisses`;
+};
+
+export const getErpCaisses = async (
+  options?: RequestInit,
+): Promise<CaisseSummary[]> => {
+  return customFetch<CaisseSummary[]>(getGetErpCaissesUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetErpCaissesQueryKey = () => {
+  return [`/api/erp/caisses`] as const;
+};
+
+export const getGetErpCaissesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getErpCaisses>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getErpCaisses>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetErpCaissesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getErpCaisses>>> = ({
+    signal,
+  }) => getErpCaisses({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getErpCaisses>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetErpCaissesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getErpCaisses>>
+>;
+export type GetErpCaissesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List caisses visible to current user in current store
+ */
+
+export function useGetErpCaisses<
+  TData = Awaited<ReturnType<typeof getErpCaisses>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getErpCaisses>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetErpCaissesQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get caisse detail with recent movements
+ */
+export const getGetErpCaisseUrl = (id: number) => {
+  return `/api/erp/caisses/${id}`;
+};
+
+export const getErpCaisse = async (
+  id: number,
+  options?: RequestInit,
+): Promise<CaisseDetail> => {
+  return customFetch<CaisseDetail>(getGetErpCaisseUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetErpCaisseQueryKey = (id: number) => {
+  return [`/api/erp/caisses/${id}`] as const;
+};
+
+export const getGetErpCaisseQueryOptions = <
+  TData = Awaited<ReturnType<typeof getErpCaisse>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getErpCaisse>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetErpCaisseQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getErpCaisse>>> = ({
+    signal,
+  }) => getErpCaisse(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getErpCaisse>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetErpCaisseQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getErpCaisse>>
+>;
+export type GetErpCaisseQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get caisse detail with recent movements
+ */
+
+export function useGetErpCaisse<
+  TData = Awaited<ReturnType<typeof getErpCaisse>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getErpCaisse>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetErpCaisseQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List caisse transfers (inbox / outbox / all)
+ */
+export const getGetErpCaisseTransfersUrl = (
+  params?: GetErpCaisseTransfersParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/erp/caisse-transfers?${stringifiedParams}`
+    : `/api/erp/caisse-transfers`;
+};
+
+export const getErpCaisseTransfers = async (
+  params?: GetErpCaisseTransfersParams,
+  options?: RequestInit,
+): Promise<CaisseTransferSummary[]> => {
+  return customFetch<CaisseTransferSummary[]>(
+    getGetErpCaisseTransfersUrl(params),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetErpCaisseTransfersQueryKey = (
+  params?: GetErpCaisseTransfersParams,
+) => {
+  return [`/api/erp/caisse-transfers`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetErpCaisseTransfersQueryOptions = <
+  TData = Awaited<ReturnType<typeof getErpCaisseTransfers>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetErpCaisseTransfersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getErpCaisseTransfers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetErpCaisseTransfersQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getErpCaisseTransfers>>
+  > = ({ signal }) =>
+    getErpCaisseTransfers(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getErpCaisseTransfers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetErpCaisseTransfersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getErpCaisseTransfers>>
+>;
+export type GetErpCaisseTransfersQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List caisse transfers (inbox / outbox / all)
+ */
+
+export function useGetErpCaisseTransfers<
+  TData = Awaited<ReturnType<typeof getErpCaisseTransfers>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetErpCaisseTransfersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getErpCaisseTransfers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetErpCaisseTransfersQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Initiate a staff-to-staff caisse transfer (funds held)
+ */
+export const getCreateErpCaisseTransferUrl = () => {
+  return `/api/erp/caisse-transfers`;
+};
+
+export const createErpCaisseTransfer = async (
+  createCaisseTransferRequest: CreateCaisseTransferRequest,
+  options?: RequestInit,
+): Promise<CaisseTransfer> => {
+  return customFetch<CaisseTransfer>(getCreateErpCaisseTransferUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createCaisseTransferRequest),
+  });
+};
+
+export const getCreateErpCaisseTransferMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createErpCaisseTransfer>>,
+    TError,
+    { data: BodyType<CreateCaisseTransferRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createErpCaisseTransfer>>,
+  TError,
+  { data: BodyType<CreateCaisseTransferRequest> },
+  TContext
+> => {
+  const mutationKey = ["createErpCaisseTransfer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createErpCaisseTransfer>>,
+    { data: BodyType<CreateCaisseTransferRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createErpCaisseTransfer(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateErpCaisseTransferMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createErpCaisseTransfer>>
+>;
+export type CreateErpCaisseTransferMutationBody =
+  BodyType<CreateCaisseTransferRequest>;
+export type CreateErpCaisseTransferMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Initiate a staff-to-staff caisse transfer (funds held)
+ */
+export const useCreateErpCaisseTransfer = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createErpCaisseTransfer>>,
+    TError,
+    { data: BodyType<CreateCaisseTransferRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createErpCaisseTransfer>>,
+  TError,
+  { data: BodyType<CreateCaisseTransferRequest> },
+  TContext
+> => {
+  return useMutation(getCreateErpCaisseTransferMutationOptions(options));
+};
+
+/**
+ * @summary Recipient accepts a pending transfer
+ */
+export const getAcceptErpCaisseTransferUrl = (id: number) => {
+  return `/api/erp/caisse-transfers/${id}/accept`;
+};
+
+export const acceptErpCaisseTransfer = async (
+  id: number,
+  options?: RequestInit,
+): Promise<SuccessResponse> => {
+  return customFetch<SuccessResponse>(getAcceptErpCaisseTransferUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getAcceptErpCaisseTransferMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof acceptErpCaisseTransfer>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof acceptErpCaisseTransfer>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["acceptErpCaisseTransfer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof acceptErpCaisseTransfer>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return acceptErpCaisseTransfer(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AcceptErpCaisseTransferMutationResult = NonNullable<
+  Awaited<ReturnType<typeof acceptErpCaisseTransfer>>
+>;
+
+export type AcceptErpCaisseTransferMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Recipient accepts a pending transfer
+ */
+export const useAcceptErpCaisseTransfer = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof acceptErpCaisseTransfer>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof acceptErpCaisseTransfer>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getAcceptErpCaisseTransferMutationOptions(options));
+};
+
+/**
+ * @summary Recipient rejects a pending transfer (funds returned to sender)
+ */
+export const getRejectErpCaisseTransferUrl = (id: number) => {
+  return `/api/erp/caisse-transfers/${id}/reject`;
+};
+
+export const rejectErpCaisseTransfer = async (
+  id: number,
+  options?: RequestInit,
+): Promise<SuccessResponse> => {
+  return customFetch<SuccessResponse>(getRejectErpCaisseTransferUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRejectErpCaisseTransferMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rejectErpCaisseTransfer>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof rejectErpCaisseTransfer>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["rejectErpCaisseTransfer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof rejectErpCaisseTransfer>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return rejectErpCaisseTransfer(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RejectErpCaisseTransferMutationResult = NonNullable<
+  Awaited<ReturnType<typeof rejectErpCaisseTransfer>>
+>;
+
+export type RejectErpCaisseTransferMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Recipient rejects a pending transfer (funds returned to sender)
+ */
+export const useRejectErpCaisseTransfer = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rejectErpCaisseTransfer>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof rejectErpCaisseTransfer>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getRejectErpCaisseTransferMutationOptions(options));
+};
+
+/**
+ * @summary Sender cancels a still-pending transfer (funds returned)
+ */
+export const getCancelErpCaisseTransferUrl = (id: number) => {
+  return `/api/erp/caisse-transfers/${id}/cancel`;
+};
+
+export const cancelErpCaisseTransfer = async (
+  id: number,
+  options?: RequestInit,
+): Promise<SuccessResponse> => {
+  return customFetch<SuccessResponse>(getCancelErpCaisseTransferUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getCancelErpCaisseTransferMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cancelErpCaisseTransfer>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof cancelErpCaisseTransfer>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["cancelErpCaisseTransfer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof cancelErpCaisseTransfer>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return cancelErpCaisseTransfer(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CancelErpCaisseTransferMutationResult = NonNullable<
+  Awaited<ReturnType<typeof cancelErpCaisseTransfer>>
+>;
+
+export type CancelErpCaisseTransferMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Sender cancels a still-pending transfer (funds returned)
+ */
+export const useCancelErpCaisseTransfer = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof cancelErpCaisseTransfer>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof cancelErpCaisseTransfer>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getCancelErpCaisseTransferMutationOptions(options));
+};
+
+/**
+ * @summary Admin moves cash from a staff caisse into the store's main caisse
+ */
+export const getAdminDepositErpCaisseUrl = () => {
+  return `/api/erp/caisses/admin/deposit`;
+};
+
+export const adminDepositErpCaisse = async (
+  adminCaisseAmountRequest: AdminCaisseAmountRequest,
+  options?: RequestInit,
+): Promise<SuccessResponse> => {
+  return customFetch<SuccessResponse>(getAdminDepositErpCaisseUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(adminCaisseAmountRequest),
+  });
+};
+
+export const getAdminDepositErpCaisseMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminDepositErpCaisse>>,
+    TError,
+    { data: BodyType<AdminCaisseAmountRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminDepositErpCaisse>>,
+  TError,
+  { data: BodyType<AdminCaisseAmountRequest> },
+  TContext
+> => {
+  const mutationKey = ["adminDepositErpCaisse"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminDepositErpCaisse>>,
+    { data: BodyType<AdminCaisseAmountRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return adminDepositErpCaisse(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminDepositErpCaisseMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminDepositErpCaisse>>
+>;
+export type AdminDepositErpCaisseMutationBody =
+  BodyType<AdminCaisseAmountRequest>;
+export type AdminDepositErpCaisseMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Admin moves cash from a staff caisse into the store's main caisse
+ */
+export const useAdminDepositErpCaisse = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminDepositErpCaisse>>,
+    TError,
+    { data: BodyType<AdminCaisseAmountRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminDepositErpCaisse>>,
+  TError,
+  { data: BodyType<AdminCaisseAmountRequest> },
+  TContext
+> => {
+  return useMutation(getAdminDepositErpCaisseMutationOptions(options));
+};
+
+/**
+ * @summary Admin moves cash from the main caisse into a staff caisse
+ */
+export const getAdminWithdrawErpCaisseUrl = () => {
+  return `/api/erp/caisses/admin/withdraw`;
+};
+
+export const adminWithdrawErpCaisse = async (
+  adminCaisseAmountRequest: AdminCaisseAmountRequest,
+  options?: RequestInit,
+): Promise<SuccessResponse> => {
+  return customFetch<SuccessResponse>(getAdminWithdrawErpCaisseUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(adminCaisseAmountRequest),
+  });
+};
+
+export const getAdminWithdrawErpCaisseMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminWithdrawErpCaisse>>,
+    TError,
+    { data: BodyType<AdminCaisseAmountRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminWithdrawErpCaisse>>,
+  TError,
+  { data: BodyType<AdminCaisseAmountRequest> },
+  TContext
+> => {
+  const mutationKey = ["adminWithdrawErpCaisse"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminWithdrawErpCaisse>>,
+    { data: BodyType<AdminCaisseAmountRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return adminWithdrawErpCaisse(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminWithdrawErpCaisseMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminWithdrawErpCaisse>>
+>;
+export type AdminWithdrawErpCaisseMutationBody =
+  BodyType<AdminCaisseAmountRequest>;
+export type AdminWithdrawErpCaisseMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Admin moves cash from the main caisse into a staff caisse
+ */
+export const useAdminWithdrawErpCaisse = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminWithdrawErpCaisse>>,
+    TError,
+    { data: BodyType<AdminCaisseAmountRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminWithdrawErpCaisse>>,
+  TError,
+  { data: BodyType<AdminCaisseAmountRequest> },
+  TContext
+> => {
+  return useMutation(getAdminWithdrawErpCaisseMutationOptions(options));
+};
+
+/**
+ * @summary Admin applies a signed adjustment to a caisse with a required reason
+ */
+export const getAdminAdjustErpCaisseUrl = () => {
+  return `/api/erp/caisses/admin/adjust`;
+};
+
+export const adminAdjustErpCaisse = async (
+  adminCaisseAdjustRequest: AdminCaisseAdjustRequest,
+  options?: RequestInit,
+): Promise<SuccessResponse> => {
+  return customFetch<SuccessResponse>(getAdminAdjustErpCaisseUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(adminCaisseAdjustRequest),
+  });
+};
+
+export const getAdminAdjustErpCaisseMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminAdjustErpCaisse>>,
+    TError,
+    { data: BodyType<AdminCaisseAdjustRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminAdjustErpCaisse>>,
+  TError,
+  { data: BodyType<AdminCaisseAdjustRequest> },
+  TContext
+> => {
+  const mutationKey = ["adminAdjustErpCaisse"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminAdjustErpCaisse>>,
+    { data: BodyType<AdminCaisseAdjustRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return adminAdjustErpCaisse(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminAdjustErpCaisseMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminAdjustErpCaisse>>
+>;
+export type AdminAdjustErpCaisseMutationBody =
+  BodyType<AdminCaisseAdjustRequest>;
+export type AdminAdjustErpCaisseMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Admin applies a signed adjustment to a caisse with a required reason
+ */
+export const useAdminAdjustErpCaisse = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminAdjustErpCaisse>>,
+    TError,
+    { data: BodyType<AdminCaisseAdjustRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminAdjustErpCaisse>>,
+  TError,
+  { data: BodyType<AdminCaisseAdjustRequest> },
+  TContext
+> => {
+  return useMutation(getAdminAdjustErpCaisseMutationOptions(options));
 };
 
 /**

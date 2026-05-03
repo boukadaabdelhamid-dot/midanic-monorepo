@@ -221,9 +221,17 @@ export const OrderStatus = {
   cancelled: "cancelled",
 } as const;
 
+export interface UserLite {
+  id: number;
+  name?: string | null;
+  email?: string | null;
+}
+
 export interface Order {
   id: number;
   userId?: number | null;
+  sellerUserId?: number | null;
+  sellerUser?: UserLite | null;
   customerName: string;
   customerPhone: string;
   customerAddress: string;
@@ -556,12 +564,6 @@ export interface StockTransfer {
   cancelledAt?: string | null;
 }
 
-export interface UserLite {
-  id: number;
-  name?: string | null;
-  email?: string | null;
-}
-
 export type StockTransferSummary = StockTransfer & {
   sourceStore?: StoreLite;
   destinationStore?: StoreLite;
@@ -629,6 +631,141 @@ export interface CreateStockTransferRequest {
 
 export interface StockTransferActionRequest {
   notes?: string;
+}
+
+export type CaisseKind = (typeof CaisseKind)[keyof typeof CaisseKind];
+
+export const CaisseKind = {
+  staff: "staff",
+  main: "main",
+} as const;
+
+export interface Caisse {
+  id: number;
+  storeId: number;
+  ownerUserId?: number | null;
+  kind: CaisseKind;
+  balance: string;
+  createdAt: string;
+}
+
+export type CaisseSummary = Caisse & {
+  owner?: UserLite | null;
+};
+
+export type CaisseMovementType =
+  (typeof CaisseMovementType)[keyof typeof CaisseMovementType];
+
+export const CaisseMovementType = {
+  credit: "credit",
+  debit: "debit",
+} as const;
+
+export type CaisseMovementReason =
+  (typeof CaisseMovementReason)[keyof typeof CaisseMovementReason];
+
+export const CaisseMovementReason = {
+  sale: "sale",
+  transfer_in: "transfer_in",
+  transfer_out: "transfer_out",
+  transfer_hold: "transfer_hold",
+  transfer_refund: "transfer_refund",
+  admin_deposit: "admin_deposit",
+  admin_withdraw: "admin_withdraw",
+  adjustment: "adjustment",
+} as const;
+
+export type CaisseMovementCounterparty = {
+  id?: number;
+  kind?: string;
+  ownerUserId?: number | null;
+  owner?: UserLite | null;
+} | null;
+
+export interface CaisseMovement {
+  id: number;
+  caisseId: number;
+  type: CaisseMovementType;
+  amount: string;
+  reason: CaisseMovementReason;
+  counterpartyCaisseId?: number | null;
+  orderId?: number | null;
+  caisseTransferId?: number | null;
+  actorUserId: number;
+  notes?: string | null;
+  createdAt: string;
+  actorUser?: UserLite | null;
+  counterparty?: CaisseMovementCounterparty;
+}
+
+export type CaisseDetail = Caisse & {
+  owner?: UserLite | null;
+  movements?: CaisseMovement[];
+};
+
+export type CaisseTransferStatus =
+  (typeof CaisseTransferStatus)[keyof typeof CaisseTransferStatus];
+
+export const CaisseTransferStatus = {
+  pending: "pending",
+  accepted: "accepted",
+  rejected: "rejected",
+  cancelled: "cancelled",
+} as const;
+
+export interface CaisseTransfer {
+  id: number;
+  storeId: number;
+  senderCaisseId: number;
+  recipientCaisseId: number;
+  amount: string;
+  status: CaisseTransferStatus;
+  notes?: string | null;
+  requestedByUserId: number;
+  decidedByUserId?: number | null;
+  createdAt: string;
+  decidedAt?: string | null;
+}
+
+export type CaisseTransferSummarySenderCaisse = {
+  id?: number;
+  kind?: string;
+  ownerUserId?: number | null;
+  owner?: UserLite | null;
+} | null;
+
+export type CaisseTransferSummaryRecipientCaisse = {
+  id?: number;
+  kind?: string;
+  ownerUserId?: number | null;
+  owner?: UserLite | null;
+} | null;
+
+export type CaisseTransferSummary = CaisseTransfer & {
+  senderCaisse?: CaisseTransferSummarySenderCaisse;
+  recipientCaisse?: CaisseTransferSummaryRecipientCaisse;
+  requestedByUser?: UserLite | null;
+  decidedByUser?: UserLite | null;
+};
+
+export interface CreateCaisseTransferRequest {
+  recipientUserId: number;
+  amount: string;
+  notes?: string;
+}
+
+export interface AdminCaisseAmountRequest {
+  caisseId: number;
+  amount: string;
+  notes?: string;
+}
+
+export interface AdminCaisseAdjustRequest {
+  caisseId: number;
+  /** Signed amount; positive=credit, negative=debit */
+  delta: string;
+  /** Required reason */
+  notes: string;
 }
 
 export type TransactionType =
@@ -849,6 +986,30 @@ export const GetErpTransfersStatus = {
   prepared: "prepared",
   in_transit: "in_transit",
   received: "received",
+  cancelled: "cancelled",
+} as const;
+
+export type GetErpCaisseTransfersParams = {
+  box?: GetErpCaisseTransfersBox;
+  status?: GetErpCaisseTransfersStatus;
+};
+
+export type GetErpCaisseTransfersBox =
+  (typeof GetErpCaisseTransfersBox)[keyof typeof GetErpCaisseTransfersBox];
+
+export const GetErpCaisseTransfersBox = {
+  inbox: "inbox",
+  outbox: "outbox",
+  all: "all",
+} as const;
+
+export type GetErpCaisseTransfersStatus =
+  (typeof GetErpCaisseTransfersStatus)[keyof typeof GetErpCaisseTransfersStatus];
+
+export const GetErpCaisseTransfersStatus = {
+  pending: "pending",
+  accepted: "accepted",
+  rejected: "rejected",
   cancelled: "cancelled",
 } as const;
 
