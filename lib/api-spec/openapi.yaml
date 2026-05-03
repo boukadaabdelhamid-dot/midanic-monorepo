@@ -1013,6 +1013,25 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/CustomerSummary"
+    post:
+      operationId: createErpCustomer
+      tags: [erp]
+      summary: Create a new customer
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCustomerRequest"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerSummary"
 
   /erp/customers/{id}:
     get:
@@ -1875,6 +1894,20 @@ components:
         total_spent:
           type: number
       required: [id, name, email]
+
+    CreateCustomerRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+        preferredLang:
+          type: string
+          enum: [ar, en]
+      required: [name, email]
 
     CustomerDetail:
       type: object

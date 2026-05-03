@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import {
-  useGetErpCustomers, useGetErpCustomer, useCreateCustomerNote,
+  useGetErpCustomers, useGetErpCustomer, useCreateCustomerNote, useCreateErpCustomer,
   getGetErpCustomersQueryKey, getGetErpCustomerQueryKey,
   type CustomerSummary, type CustomerNote,
 } from "@workspace/api-client-react";
@@ -8,10 +8,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { User, MessageSquarePlus } from "lucide-react";
+import { User, MessageSquarePlus, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 
 function CustomerDetailPanel({ customerId, onClose }: { customerId: number; onClose: () => void }) {
@@ -101,14 +102,47 @@ function CustomerDetailPanel({ customerId, onClose }: { customerId: number; onCl
 }
 
 export default function Customers() {
+  const qc = useQueryClient();
   const { data: customers, isLoading } = useGetErpCustomers();
   const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [createError, setCreateError] = useState<string | null>(null);
+  const createCustomer = useCreateErpCustomer();
+
+  const handleCreate = () => {
+    setCreateError(null);
+    if (!form.name.trim() || !form.email.trim()) {
+      setCreateError("Name and email are required / الاسم والبريد مطلوبان");
+      return;
+    }
+    createCustomer.mutate(
+      { data: { name: form.name.trim(), email: form.email.trim(), password: form.password || undefined } },
+      {
+        onSuccess: () => {
+          qc.invalidateQueries({ queryKey: getGetErpCustomersQueryKey() });
+          setCreateOpen(false);
+          setForm({ name: "", email: "", password: "" });
+        },
+        onError: (err: unknown) => {
+          const msg = (err as { message?: string })?.message ?? "Failed to create customer";
+          setCreateError(msg);
+        },
+      }
+    );
+  };
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Customers / العملاء</h1>
-        <p className="text-sm text-muted-foreground">Customer relationship management</p>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold">Customers / العملاء</h1>
+          <p className="text-sm text-muted-foreground">Customer relationship management</p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)} data-testid="button-new-customer" className="bg-[#1B3057] hover:bg-[#1B3057]/90">
+          <UserPlus className="h-4 w-4 mr-2" />
+          Nouveau client / عميل جديد
+        </Button>
       </div>
 
       <Card className="border shadow-sm">
@@ -155,6 +189,36 @@ export default function Customers() {
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Customer Details / تفاصيل العميل</DialogTitle></DialogHeader>
           {selectedId && <CustomerDetailPanel customerId={selectedId} onClose={() => setSelectedId(null)} />}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={createOpen} onOpenChange={(v) => { setCreateOpen(v); if (!v) setCreateError(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nouveau client / عميل جديد</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label htmlFor="cust-name">Nom / الاسم *</Label>
+              <Input id="cust-name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} data-testid="input-customer-name" autoFocus />
+            </div>
+            <div>
+              <Label htmlFor="cust-email">Email / البريد *</Label>
+              <Input id="cust-email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} data-testid="input-customer-email" />
+            </div>
+            <div>
+              <Label htmlFor="cust-pwd">Mot de passe / كلمة المرور</Label>
+              <Input id="cust-pwd" type="text" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="Auto-généré si vide / يُولّد تلقائياً" data-testid="input-customer-password" />
+              <p className="text-[11px] text-muted-foreground mt-1">Min. 6 caractères. Laissez vide pour générer automatiquement.</p>
+            </div>
+            {createError && <p className="text-sm text-red-600" data-testid="text-create-error">{createError}</p>}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Annuler / إلغاء</Button>
+            <Button onClick={handleCreate} disabled={createCustomer.isPending} className="bg-[#1B3057] hover:bg-[#1B3057]/90" data-testid="button-save-customer">
+              {createCustomer.isPending ? "..." : "Enregistrer / حفظ"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

@@ -563,6 +563,21 @@ export interface CustomerSummary {
   total_spent?: number;
 }
 
+export type CreateCustomerRequestPreferredLang =
+  (typeof CreateCustomerRequestPreferredLang)[keyof typeof CreateCustomerRequestPreferredLang];
+
+export const CreateCustomerRequestPreferredLang = {
+  ar: "ar",
+  en: "en",
+} as const;
+
+export interface CreateCustomerRequest {
+  name: string;
+  email: string;
+  password?: string;
+  preferredLang?: CreateCustomerRequestPreferredLang;
+}
+
 export interface CustomerNote {
   id: number;
   userId: number;

@@ -930,6 +930,16 @@ export const GetErpCustomersResponseItem = zod.object({
 export const GetErpCustomersResponse = zod.array(GetErpCustomersResponseItem);
 
 /**
+ * @summary Create a new customer
+ */
+export const CreateErpCustomerBody = zod.object({
+  name: zod.string(),
+  email: zod.string(),
+  password: zod.string().optional(),
+  preferredLang: zod.enum(["ar", "en"]).optional(),
+});
+
+/**
  * @summary Get customer detail
  */
 export const GetErpCustomerParams = zod.object({

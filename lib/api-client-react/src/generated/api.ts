@@ -29,6 +29,7 @@ import type {
   CreateAttendanceRequest,
   CreateCategoryRequest,
   CreateCustomerNoteBody,
+  CreateCustomerRequest,
   CreateEmployeeRequest,
   CreateLeaveRequest,
   CreateOrderRequest,
@@ -4107,6 +4108,92 @@ export function useGetErpCustomers<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Create a new customer
+ */
+export const getCreateErpCustomerUrl = () => {
+  return `/api/erp/customers`;
+};
+
+export const createErpCustomer = async (
+  createCustomerRequest: CreateCustomerRequest,
+  options?: RequestInit,
+): Promise<CustomerSummary> => {
+  return customFetch<CustomerSummary>(getCreateErpCustomerUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createCustomerRequest),
+  });
+};
+
+export const getCreateErpCustomerMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createErpCustomer>>,
+    TError,
+    { data: BodyType<CreateCustomerRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createErpCustomer>>,
+  TError,
+  { data: BodyType<CreateCustomerRequest> },
+  TContext
+> => {
+  const mutationKey = ["createErpCustomer"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createErpCustomer>>,
+    { data: BodyType<CreateCustomerRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createErpCustomer(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateErpCustomerMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createErpCustomer>>
+>;
+export type CreateErpCustomerMutationBody = BodyType<CreateCustomerRequest>;
+export type CreateErpCustomerMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a new customer
+ */
+export const useCreateErpCustomer = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createErpCustomer>>,
+    TError,
+    { data: BodyType<CreateCustomerRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createErpCustomer>>,
+  TError,
+  { data: BodyType<CreateCustomerRequest> },
+  TContext
+> => {
+  return useMutation(getCreateErpCustomerMutationOptions(options));
+};
 
 /**
  * @summary Get customer detail

@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { eq, desc, sql } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 import { db, schema } from "../lib/db";
 import { authenticate, requireAdmin, type AuthRequest } from "../lib/auth";
 import { broadcastToAdmins } from "../lib/ws";
@@ -290,6 +291,33 @@ router.get("/erp/customers", authenticate, requireAdmin, async (req, res) => {
       ORDER BY total_spent DESC
     `);
     res.json(customers.rows);
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
+});
+
+router.post("/erp/customers", authenticate, requireAdmin, async (req, res) => {
+  try {
+    const { name, email, password, preferredLang } = req.body || {};
+    if (!name || !email) {
+      res.status(400).json({ error: "name and email are required" });
+      return;
+    }
+    const existing = await db.select({ id: schema.usersTable.id })
+      .from(schema.usersTable).where(eq(schema.usersTable.email, email)).limit(1);
+    if (existing.length > 0) {
+      res.status(409).json({ error: "A customer with this email already exists" });
+      return;
+    }
+    const pwd = (password && String(password).length >= 6) ? String(password) : Math.random().toString(36).slice(2, 12);
+    const passwordHash = await bcrypt.hash(pwd, 10);
+    const [user] = await db.insert(schema.usersTable).values({
+      name, email, passwordHash,
+      role: "customer",
+      preferredLang: preferredLang === "en" ? "en" : "ar",
+    }).returning();
+    res.status(201).json({
+      id: user.id, name: user.name, email: user.email,
+      total_orders: 0, total_spent: "0",
+    });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
