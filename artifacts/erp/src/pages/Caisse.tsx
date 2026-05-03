@@ -3,7 +3,7 @@ import {
   useGetErpCaisses, useGetErpCaisseTransfers, useCreateErpCaisseTransfer,
   useAcceptErpCaisseTransfer, useRejectErpCaisseTransfer, useCancelErpCaisseTransfer,
   useAdminDepositErpCaisse, useAdminWithdrawErpCaisse, useAdminAdjustErpCaisse,
-  useGetErpStaff, useGetErpCaisse,
+  useGetErpCaisseTransferRecipients, useGetErpCaisse,
   getGetErpCaissesQueryKey, getGetErpCaisseTransfersQueryKey,
   type CaisseSummary, type CaisseTransferSummary, type CaisseMovement,
 } from "@workspace/api-client-react";
@@ -36,10 +36,16 @@ const fmtAmount = (v: string | number | undefined | null) => {
   return n.toLocaleString("fr-DZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-const personLabel = (p: any): string =>
+type PersonLike = { name?: string | null; email?: string | null } | null | undefined;
+type CaisseLike = {
+  kind?: string;
+  owner?: PersonLike;
+} | null | undefined;
+
+const personLabel = (p: PersonLike): string =>
   p?.name || p?.email || "—";
 
-const caisseLabel = (c: any): string => {
+const caisseLabel = (c: CaisseLike): string => {
   if (!c) return "—";
   if (c.kind === "main") return "Caisse principale / الصندوق الرئيسي";
   return personLabel(c.owner);
@@ -349,7 +355,7 @@ function SendTransferDialog({
 }: { open: boolean; onClose: () => void; onSent: () => void; myBalance: string }) {
   const { user } = useMe();
   const { toast } = useToast();
-  const { data: staff } = useGetErpStaff({ query: { enabled: open } as any });
+  const { data: staff } = useGetErpCaisseTransferRecipients({ query: { enabled: open } });
   const create = useCreateErpCaisseTransfer();
   const [recipient, setRecipient] = useState<string>("");
   const [amount, setAmount] = useState("");
@@ -551,7 +557,7 @@ function CaisseDetailDialog({ id, onClose }: { id: number; onClose: () => void }
                   <TableRow key={m.id}>
                     <TableCell className="text-xs text-muted-foreground">{m.createdAt ? format(new Date(m.createdAt), "MMM d HH:mm") : "—"}</TableCell>
                     <TableCell className="text-sm">{reasonLabel[m.reason] ?? m.reason}{m.notes ? <div className="text-[11px] text-muted-foreground italic">{m.notes}</div> : null}</TableCell>
-                    <TableCell className="text-sm">{m.counterparty ? caisseLabel(m.counterparty as any) : "—"}</TableCell>
+                    <TableCell className="text-sm">{m.counterparty ? caisseLabel(m.counterparty) : "—"}</TableCell>
                     <TableCell className="text-sm">{personLabel(m.actorUser)}</TableCell>
                     <TableCell className={`text-right font-bold ${m.type === "credit" ? "text-emerald-600" : "text-red-600"}`}>
                       {m.type === "credit" ? "+" : "-"} دج {fmtAmount(m.amount)}

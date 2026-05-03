@@ -754,6 +754,21 @@ export interface CreateCaisseTransferRequest {
   notes?: string;
 }
 
+export type CaisseTransferRecipientRole =
+  (typeof CaisseTransferRecipientRole)[keyof typeof CaisseTransferRecipientRole];
+
+export const CaisseTransferRecipientRole = {
+  admin: "admin",
+  employee: "employee",
+} as const;
+
+export interface CaisseTransferRecipient {
+  id: number;
+  name?: string | null;
+  email: string;
+  role: CaisseTransferRecipientRole;
+}
+
 export interface AdminCaisseAmountRequest {
   caisseId: number;
   amount: string;

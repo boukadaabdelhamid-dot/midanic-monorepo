@@ -21,8 +21,8 @@ function parseAmount(raw: unknown): number | null {
   return null;
 }
 
-async function adminHasStoreAccess(req: AuthRequest, storeId: number): Promise<boolean> {
-  if (!isAdmin(req) || !req.user) return false;
+async function userHasStoreAccess(req: AuthRequest, storeId: number): Promise<boolean> {
+  if (!req.user) return false;
   const [link] = await db.select({ storeId: schema.userStoresTable.storeId })
     .from(schema.userStoresTable)
     .where(and(
@@ -31,6 +31,11 @@ async function adminHasStoreAccess(req: AuthRequest, storeId: number): Promise<b
     ))
     .limit(1);
   return !!link;
+}
+
+async function adminHasStoreAccess(req: AuthRequest, storeId: number): Promise<boolean> {
+  if (!isAdmin(req)) return false;
+  return userHasStoreAccess(req, storeId);
 }
 
 /**
@@ -75,13 +80,22 @@ async function loadCaisseOr404(id: number) {
   return c ?? null;
 }
 
-// Authorization: a user can view/act on a caisse if:
-//  - they are the owner (staff caisse), OR
-//  - they are admin AND have membership in the caisse's store.
+// Authorization: a user can view/act on a caisse if they have ACTIVE
+// membership in the caisse's store AND either own it or are an admin.
+// Owning a caisse alone is not enough — if the staff was removed from the
+// store, they lose access even if a stale caisse row still references them.
 async function canSeeCaisse(req: AuthRequest, c: { storeId: number; ownerUserId: number | null }): Promise<boolean> {
   if (!req.user) return false;
-  if (c.ownerUserId !== null && c.ownerUserId === req.user.id) return true;
-  return await adminHasStoreAccess(req, c.storeId);
+  if (!(await userHasStoreAccess(req, c.storeId))) return false;
+  if (isAdmin(req)) return true;
+  return c.ownerUserId !== null && c.ownerUserId === req.user.id;
+}
+
+// All caisse/transfer endpoints additionally enforce that the resource's
+// storeId matches the JWT's currentStoreId. This prevents using one store's
+// JWT to act on another store's caisses.
+function isInCurrentStore(req: AuthRequest, storeId: number): boolean {
+  return req.currentStoreId === storeId;
 }
 
 // ─── LIST in current store ─────────────────────────────────────────
@@ -130,7 +144,7 @@ router.get("/erp/caisses/:id", authenticate, requireStaff, requireStore, async (
   try {
     const c = await loadCaisseOr404(pid(req, "id"));
     if (!c) { res.status(404).json({ error: "Caisse not found" }); return; }
-    if (!(await canSeeCaisse(req, c))) {
+    if (!isInCurrentStore(req, c.storeId) || !(await canSeeCaisse(req, c))) {
       res.status(403).json({ error: "Forbidden" });
       return;
     }
@@ -316,6 +330,9 @@ router.post("/erp/caisse-transfers/:id/accept", authenticate, requireStaff, requ
     const [t] = await db.select().from(schema.caisseTransfersTable)
       .where(eq(schema.caisseTransfersTable.id, id)).limit(1);
     if (!t) { res.status(404).json({ error: "Transfer not found" }); return; }
+    if (!isInCurrentStore(req, t.storeId) || !(await userHasStoreAccess(req, t.storeId))) {
+      res.status(403).json({ error: "Forbidden" }); return;
+    }
     const [recipientCaisse] = await db.select().from(schema.caissesTable)
       .where(eq(schema.caissesTable.id, t.recipientCaisseId)).limit(1);
     if (!recipientCaisse || recipientCaisse.ownerUserId !== userId) {
@@ -370,6 +387,9 @@ router.post("/erp/caisse-transfers/:id/reject", authenticate, requireStaff, requ
     const [t] = await db.select().from(schema.caisseTransfersTable)
       .where(eq(schema.caisseTransfersTable.id, id)).limit(1);
     if (!t) { res.status(404).json({ error: "Transfer not found" }); return; }
+    if (!isInCurrentStore(req, t.storeId) || !(await userHasStoreAccess(req, t.storeId))) {
+      res.status(403).json({ error: "Forbidden" }); return;
+    }
     const [recipientCaisse] = await db.select().from(schema.caissesTable)
       .where(eq(schema.caissesTable.id, t.recipientCaisseId)).limit(1);
     if (!recipientCaisse || recipientCaisse.ownerUserId !== userId) {
@@ -412,6 +432,9 @@ router.post("/erp/caisse-transfers/:id/cancel", authenticate, requireStaff, requ
     const [t] = await db.select().from(schema.caisseTransfersTable)
       .where(eq(schema.caisseTransfersTable.id, id)).limit(1);
     if (!t) { res.status(404).json({ error: "Transfer not found" }); return; }
+    if (!isInCurrentStore(req, t.storeId) || !(await userHasStoreAccess(req, t.storeId))) {
+      res.status(403).json({ error: "Forbidden" }); return;
+    }
     const [senderCaisse] = await db.select().from(schema.caissesTable)
       .where(eq(schema.caissesTable.id, t.senderCaisseId)).limit(1);
     if (!senderCaisse || senderCaisse.ownerUserId !== userId) {
@@ -461,7 +484,7 @@ router.post("/erp/caisses/admin/deposit", authenticate, requireAdmin, requireSto
     const c = await loadCaisseOr404(caisseIdRaw);
     if (!c) { res.status(404).json({ error: "Caisse not found" }); return; }
     if (c.kind !== "staff") { res.status(400).json({ error: "Source must be a staff caisse" }); return; }
-    if (!(await adminHasStoreAccess(req, c.storeId))) {
+    if (!isInCurrentStore(req, c.storeId) || !(await adminHasStoreAccess(req, c.storeId))) {
       res.status(403).json({ error: "No access to this caisse's store" }); return;
     }
     const main = await ensureCaisse(c.storeId, null);
@@ -514,7 +537,7 @@ router.post("/erp/caisses/admin/withdraw", authenticate, requireAdmin, requireSt
     const c = await loadCaisseOr404(caisseIdRaw);
     if (!c) { res.status(404).json({ error: "Caisse not found" }); return; }
     if (c.kind !== "staff") { res.status(400).json({ error: "Destination must be a staff caisse" }); return; }
-    if (!(await adminHasStoreAccess(req, c.storeId))) {
+    if (!isInCurrentStore(req, c.storeId) || !(await adminHasStoreAccess(req, c.storeId))) {
       res.status(403).json({ error: "No access to this caisse's store" }); return;
     }
     const main = await ensureCaisse(c.storeId, null);
@@ -568,7 +591,7 @@ router.post("/erp/caisses/admin/adjust", authenticate, requireAdmin, requireStor
 
     const c = await loadCaisseOr404(caisseIdRaw);
     if (!c) { res.status(404).json({ error: "Caisse not found" }); return; }
-    if (!(await adminHasStoreAccess(req, c.storeId))) {
+    if (!isInCurrentStore(req, c.storeId) || !(await adminHasStoreAccess(req, c.storeId))) {
       res.status(403).json({ error: "No access to this caisse's store" }); return;
     }
     const absStr = Math.abs(delta).toFixed(2);
@@ -605,6 +628,31 @@ router.post("/erp/caisses/admin/adjust", authenticate, requireAdmin, requireStor
     if (e.http === 409) { res.status(409).json({ error: e.message }); return; }
     req.log.error(err); res.status(500).json({ error: "Internal server error" });
   }
+});
+
+// ─── Staff-accessible recipient list (current store) ───────────────
+// Lists candidate recipients (other staff/admins) for a transfer in the
+// current store. Accessible to all staff so non-admin employees can pick
+// a colleague — does NOT expose the full /erp/staff admin endpoint.
+router.get("/erp/caisse-transfer-recipients", authenticate, requireStaff, requireStore, async (req: AuthRequest, res) => {
+  try {
+    const storeId = req.currentStoreId!;
+    const userId = req.user!.id;
+    const rows = await db.select({
+      id: schema.usersTable.id,
+      name: schema.usersTable.name,
+      email: schema.usersTable.email,
+      role: schema.usersTable.role,
+    })
+      .from(schema.usersTable)
+      .innerJoin(schema.userStoresTable, eq(schema.userStoresTable.userId, schema.usersTable.id))
+      .where(and(
+        eq(schema.userStoresTable.storeId, storeId),
+        inArray(schema.usersTable.role, ["admin", "employee"]),
+      ))
+      .orderBy(schema.usersTable.name);
+    res.json(rows.filter(r => r.id !== userId));
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
 export default router;

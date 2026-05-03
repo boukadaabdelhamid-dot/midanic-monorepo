@@ -28,6 +28,7 @@ import type {
   CaisseDetail,
   CaisseSummary,
   CaisseTransfer,
+  CaisseTransferRecipient,
   CaisseTransferSummary,
   CartItem,
   Category,
@@ -6021,6 +6022,86 @@ export const useCancelErpCaisseTransfer = <
 > => {
   return useMutation(getCancelErpCaisseTransferMutationOptions(options));
 };
+
+/**
+ * @summary List eligible transfer recipients (other staff/admins) in current store
+ */
+export const getGetErpCaisseTransferRecipientsUrl = () => {
+  return `/api/erp/caisse-transfer-recipients`;
+};
+
+export const getErpCaisseTransferRecipients = async (
+  options?: RequestInit,
+): Promise<CaisseTransferRecipient[]> => {
+  return customFetch<CaisseTransferRecipient[]>(
+    getGetErpCaisseTransferRecipientsUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetErpCaisseTransferRecipientsQueryKey = () => {
+  return [`/api/erp/caisse-transfer-recipients`] as const;
+};
+
+export const getGetErpCaisseTransferRecipientsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getErpCaisseTransferRecipients>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getErpCaisseTransferRecipients>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetErpCaisseTransferRecipientsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getErpCaisseTransferRecipients>>
+  > = ({ signal }) =>
+    getErpCaisseTransferRecipients({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getErpCaisseTransferRecipients>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetErpCaisseTransferRecipientsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getErpCaisseTransferRecipients>>
+>;
+export type GetErpCaisseTransferRecipientsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List eligible transfer recipients (other staff/admins) in current store
+ */
+
+export function useGetErpCaisseTransferRecipients<
+  TData = Awaited<ReturnType<typeof getErpCaisseTransferRecipients>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getErpCaisseTransferRecipients>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetErpCaisseTransferRecipientsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Admin moves cash from a staff caisse into the store's main caisse

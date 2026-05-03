@@ -1705,6 +1705,19 @@ export const CancelErpCaisseTransferResponse = zod.object({
 });
 
 /**
+ * @summary List eligible transfer recipients (other staff/admins) in current store
+ */
+export const GetErpCaisseTransferRecipientsResponseItem = zod.object({
+  id: zod.number(),
+  name: zod.string().nullish(),
+  email: zod.string(),
+  role: zod.enum(["admin", "employee"]),
+});
+export const GetErpCaisseTransferRecipientsResponse = zod.array(
+  GetErpCaisseTransferRecipientsResponseItem,
+);
+
+/**
  * @summary Admin moves cash from a staff caisse into the store's main caisse
  */
 export const AdminDepositErpCaisseBody = zod.object({
