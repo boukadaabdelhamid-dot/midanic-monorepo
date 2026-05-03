@@ -34,7 +34,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeftRight, Plus, Send, CheckCircle2, XCircle, PackageCheck, Truck, Inbox, Ban, Trash2 } from "lucide-react";
+import { ArrowLeftRight, Plus, Send, CheckCircle2, XCircle, PackageCheck, Truck, Inbox, Ban, Trash2, ScanLine, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 
 const STATUS_LABELS: Record<string, { en: string; ar: string; cls: string }> = {
@@ -57,6 +57,29 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 type LineDraft = { sourceProductId: string; quantity: string };
+
+type ProductLite = {
+  id: number;
+  nameEn: string;
+  nameAr: string;
+  reference?: string | null;
+  barcode?: string | null;
+  stock: number;
+};
+
+function productKey(p: ProductLite): string | null {
+  return p.reference || p.barcode || null;
+}
+
+function findByCode(products: ProductLite[], raw: string): ProductLite | undefined {
+  const t = raw.trim().toLowerCase();
+  if (!t) return undefined;
+  return products.find(
+    (p) =>
+      (p.barcode ?? "").toLowerCase() === t ||
+      (p.reference ?? "").toLowerCase() === t,
+  );
+}
 
 export default function Transfers() {
   const qc = useQueryClient();
@@ -245,21 +268,26 @@ function CreateTransferDialog({
   const [otherStoreId, setOtherStoreId] = useState("");
   const [mode, setMode] = useState<"request" | "send">("request");
   const [notes, setNotes] = useState("");
-  const [lines, setLines] = useState<LineDraft[]>([{ sourceProductId: "", quantity: "1" }]);
+  // "out" mode: lines reference products from current store (we have full product objects).
+  // "in" mode: user types source-store product IDs — validated server-side.
+  const [lines, setLines] = useState<LineDraft[]>([]);
+  const [scanQuery, setScanQuery] = useState("");
+  const [scanError, setScanError] = useState<string | null>(null);
   // For pull requests, products listed must be the SOURCE store's products,
   // which the current user can't list directly (only their store's products).
   // We rely on the backend to validate after submit.
   const { data: productsRes } = useGetProducts({ limit: 500 });
-  const products = (productsRes?.products ?? []) as Array<{ id: number; nameEn: string; nameAr: string; reference?: string | null; barcode?: string | null; stock: number }>;
+  const products = (productsRes?.products ?? []) as ProductLite[];
   const create = useCreateErpTransfer();
 
   const addLine = () => setLines((l) => [...l, { sourceProductId: "", quantity: "1" }]);
   const removeLine = (i: number) => setLines((l) => l.filter((_, idx) => idx !== i));
-  const updateLine = (i: number, patch: Partial<LineDraft>) => setLines((l) => l.map((row, idx) => idx === i ? { ...row, ...patch } : row));
+  const updateLine = (i: number, patch: Partial<LineDraft>) =>
+    setLines((l) => l.map((row, idx) => (idx === i ? { ...row, ...patch } : row)));
 
   const reset = () => {
     setDirection("out"); setOtherStoreId(""); setMode("request"); setNotes("");
-    setLines([{ sourceProductId: "", quantity: "1" }]);
+    setLines([]); setScanQuery(""); setScanError(null);
   };
 
   // When switching to "in" (pull request), force mode to request — direct
@@ -268,11 +296,93 @@ function CreateTransferDialog({
     if (direction === "in" && mode === "send") setMode("request");
   }, [direction, mode]);
 
+  // When toggling direction, reset the line buffer because the meaning changes
+  // (current-store products vs. source-store IDs).
+  React.useEffect(() => {
+    setLines([]); setScanQuery(""); setScanError(null);
+  }, [direction]);
+
+  // Products eligible for scan/search: must have a reference or barcode
+  // (otherwise the destination store can't match them).
+  const matchableProducts = useMemo(
+    () => products.filter((p) => productKey(p) !== null),
+    [products],
+  );
+
+  const candidates = useMemo(() => {
+    const t = scanQuery.trim().toLowerCase();
+    if (!t) return [] as ProductLite[];
+    const exact = findByCode(matchableProducts, t);
+    if (exact) return [exact];
+    return matchableProducts
+      .filter(
+        (p) =>
+          (p.nameEn ?? "").toLowerCase().includes(t) ||
+          (p.nameAr ?? "").toLowerCase().includes(t) ||
+          (p.reference ?? "").toLowerCase().includes(t) ||
+          (p.barcode ?? "").toLowerCase().includes(t),
+      )
+      .slice(0, 8);
+  }, [scanQuery, matchableProducts]);
+
+  function addProductToLines(p: ProductLite) {
+    setScanError(null);
+    setLines((prev) => {
+      const idx = prev.findIndex((l) => Number(l.sourceProductId) === p.id);
+      if (idx >= 0) {
+        return prev.map((l, i) =>
+          i === idx ? { ...l, quantity: String((Number(l.quantity) || 0) + 1) } : l,
+        );
+      }
+      return [...prev, { sourceProductId: String(p.id), quantity: "1" }];
+    });
+    setScanQuery("");
+  }
+
+  function handleScanSubmit() {
+    const t = scanQuery.trim();
+    if (!t) return;
+    const found = findByCode(matchableProducts, t);
+    if (found) { addProductToLines(found); return; }
+    // Fall back to a single search-text match if there's exactly one candidate.
+    if (candidates.length === 1) { addProductToLines(candidates[0]); return; }
+    if (candidates.length > 1) {
+      setScanError(`Multiple matches for "${t}" — pick one from the list below.`);
+      return;
+    }
+    setScanError(`No product matches "${t}".`);
+  }
+
+  // For "out": each line must be a product we know, with qty>0.
+  // For "in": user-entered source product ID + qty>0.
+  const linesWithProduct = useMemo(
+    () =>
+      lines.map((l) => ({
+        ...l,
+        product:
+          direction === "out"
+            ? products.find((p) => p.id === Number(l.sourceProductId))
+            : undefined,
+      })),
+    [lines, products, direction],
+  );
+
+  const hasUnmatchable =
+    direction === "out" &&
+    linesWithProduct.some((l) => l.product && productKey(l.product) === null);
+  const hasOverstock =
+    direction === "out" &&
+    linesWithProduct.some(
+      (l) => l.product && Number(l.quantity) > (l.product.stock ?? 0),
+    );
+
   const valid = useMemo(() => {
     if (!otherStoreId) return false;
     if (lines.length === 0) return false;
-    return lines.every((l) => l.sourceProductId && Number(l.quantity) > 0);
-  }, [otherStoreId, lines]);
+    if (!lines.every((l) => l.sourceProductId && Number(l.quantity) > 0)) return false;
+    if (hasUnmatchable) return false;
+    return true;
+  }, [otherStoreId, lines, hasUnmatchable]);
 
   const submit = () => {
     const otherId = Number(otherStoreId);
@@ -377,31 +487,115 @@ function CreateTransferDialog({
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <Label className="text-xs">Items (source-store products) / الأصناف</Label>
-              <Button size="sm" variant="outline" type="button" onClick={addLine} data-testid="button-add-line">
-                <Plus className="h-3.5 w-3.5 mr-1" /> Add line / إضافة سطر
-              </Button>
+              <Label className="text-xs">Items / الأصناف</Label>
+              {direction === "in" && (
+                <Button size="sm" variant="outline" type="button" onClick={addLine} data-testid="button-add-line">
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Add line / إضافة سطر
+                </Button>
+              )}
             </div>
+
+            {direction === "out" && (
+              <div className="mb-3 relative">
+                <div className="flex gap-2 items-center">
+                  <div className="relative flex-1">
+                    <ScanLine className="h-4 w-4 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    <Input
+                      value={scanQuery}
+                      onChange={(e) => { setScanQuery(e.target.value); setScanError(null); }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { e.preventDefault(); handleScanSubmit(); }
+                      }}
+                      placeholder="Scan or type reference / barcode / name…"
+                      className="h-9 text-sm pl-8"
+                      autoFocus
+                      data-testid="input-scan"
+                    />
+                  </div>
+                  <Button
+                    type="button" size="sm" variant="outline"
+                    onClick={handleScanSubmit}
+                    disabled={!scanQuery.trim()}
+                    data-testid="button-scan-add"
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" /> Add / إضافة
+                  </Button>
+                </div>
+                {candidates.length > 0 && (
+                  <div className="mt-1 border rounded-md bg-white shadow-sm max-h-56 overflow-y-auto" data-testid="scan-candidates">
+                    {candidates.map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 hover:bg-blue-50 border-b last:border-b-0"
+                        onClick={() => addProductToLines(p)}
+                        data-testid={`button-pick-product-${p.id}`}
+                      >
+                        <div className="text-sm font-medium">{p.nameEn || p.nameAr}</div>
+                        <div className="text-[11px] text-muted-foreground font-mono">
+                          {p.reference ?? "—"} {p.barcode ? `· ${p.barcode}` : ""} · stock {p.stock}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {scanError && (
+                  <p className="text-[11px] text-red-600 mt-1" data-testid="text-scan-error">{scanError}</p>
+                )}
+                {matchableProducts.length < products.length && (
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    {products.length - matchableProducts.length} product(s) hidden — missing reference/barcode.
+                  </p>
+                )}
+              </div>
+            )}
+
+            {hasUnmatchable && (
+              <div className="mb-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>
+                  Some lines have no reference or barcode and can't be matched on the destination side. Remove them before submitting. /
+                  بعض الأسطر بدون مرجع أو باركود — أزلها قبل الإرسال.
+                </span>
+              </div>
+            )}
+            {hasOverstock && (
+              <div className="mb-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>
+                  One or more lines exceed available source stock. /
+                  بعض الأسطر تتجاوز المخزون المتاح.
+                </span>
+              </div>
+            )}
+
             <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-              {lines.map((line, i) => {
-                const p = products.find((x) => x.id === Number(line.sourceProductId));
-                const noKey = direction === "out" && p && !p.reference && !p.barcode;
+              {lines.length === 0 && (
+                <div className="text-xs text-muted-foreground border border-dashed rounded px-3 py-4 text-center">
+                  {direction === "out"
+                    ? "Scan or search a product above to add a line."
+                    : "Add a line and enter the source store's product ID."}
+                </div>
+              )}
+              {linesWithProduct.map((line, i) => {
+                const p = line.product;
+                const noKey = direction === "out" && p && productKey(p) === null;
+                const qtyN = Number(line.quantity);
+                const overStock = direction === "out" && p && qtyN > (p.stock ?? 0);
                 return (
-                  <div key={i} className="flex gap-2 items-start">
-                    <div className="flex-1">
+                  <div key={i} className="flex gap-2 items-start border rounded px-2 py-1.5">
+                    <div className="flex-1 min-w-0">
                       {direction === "out" ? (
-                        <Select value={line.sourceProductId} onValueChange={(v) => updateLine(i, { sourceProductId: v })}>
-                          <SelectTrigger className="h-8 text-sm" data-testid={`select-product-${i}`}>
-                            <SelectValue placeholder="Select product" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {products.map((prod) => (
-                              <SelectItem key={prod.id} value={String(prod.id)}>
-                                {prod.nameEn} {prod.reference ? `(${prod.reference})` : ""} — stock {prod.stock}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        p ? (
+                          <>
+                            <div className="text-sm font-medium truncate">{p.nameEn || p.nameAr}</div>
+                            <div className="text-[11px] text-muted-foreground font-mono">
+                              {p.reference ?? "—"} {p.barcode ? `· ${p.barcode}` : ""} · stock {p.stock}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-xs text-muted-foreground">Product #{line.sourceProductId} (unknown)</div>
+                        )
                       ) : (
                         <Input
                           type="number"
@@ -414,8 +608,13 @@ function CreateTransferDialog({
                         />
                       )}
                       {noKey && (
-                        <p className="text-[11px] text-red-600 mt-1">
-                          No reference/barcode — cannot match across stores / لا يوجد مرجع أو باركود
+                        <p className="text-[11px] text-red-600 mt-1" data-testid={`text-line-nokey-${i}`}>
+                          No reference/barcode — cannot match across stores.
+                        </p>
+                      )}
+                      {overStock && (
+                        <p className="text-[11px] text-amber-700 mt-1" data-testid={`text-line-overstock-${i}`}>
+                          Insufficient stock — only {p?.stock ?? 0} available.
                         </p>
                       )}
                     </div>
@@ -430,7 +629,6 @@ function CreateTransferDialog({
                     <Button
                       type="button" variant="ghost" size="icon" className="h-8 w-8"
                       onClick={() => removeLine(i)}
-                      disabled={lines.length === 1}
                       data-testid={`button-remove-line-${i}`}
                     >
                       <Trash2 className="h-4 w-4 text-muted-foreground" />
