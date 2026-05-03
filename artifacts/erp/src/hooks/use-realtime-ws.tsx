@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useMe } from "@/hooks/use-me";
 import { useStoreContext } from "@/hooks/use-store";
 import { useToast } from "@/hooks/use-toast";
+import { playNewOrderChime } from "@/lib/chime";
 
 const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
 
@@ -94,8 +95,10 @@ export function useRealtimeWS(): void {
   // forcing a reconnect each time the selected store changes.
   const storeIdRef = useRef<number | null>(currentStoreId);
   const toastRef = useRef(toast);
+  const userIdRef = useRef<number | string | null>((user as { id?: number | string } | null)?.id ?? null);
   useEffect(() => { storeIdRef.current = currentStoreId; }, [currentStoreId]);
   useEffect(() => { toastRef.current = toast; }, [toast]);
+  useEffect(() => { userIdRef.current = (user as { id?: number | string } | null)?.id ?? null; }, [user]);
 
   useEffect(() => {
     if (!token || !user) return;
@@ -142,6 +145,7 @@ export function useRealtimeWS(): void {
             const evtStoreId = (msg as { storeId?: number }).storeId;
             if (sellerId === null && evtStoreId === storeIdRef.current) {
               toastRef.current({ title: "طلب جديد من المتجر", description: "Nouvelle commande en ligne reçue" });
+              playNewOrderChime(userIdRef.current);
             }
             break;
           }

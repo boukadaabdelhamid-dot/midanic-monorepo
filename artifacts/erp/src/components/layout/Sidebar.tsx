@@ -5,7 +5,7 @@ import {
   Calendar, Truck, FileText, BarChart2, CreditCard,
   UserCheck, LogOut, Menu, X, Wallet, Activity, Home,
   ChevronLeft, ChevronRight, Store as StoreIcon, Check,
-  ArrowLeftRight, Bell,
+  ArrowLeftRight, Bell, Volume2, VolumeX,
 } from "lucide-react";
 import { Shield } from "lucide-react";
 import logoPath from "@assets/logo_des_13_midanic_1777739613232.jpeg";
@@ -19,6 +19,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { isChimeMuted, setChimeMuted, playNewOrderChime } from "@/lib/chime";
 
 type NavItem = {
   href: string;
@@ -167,7 +168,8 @@ function useOnlineOrdersPendingCount(): number {
 export function Sidebar() {
   const [location] = useLocation();
   const { logout } = useAuth();
-  const { isAdmin } = useMe();
+  const { isAdmin, user } = useMe();
+  const userId = (user as { id?: number | string } | null)?.id ?? null;
   const visibleItems = navItems.filter((it) => !it.adminOnly || isAdmin);
   const onlineOrdersPending = useOnlineOrdersPendingCount();
   const [open, setOpen] = useState(false);
@@ -175,12 +177,31 @@ export function Sidebar() {
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem(COLLAPSE_KEY) === "1";
   });
+  const [muted, setMuted] = useState<boolean>(() => isChimeMuted(userId));
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       window.localStorage.setItem(COLLAPSE_KEY, collapsed ? "1" : "0");
     }
   }, [collapsed]);
+
+  // Re-read mute preference whenever the active user changes so a
+  // different account on the same browser does not inherit the previous
+  // user's mute state.
+  useEffect(() => {
+    setMuted(isChimeMuted(userId));
+  }, [userId]);
+
+  const toggleMuted = () => {
+    setMuted((prev) => {
+      const next = !prev;
+      setChimeMuted(userId, next);
+      // When unmuting, play a short chime so the user knows it works and
+      // the browser's audio context gets unlocked by this user gesture.
+      if (!next) playNewOrderChime(userId);
+      return next;
+    });
+  };
 
   const renderContent = (isCollapsed: boolean) => (
     <div className="flex flex-col h-full">
@@ -249,7 +270,31 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className={cn("border-t border-sidebar-border", isCollapsed ? "p-2" : "p-3")}>
+      <div className={cn("border-t border-sidebar-border space-y-1", isCollapsed ? "p-2" : "p-3")}>
+        <Button
+          variant="ghost"
+          size={isCollapsed ? "icon" : "default"}
+          className={cn(
+            "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
+            isCollapsed ? "w-full h-9" : "w-full justify-start"
+          )}
+          onClick={toggleMuted}
+          data-testid="button-toggle-order-chime"
+          aria-label={muted ? "Unmute new-order sound" : "Mute new-order sound"}
+          aria-pressed={muted}
+          title={
+            isCollapsed
+              ? (muted ? "Unmute new-order sound / تشغيل صوت الطلبات" : "Mute new-order sound / كتم صوت الطلبات")
+              : undefined
+          }
+        >
+          {muted
+            ? <VolumeX className={cn("h-4 w-4", !isCollapsed && "mr-2")} />
+            : <Volume2 className={cn("h-4 w-4", !isCollapsed && "mr-2")} />}
+          {!isCollapsed && (
+            <span>{muted ? "Sound off / صوت مغلق" : "Sound on / صوت مفعل"}</span>
+          )}
+        </Button>
         <Button
           variant="ghost"
           size={isCollapsed ? "icon" : "default"}
