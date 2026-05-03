@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { eq, and, or, desc, inArray } from "drizzle-orm";
+import { eq, and, or, desc, inArray, sql, gte } from "drizzle-orm";
 import { db, schema } from "../lib/db";
 import { authenticate, requireStaff, requireStore, isAdmin, type AuthRequest } from "../lib/auth";
 import { broadcastToAdmins } from "../lib/ws";
@@ -319,13 +319,21 @@ router.post("/erp/transfers", authenticate, requireStaff, requireStore, async (r
           : (initiatorSide === "destination" ? "Pull request from destination" : "Push request from source"),
       });
 
-      // If pre-prepared, decrement source stock and write 'out' inventory movements
+      // If pre-prepared, decrement source stock atomically and write 'out' movements.
+      // Conditional UPDATE prevents over-shipping under concurrent requests.
       if (preparedMode) {
         for (const d of drafts) {
           const src = sourceMap.get(d.sourceProductId)!;
-          await tx.update(schema.productsTable)
-            .set({ stock: src.stock - d.quantity })
-            .where(eq(schema.productsTable.id, src.id));
+          const upd = await tx.update(schema.productsTable)
+            .set({ stock: sql`${schema.productsTable.stock} - ${d.quantity}` })
+            .where(and(
+              eq(schema.productsTable.id, src.id),
+              gte(schema.productsTable.stock, d.quantity),
+            ))
+            .returning({ id: schema.productsTable.id });
+          if (upd.length === 0) {
+            throw Object.assign(new Error(`Insufficient stock for "${src.nameEn}" (concurrent change)`), { http: 409 });
+          }
           await tx.insert(schema.inventoryMovementsTable).values({
             storeId: sourceStoreId,
             productId: src.id,
@@ -341,7 +349,12 @@ router.post("/erp/transfers", authenticate, requireStaff, requireStore, async (r
 
     broadcastTransferChanged(created);
     res.status(201).json(created);
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
+  } catch (err) {
+    const e = err as { http?: number; message?: string };
+    if (e.http === 409) { res.status(409).json({ error: e.message }); return; }
+    req.log.error(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 // ─── ACTIONS ───────────────────────────────────────────────────────
@@ -355,36 +368,66 @@ function ensure(req: AuthRequest, ok: boolean, res: import("express").Response, 
   return true;
 }
 
+// Note on transition gating: each handler re-reads the transfer INSIDE the
+// transaction with a conditional UPDATE filtered by current status. If the
+// row was changed by another request in between, the UPDATE affects 0 rows
+// and we 409 — preventing double-transitions racing past each other.
 router.post("/erp/transfers/:id/approve", authenticate, requireStaff, requireStore, async (req: AuthRequest, res) => {
   try {
-    const t = await loadTransferOr404(pid(req, "id"));
+    const id = pid(req, "id");
+    const t = await loadTransferOr404(id);
     if (!t) { res.status(404).json({ error: "Transfer not found" }); return; }
     if (!ensure(req, actorOnDestination(req, t), res, "Only destination side can approve")) return;
     if (t.status !== "requested") { res.status(409).json({ error: `Cannot approve from status ${t.status}` }); return; }
 
-    const [updated] = await db.update(schema.stockTransfersTable)
-      .set({ status: "approved", approvedAt: new Date() })
-      .where(eq(schema.stockTransfersTable.id, t.id)).returning();
-    await logEvent(t.id, "approved", req.user!.id, req.currentStoreId!, req.body?.notes ?? null);
+    const updated = await db.transaction(async (tx) => {
+      const [u] = await tx.update(schema.stockTransfersTable)
+        .set({ status: "approved", approvedAt: new Date() })
+        .where(and(eq(schema.stockTransfersTable.id, id), eq(schema.stockTransfersTable.status, "requested")))
+        .returning();
+      if (!u) throw Object.assign(new Error("Status changed by another request"), { http: 409 });
+      await tx.insert(schema.stockTransferEventsTable).values({
+        transferId: id, status: "approved", actorUserId: req.user!.id,
+        actorStoreId: req.currentStoreId!, notes: req.body?.notes ?? null,
+      });
+      return u;
+    });
     broadcastTransferChanged(updated);
     res.json(updated);
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
+  } catch (err) {
+    const e = err as { http?: number; message?: string };
+    if (e.http === 409) { res.status(409).json({ error: e.message }); return; }
+    req.log.error(err); res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 router.post("/erp/transfers/:id/reject", authenticate, requireStaff, requireStore, async (req: AuthRequest, res) => {
   try {
-    const t = await loadTransferOr404(pid(req, "id"));
+    const id = pid(req, "id");
+    const t = await loadTransferOr404(id);
     if (!t) { res.status(404).json({ error: "Transfer not found" }); return; }
     if (!ensure(req, actorOnDestination(req, t), res, "Only destination side can reject")) return;
     if (t.status !== "requested") { res.status(409).json({ error: `Cannot reject from status ${t.status}` }); return; }
 
-    const [updated] = await db.update(schema.stockTransfersTable)
-      .set({ status: "rejected", rejectedAt: new Date() })
-      .where(eq(schema.stockTransfersTable.id, t.id)).returning();
-    await logEvent(t.id, "rejected", req.user!.id, req.currentStoreId!, req.body?.notes ?? null);
+    const updated = await db.transaction(async (tx) => {
+      const [u] = await tx.update(schema.stockTransfersTable)
+        .set({ status: "rejected", rejectedAt: new Date() })
+        .where(and(eq(schema.stockTransfersTable.id, id), eq(schema.stockTransfersTable.status, "requested")))
+        .returning();
+      if (!u) throw Object.assign(new Error("Status changed by another request"), { http: 409 });
+      await tx.insert(schema.stockTransferEventsTable).values({
+        transferId: id, status: "rejected", actorUserId: req.user!.id,
+        actorStoreId: req.currentStoreId!, notes: req.body?.notes ?? null,
+      });
+      return u;
+    });
     broadcastTransferChanged(updated);
     res.json(updated);
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
+  } catch (err) {
+    const e = err as { http?: number; message?: string };
+    if (e.http === 409) { res.status(409).json({ error: e.message }); return; }
+    req.log.error(err); res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 router.post("/erp/transfers/:id/prepare", authenticate, requireStaff, requireStore, async (req: AuthRequest, res) => {
@@ -403,36 +446,48 @@ router.post("/erp/transfers/:id/prepare", authenticate, requireStaff, requireSto
 
     const items = await db.select().from(schema.stockTransferItemsTable)
       .where(eq(schema.stockTransferItemsTable.transferId, t.id));
-    const productIds = items.map(it => it.sourceProductId);
-    const products = await db.select().from(schema.productsTable)
-      .where(inArray(schema.productsTable.id, productIds));
-    const pmap = new Map(products.map(p => [p.id, p]));
-    for (const it of items) {
-      const p = pmap.get(it.sourceProductId);
-      if (!p) { res.status(409).json({ error: "Product missing" }); return; }
-      if (p.stock < it.quantity) {
-        res.status(409).json({ error: `Insufficient stock for "${p.nameEn}" (have ${p.stock}, need ${it.quantity})` });
-        return;
-      }
-    }
+
+    const allowedFromStatuses: TransferStatus[] = isAdmin(req)
+      ? ["approved", "requested"] : ["approved"];
 
     const updated = await db.transaction(async (tx) => {
+      // Atomic stock decrement per line — conditional UPDATE returns no rows
+      // if stock went insufficient between read and write (concurrent prepare,
+      // sale, etc.), at which point we abort and roll back.
       for (const it of items) {
-        const p = pmap.get(it.sourceProductId)!;
-        await tx.update(schema.productsTable).set({ stock: p.stock - it.quantity })
-          .where(eq(schema.productsTable.id, p.id));
+        const upd = await tx.update(schema.productsTable)
+          .set({ stock: sql`${schema.productsTable.stock} - ${it.quantity}` })
+          .where(and(
+            eq(schema.productsTable.id, it.sourceProductId),
+            gte(schema.productsTable.stock, it.quantity),
+          ))
+          .returning({ id: schema.productsTable.id, nameEn: schema.productsTable.nameEn });
+        if (upd.length === 0) {
+          const [p] = await tx.select({ nameEn: schema.productsTable.nameEn, stock: schema.productsTable.stock })
+            .from(schema.productsTable).where(eq(schema.productsTable.id, it.sourceProductId)).limit(1);
+          throw Object.assign(
+            new Error(`Insufficient stock for "${p?.nameEn ?? `#${it.sourceProductId}`}" (have ${p?.stock ?? 0}, need ${it.quantity})`),
+            { http: 409 },
+          );
+        }
         await tx.insert(schema.inventoryMovementsTable).values({
           storeId: t.sourceStoreId,
-          productId: p.id,
+          productId: it.sourceProductId,
           type: "out",
           quantity: it.quantity,
           reason: "Inter-store transfer (prepared)",
           reference: `TR-${t.id}`,
         });
       }
+      // Conditional status transition guards against concurrent transitions.
       const [u] = await tx.update(schema.stockTransfersTable)
         .set({ status: "prepared", preparedAt: new Date() })
-        .where(eq(schema.stockTransfersTable.id, t.id)).returning();
+        .where(and(
+          eq(schema.stockTransfersTable.id, t.id),
+          inArray(schema.stockTransfersTable.status, allowedFromStatuses),
+        ))
+        .returning();
+      if (!u) throw Object.assign(new Error("Status changed by another request"), { http: 409 });
       await tx.insert(schema.stockTransferEventsTable).values({
         transferId: t.id, status: "prepared", actorUserId: req.user!.id,
         actorStoreId: req.currentStoreId!, notes: req.body?.notes ?? null,
@@ -441,23 +496,40 @@ router.post("/erp/transfers/:id/prepare", authenticate, requireStaff, requireSto
     });
     broadcastTransferChanged(updated);
     res.json(updated);
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
+  } catch (err) {
+    const e = err as { http?: number; message?: string };
+    if (e.http === 409) { res.status(409).json({ error: e.message }); return; }
+    req.log.error(err); res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 router.post("/erp/transfers/:id/ship", authenticate, requireStaff, requireStore, async (req: AuthRequest, res) => {
   try {
-    const t = await loadTransferOr404(pid(req, "id"));
+    const id = pid(req, "id");
+    const t = await loadTransferOr404(id);
     if (!t) { res.status(404).json({ error: "Transfer not found" }); return; }
     if (!ensure(req, actorOnSource(req, t), res, "Only source side can ship")) return;
     if (t.status !== "prepared") { res.status(409).json({ error: `Cannot ship from status ${t.status}` }); return; }
 
-    const [updated] = await db.update(schema.stockTransfersTable)
-      .set({ status: "in_transit", shippedAt: new Date() })
-      .where(eq(schema.stockTransfersTable.id, t.id)).returning();
-    await logEvent(t.id, "in_transit", req.user!.id, req.currentStoreId!, req.body?.notes ?? null);
+    const updated = await db.transaction(async (tx) => {
+      const [u] = await tx.update(schema.stockTransfersTable)
+        .set({ status: "in_transit", shippedAt: new Date() })
+        .where(and(eq(schema.stockTransfersTable.id, id), eq(schema.stockTransfersTable.status, "prepared")))
+        .returning();
+      if (!u) throw Object.assign(new Error("Status changed by another request"), { http: 409 });
+      await tx.insert(schema.stockTransferEventsTable).values({
+        transferId: id, status: "in_transit", actorUserId: req.user!.id,
+        actorStoreId: req.currentStoreId!, notes: req.body?.notes ?? null,
+      });
+      return u;
+    });
     broadcastTransferChanged(updated);
     res.json(updated);
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
+  } catch (err) {
+    const e = err as { http?: number; message?: string };
+    if (e.http === 409) { res.status(409).json({ error: e.message }); return; }
+    req.log.error(err); res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 router.post("/erp/transfers/:id/receive", authenticate, requireStaff, requireStore, async (req: AuthRequest, res) => {
@@ -465,39 +537,34 @@ router.post("/erp/transfers/:id/receive", authenticate, requireStaff, requireSto
     const t = await loadTransferOr404(pid(req, "id"));
     if (!t) { res.status(404).json({ error: "Transfer not found" }); return; }
     if (!ensure(req, actorOnDestination(req, t), res, "Only destination side can receive")) return;
-    if (t.status !== "in_transit" && t.status !== "prepared") {
-      res.status(409).json({ error: `Cannot receive from status ${t.status}` }); return;
+    // Strict transition: only ship→receive. Source must explicitly mark
+    // as in_transit before destination can receive (audit clarity).
+    if (t.status !== "in_transit") {
+      res.status(409).json({ error: `Cannot receive from status ${t.status} — must be in_transit` }); return;
     }
 
     const items = await db.select().from(schema.stockTransferItemsTable)
       .where(eq(schema.stockTransferItemsTable.transferId, t.id));
 
-    // Resolve any unresolved destination products now (in case it was created after the transfer)
     const updated = await db.transaction(async (tx) => {
       for (const it of items) {
-        let destProductId = it.destinationProductId;
-        if (!destProductId) {
-          const [destP] = await tx.select({ id: schema.productsTable.id }).from(schema.productsTable)
-            .where(and(
-              eq(schema.productsTable.storeId, t.destinationStoreId),
-              or(eq(schema.productsTable.reference, it.matchKey), eq(schema.productsTable.barcode, it.matchKey))!,
-            )).limit(1);
-          if (!destP) {
-            throw new Error(`No matching product in destination store for reference/barcode "${it.matchKey}"`);
-          }
-          destProductId = destP.id;
-          await tx.update(schema.stockTransferItemsTable)
-            .set({ destinationProductId: destProductId })
-            .where(eq(schema.stockTransferItemsTable.id, it.id));
+        // destinationProductId is guaranteed at create time; defensive check.
+        if (!it.destinationProductId) {
+          throw Object.assign(
+            new Error(`Internal: missing destination product for line ${it.id}`),
+            { http: 500 },
+          );
         }
-        const [destP] = await tx.select().from(schema.productsTable)
-          .where(eq(schema.productsTable.id, destProductId)).limit(1);
-        if (!destP) throw new Error("Destination product missing");
-        await tx.update(schema.productsTable).set({ stock: destP.stock + it.quantity })
-          .where(eq(schema.productsTable.id, destP.id));
+        const upd = await tx.update(schema.productsTable)
+          .set({ stock: sql`${schema.productsTable.stock} + ${it.quantity}` })
+          .where(eq(schema.productsTable.id, it.destinationProductId))
+          .returning({ id: schema.productsTable.id });
+        if (upd.length === 0) {
+          throw Object.assign(new Error("Destination product missing"), { http: 409 });
+        }
         await tx.insert(schema.inventoryMovementsTable).values({
           storeId: t.destinationStoreId,
-          productId: destP.id,
+          productId: it.destinationProductId,
           type: "in",
           quantity: it.quantity,
           reason: "Inter-store transfer (received)",
@@ -506,7 +573,9 @@ router.post("/erp/transfers/:id/receive", authenticate, requireStaff, requireSto
       }
       const [u] = await tx.update(schema.stockTransfersTable)
         .set({ status: "received", receivedAt: new Date() })
-        .where(eq(schema.stockTransfersTable.id, t.id)).returning();
+        .where(and(eq(schema.stockTransfersTable.id, t.id), eq(schema.stockTransfersTable.status, "in_transit")))
+        .returning();
+      if (!u) throw Object.assign(new Error("Status changed by another request"), { http: 409 });
       await tx.insert(schema.stockTransferEventsTable).values({
         transferId: t.id, status: "received", actorUserId: req.user!.id,
         actorStoreId: req.currentStoreId!, notes: req.body?.notes ?? null,
@@ -516,9 +585,11 @@ router.post("/erp/transfers/:id/receive", authenticate, requireStaff, requireSto
     broadcastTransferChanged(updated);
     res.json(updated);
   } catch (err) {
+    const e = err as { http?: number; message?: string };
+    if (e.http === 409) { res.status(409).json({ error: e.message }); return; }
+    if (e.http === 500) { req.log.error(err); res.status(500).json({ error: e.message }); return; }
     req.log.error(err);
-    const message = err instanceof Error ? err.message : "Internal server error";
-    res.status(409).json({ error: message });
+    res.status(500).json({ error: "Internal server error" });
   }
 });
 
@@ -536,34 +607,36 @@ router.post("/erp/transfers/:id/cancel", authenticate, requireStaff, requireStor
     }
 
     // If stock was already decremented (prepared/in_transit), restore it.
-    const restore = t.status === "prepared" || t.status === "in_transit";
+    const fromStatus = t.status;
+    const restore = fromStatus === "prepared" || fromStatus === "in_transit";
     const items = restore
       ? await db.select().from(schema.stockTransferItemsTable)
           .where(eq(schema.stockTransferItemsTable.transferId, t.id))
       : [];
 
     const updated = await db.transaction(async (tx) => {
-      if (restore) {
-        for (const it of items) {
-          const [p] = await tx.select().from(schema.productsTable)
-            .where(eq(schema.productsTable.id, it.sourceProductId)).limit(1);
-          if (p) {
-            await tx.update(schema.productsTable).set({ stock: p.stock + it.quantity })
-              .where(eq(schema.productsTable.id, p.id));
-            await tx.insert(schema.inventoryMovementsTable).values({
-              storeId: t.sourceStoreId,
-              productId: p.id,
-              type: "in",
-              quantity: it.quantity,
-              reason: "Inter-store transfer cancelled (restock)",
-              reference: `TR-${t.id}`,
-            });
-          }
-        }
-      }
+      // Conditional status transition guards against concurrent action.
       const [u] = await tx.update(schema.stockTransfersTable)
         .set({ status: "cancelled", cancelledAt: new Date() })
-        .where(eq(schema.stockTransfersTable.id, t.id)).returning();
+        .where(and(eq(schema.stockTransfersTable.id, t.id), eq(schema.stockTransfersTable.status, fromStatus)))
+        .returning();
+      if (!u) throw Object.assign(new Error("Status changed by another request"), { http: 409 });
+
+      if (restore) {
+        for (const it of items) {
+          await tx.update(schema.productsTable)
+            .set({ stock: sql`${schema.productsTable.stock} + ${it.quantity}` })
+            .where(eq(schema.productsTable.id, it.sourceProductId));
+          await tx.insert(schema.inventoryMovementsTable).values({
+            storeId: t.sourceStoreId,
+            productId: it.sourceProductId,
+            type: "in",
+            quantity: it.quantity,
+            reason: "Inter-store transfer cancelled (restock)",
+            reference: `TR-${t.id}`,
+          });
+        }
+      }
       await tx.insert(schema.stockTransferEventsTable).values({
         transferId: t.id, status: "cancelled", actorUserId: req.user!.id,
         actorStoreId: req.currentStoreId!, notes: req.body?.notes ?? null,
@@ -572,7 +645,11 @@ router.post("/erp/transfers/:id/cancel", authenticate, requireStaff, requireStor
     });
     broadcastTransferChanged(updated);
     res.json(updated);
-  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
+  } catch (err) {
+    const e = err as { http?: number; message?: string };
+    if (e.http === 409) { res.status(409).json({ error: e.message }); return; }
+    req.log.error(err); res.status(500).json({ error: "Internal server error" });
+  }
 });
 
 export default router;

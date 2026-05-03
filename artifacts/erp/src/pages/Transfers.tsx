@@ -575,7 +575,7 @@ function TransferDetailDialog({
                   <Truck className="h-4 w-4 mr-1" /> Ship / إرسال
                 </Button>
               )}
-              {(t.status === "in_transit" || t.status === "prepared") && isDest && (
+              {t.status === "in_transit" && isDest && (
                 <Button size="sm" onClick={() => act(receive)} disabled={receive.isPending} data-testid="button-receive">
                   <Inbox className="h-4 w-4 mr-1" /> Receive / استلام
                 </Button>
