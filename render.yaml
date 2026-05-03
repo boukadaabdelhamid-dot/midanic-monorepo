@@ -8,10 +8,10 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Paste your Neon (or other) PostgreSQL connection string here.
+      # Format: postgresql://user:password@host/dbname?sslmode=require
       - key: DATABASE_URL
-        fromDatabase:
-          name: midanic-db
-          property: connectionString
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: SESSION_SECRET
@@ -53,8 +53,3 @@ services:
       # Set this to your deployed api-server URL, e.g. https://api-server.onrender.com
       - key: VITE_API_URL
         sync: false
-
-databases:
-  - name: midanic-db
-    databaseName: midanic
-    user: midanic
