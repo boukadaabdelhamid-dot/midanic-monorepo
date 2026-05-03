@@ -66,15 +66,40 @@ export function requireStaff(req: AuthRequest, res: Response, next: NextFunction
 }
 
 /**
- * Ensure a current store is selected. Used on every tenant-scoped ERP route.
- * Must be placed AFTER authenticate.
+ * Ensure a current store is selected AND that the authenticated user still has
+ * an active membership in user_stores for that store. Re-checks the DB on each
+ * request so that revoking a staff member's store access takes effect
+ * immediately instead of waiting for token expiry.
+ *
+ * Must be placed AFTER `authenticate`.
  */
-export function requireStore(req: AuthRequest, res: Response, next: NextFunction) {
+export async function requireStore(req: AuthRequest, res: Response, next: NextFunction) {
   if (typeof req.currentStoreId !== "number") {
     res.status(400).json({ error: "No store selected. Call /auth/select-store first." });
     return;
   }
-  next();
+  if (!req.user?.id) { res.status(401).json({ error: "Unauthorized" }); return; }
+  try {
+    const { db, schema } = await import("./db");
+    const { eq, and } = await import("drizzle-orm");
+    const [link] = await db.select({ storeId: schema.userStoresTable.storeId })
+      .from(schema.userStoresTable)
+      .innerJoin(schema.storesTable, eq(schema.userStoresTable.storeId, schema.storesTable.id))
+      .where(and(
+        eq(schema.userStoresTable.userId, req.user.id),
+        eq(schema.userStoresTable.storeId, req.currentStoreId),
+        eq(schema.storesTable.isActive, true),
+      ))
+      .limit(1);
+    if (!link) {
+      res.status(403).json({ error: "Store access revoked. Please re-select a store.", code: "STORE_ACCESS_REVOKED" });
+      return;
+    }
+    next();
+  } catch (err) {
+    (req as AuthRequest & { log?: { error: (e: unknown) => void } }).log?.error?.(err);
+    res.status(500).json({ error: "Internal server error" });
+  }
 }
 
 export function isAdmin(req: AuthRequest): boolean {

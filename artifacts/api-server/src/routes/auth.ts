@@ -94,6 +94,11 @@ router.get("/auth/me", authenticate, async (req: AuthRequest, res) => {
 
 router.post("/auth/select-store", authenticate, async (req: AuthRequest, res) => {
   try {
+    // Customers should not be selecting an ERP store.
+    if (req.user!.role !== "admin" && req.user!.role !== "employee") {
+      res.status(403).json({ error: "Only staff may select a store" });
+      return;
+    }
     const { storeId } = req.body || {};
     if (!Number.isInteger(storeId)) {
       res.status(400).json({ error: "storeId required" });

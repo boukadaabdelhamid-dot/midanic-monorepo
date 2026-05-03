@@ -494,6 +494,11 @@ router.post("/erp/staff", authenticate, requireAdmin, async (req, res) => {
       if (wantedRole === "admin") targetStoreIds = all.map(s => s.id);
       else if (all.length) targetStoreIds = [all[0].id];
     }
+    // Employees are bound to exactly one store.
+    if (wantedRole === "employee" && targetStoreIds.length > 1) {
+      res.status(400).json({ error: "Employees must be assigned to exactly one store" });
+      return;
+    }
     if (targetStoreIds.length) {
       await db.insert(schema.userStoresTable)
         .values(targetStoreIds.map(storeId => ({ userId: user.id, storeId })))
@@ -518,6 +523,18 @@ router.put("/erp/staff/:id/stores", authenticate, requireAdmin, async (req: Auth
     }
     if (storeIds.length === 0) {
       res.status(400).json({ error: "A staff member must have access to at least one store" });
+      return;
+    }
+    // Enforce employee=single-store invariant.
+    const [target] = await db.select({ role: schema.usersTable.role })
+      .from(schema.usersTable).where(eq(schema.usersTable.id, targetId)).limit(1);
+    if (!target) { res.status(404).json({ error: "Staff not found" }); return; }
+    if (target.role === "employee" && storeIds.length > 1) {
+      res.status(400).json({ error: "Employees must be assigned to exactly one store" });
+      return;
+    }
+    if (target.role === "customer") {
+      res.status(400).json({ error: "Cannot assign stores to customer accounts" });
       return;
     }
     await db.delete(schema.userStoresTable).where(eq(schema.userStoresTable.userId, targetId));
