@@ -136,6 +136,7 @@ export default function Transfers() {
                         <TableHead>Items / أصناف</TableHead>
                         <TableHead>Qty / كمية</TableHead>
                         <TableHead>Status / الحالة</TableHead>
+                        <TableHead>By / بواسطة</TableHead>
                         <TableHead>Date / التاريخ</TableHead>
                         <TableHead></TableHead>
                       </TableRow>
@@ -161,6 +162,9 @@ export default function Transfers() {
                             <TableCell className="text-sm">{t.itemCount ?? 0}</TableCell>
                             <TableCell className="text-sm font-semibold tabular-nums">{t.totalQuantity ?? 0}</TableCell>
                             <TableCell><StatusBadge status={t.status} /></TableCell>
+                            <TableCell className="text-xs text-muted-foreground" data-testid={`text-initiator-${t.id}`}>
+                              {t.initiatorUser?.name || t.initiatorUser?.email || `#${t.initiatorUserId ?? "?"}`}
+                            </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
                               {t.createdAt ? format(new Date(t.createdAt), "MMM d, HH:mm") : "—"}
                             </TableCell>
@@ -504,6 +508,19 @@ function TransferDetailDialog({
                 <div className="text-xs text-muted-foreground">To / إلى</div>
                 <div className="font-medium">{t.destinationStore?.nameEn ?? "—"}</div>
               </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Started by / بدأ بواسطة</div>
+                <div className="font-medium" data-testid="text-detail-initiator">
+                  {t.initiatorUser?.name || t.initiatorUser?.email || `#${t.initiatorUserId ?? "?"}`}
+                  <span className="text-xs text-muted-foreground ml-1">({t.initiatorSide})</span>
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Created / أُنشئ</div>
+                <div className="font-medium text-sm">
+                  {t.createdAt ? format(new Date(t.createdAt), "MMM d, yyyy HH:mm") : "—"}
+                </div>
+              </div>
               {t.notes && (
                 <div className="col-span-2">
                   <div className="text-xs text-muted-foreground">Notes / ملاحظات</div>
@@ -551,6 +568,9 @@ function TransferDetailDialog({
                     <StatusBadge status={e.status} />
                     <span className="text-muted-foreground">
                       {e.createdAt ? format(new Date(e.createdAt), "MMM d, HH:mm") : ""}
+                    </span>
+                    <span className="text-muted-foreground">
+                      by {e.actorUser?.name || e.actorUser?.email || `#${e.actorUserId}`}
                     </span>
                     {e.notes && <span className="text-muted-foreground italic">— {e.notes}</span>}
                   </div>

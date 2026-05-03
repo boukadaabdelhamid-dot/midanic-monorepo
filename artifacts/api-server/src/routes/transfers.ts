@@ -83,13 +83,21 @@ router.get("/erp/transfers", authenticate, requireStaff, requireStore, async (re
       .orderBy(desc(schema.stockTransfersTable.createdAt))
       .limit(200);
 
-    // Hydrate counterparty store names + item counts in batch
+    // Hydrate counterparty store names + item counts + initiator user in batch
     const storeIds = Array.from(new Set(rows.flatMap(r => [r.sourceStoreId, r.destinationStoreId])));
-    const stores = storeIds.length
-      ? await db.select({ id: schema.storesTable.id, nameEn: schema.storesTable.nameEn, nameAr: schema.storesTable.nameAr })
-          .from(schema.storesTable).where(inArray(schema.storesTable.id, storeIds))
-      : [];
+    const userIds = Array.from(new Set(rows.map(r => r.initiatorUserId).filter((x): x is number => !!x)));
+    const [stores, users] = await Promise.all([
+      storeIds.length
+        ? db.select({ id: schema.storesTable.id, nameEn: schema.storesTable.nameEn, nameAr: schema.storesTable.nameAr })
+            .from(schema.storesTable).where(inArray(schema.storesTable.id, storeIds))
+        : Promise.resolve([]),
+      userIds.length
+        ? db.select({ id: schema.usersTable.id, name: schema.usersTable.name, email: schema.usersTable.email })
+            .from(schema.usersTable).where(inArray(schema.usersTable.id, userIds))
+        : Promise.resolve([]),
+    ]);
     const storeMap = new Map(stores.map(s => [s.id, s]));
+    const userMap = new Map(users.map(u => [u.id, u]));
 
     const ids = rows.map(r => r.id);
     const items = ids.length
@@ -108,6 +116,7 @@ router.get("/erp/transfers", authenticate, requireStaff, requireStore, async (re
       ...r,
       sourceStore: storeMap.get(r.sourceStoreId) ?? null,
       destinationStore: storeMap.get(r.destinationStoreId) ?? null,
+      initiatorUser: userMap.get(r.initiatorUserId) ?? null,
       itemCount: counts.get(r.id)?.itemCount ?? 0,
       totalQuantity: counts.get(r.id)?.totalQty ?? 0,
     })));
@@ -147,12 +156,21 @@ router.get("/erp/transfers/:id", authenticate, requireStaff, requireStore, async
       .from(schema.storesTable).where(inArray(schema.storesTable.id, [t.sourceStoreId, t.destinationStoreId]));
     const storeMap = new Map(stores.map(s => [s.id, s]));
 
+    // Resolve initiator + every event actor for the audit timeline
+    const userIds = Array.from(new Set([t.initiatorUserId, ...events.map(e => e.actorUserId)].filter((x): x is number => !!x)));
+    const users = userIds.length
+      ? await db.select({ id: schema.usersTable.id, name: schema.usersTable.name, email: schema.usersTable.email })
+          .from(schema.usersTable).where(inArray(schema.usersTable.id, userIds))
+      : [];
+    const userMap = new Map(users.map(u => [u.id, u]));
+
     res.json({
       ...t,
       sourceStore: storeMap.get(t.sourceStoreId) ?? null,
       destinationStore: storeMap.get(t.destinationStoreId) ?? null,
+      initiatorUser: userMap.get(t.initiatorUserId) ?? null,
       items,
-      events,
+      events: events.map(e => ({ ...e, actorUser: userMap.get(e.actorUserId) ?? null })),
     });
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });

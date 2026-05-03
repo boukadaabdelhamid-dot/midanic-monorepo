@@ -2375,6 +2375,19 @@ components:
           nullable: true
       required: [id, sourceStoreId, destinationStoreId, status, createdAt]
 
+    UserLite:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          nullable: true
+        email:
+          type: string
+          nullable: true
+      required: [id]
+
     StockTransferSummary:
       allOf:
         - $ref: "#/components/schemas/StockTransfer"
@@ -2384,6 +2397,9 @@ components:
               $ref: "#/components/schemas/StoreLite"
             destinationStore:
               $ref: "#/components/schemas/StoreLite"
+            initiatorUser:
+              $ref: "#/components/schemas/UserLite"
+              nullable: true
             itemCount:
               type: integer
             totalQuantity:
@@ -2429,6 +2445,9 @@ components:
           type: integer
         actorStoreId:
           type: integer
+        actorUser:
+          $ref: "#/components/schemas/UserLite"
+          nullable: true
         notes:
           type: string
           nullable: true
@@ -2445,6 +2464,9 @@ components:
               $ref: "#/components/schemas/StoreLite"
             destinationStore:
               $ref: "#/components/schemas/StoreLite"
+            initiatorUser:
+              $ref: "#/components/schemas/UserLite"
+              nullable: true
             items:
               type: array
               items:

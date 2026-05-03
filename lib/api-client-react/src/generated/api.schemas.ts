@@ -556,9 +556,16 @@ export interface StockTransfer {
   cancelledAt?: string | null;
 }
 
+export interface UserLite {
+  id: number;
+  name?: string | null;
+  email?: string | null;
+}
+
 export type StockTransferSummary = StockTransfer & {
   sourceStore?: StoreLite;
   destinationStore?: StoreLite;
+  initiatorUser?: UserLite | null;
   itemCount?: number;
   totalQuantity?: number;
 };
@@ -581,6 +588,7 @@ export interface StockTransferEvent {
   status: string;
   actorUserId: number;
   actorStoreId: number;
+  actorUser?: UserLite | null;
   notes?: string | null;
   createdAt: string;
 }
@@ -588,6 +596,7 @@ export interface StockTransferEvent {
 export type StockTransferDetail = StockTransfer & {
   sourceStore?: StoreLite;
   destinationStore?: StoreLite;
+  initiatorUser?: UserLite | null;
   items?: StockTransferItem[];
   events?: StockTransferEvent[];
 };

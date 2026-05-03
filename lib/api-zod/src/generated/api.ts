@@ -1103,6 +1103,13 @@ export const GetErpTransfersResponseItem = zod
           nameAr: zod.string(),
         })
         .optional(),
+      initiatorUser: zod
+        .object({
+          id: zod.number(),
+          name: zod.string().nullish(),
+          email: zod.string().nullish(),
+        })
+        .nullish(),
       itemCount: zod.number().optional(),
       totalQuantity: zod.number().optional(),
     }),
@@ -1177,6 +1184,13 @@ export const GetErpTransferResponse = zod
           nameAr: zod.string(),
         })
         .optional(),
+      initiatorUser: zod
+        .object({
+          id: zod.number(),
+          name: zod.string().nullish(),
+          email: zod.string().nullish(),
+        })
+        .nullish(),
       items: zod
         .array(
           zod.object({
@@ -1200,6 +1214,13 @@ export const GetErpTransferResponse = zod
             status: zod.string(),
             actorUserId: zod.number(),
             actorStoreId: zod.number(),
+            actorUser: zod
+              .object({
+                id: zod.number(),
+                name: zod.string().nullish(),
+                email: zod.string().nullish(),
+              })
+              .nullish(),
             notes: zod.string().nullish(),
             createdAt: zod.string(),
           }),
