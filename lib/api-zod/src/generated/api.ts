@@ -49,6 +49,14 @@ export const LoginResponse = zod.object({
           slug: zod.string(),
           isActive: zod.boolean().optional(),
           createdAt: zod.string().optional(),
+          address: zod.string().nullish(),
+          phone: zod.string().nullish(),
+          logoUrl: zod.string().nullish(),
+          tvaRate: zod.string().nullish(),
+          showTvaByDefault: zod.boolean().nullish(),
+          nif: zod.string().nullish(),
+          rc: zod.string().nullish(),
+          ai: zod.string().nullish(),
         }),
       )
       .optional(),
@@ -63,6 +71,14 @@ export const LoginResponse = zod.object({
         slug: zod.string(),
         isActive: zod.boolean().optional(),
         createdAt: zod.string().optional(),
+        address: zod.string().nullish(),
+        phone: zod.string().nullish(),
+        logoUrl: zod.string().nullish(),
+        tvaRate: zod.string().nullish(),
+        showTvaByDefault: zod.boolean().nullish(),
+        nif: zod.string().nullish(),
+        rc: zod.string().nullish(),
+        ai: zod.string().nullish(),
       }),
     )
     .optional(),
@@ -87,6 +103,14 @@ export const GetMeResponse = zod.object({
         slug: zod.string(),
         isActive: zod.boolean().optional(),
         createdAt: zod.string().optional(),
+        address: zod.string().nullish(),
+        phone: zod.string().nullish(),
+        logoUrl: zod.string().nullish(),
+        tvaRate: zod.string().nullish(),
+        showTvaByDefault: zod.boolean().nullish(),
+        nif: zod.string().nullish(),
+        rc: zod.string().nullish(),
+        ai: zod.string().nullish(),
       }),
     )
     .optional(),
@@ -110,6 +134,14 @@ export const SelectStoreResponse = zod.object({
     slug: zod.string(),
     isActive: zod.boolean().optional(),
     createdAt: zod.string().optional(),
+    address: zod.string().nullish(),
+    phone: zod.string().nullish(),
+    logoUrl: zod.string().nullish(),
+    tvaRate: zod.string().nullish(),
+    showTvaByDefault: zod.boolean().nullish(),
+    nif: zod.string().nullish(),
+    rc: zod.string().nullish(),
+    ai: zod.string().nullish(),
   }),
 });
 
@@ -123,6 +155,14 @@ export const GetPublicStoresResponseItem = zod.object({
   slug: zod.string(),
   isActive: zod.boolean().optional(),
   createdAt: zod.string().optional(),
+  address: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  logoUrl: zod.string().nullish(),
+  tvaRate: zod.string().nullish(),
+  showTvaByDefault: zod.boolean().nullish(),
+  nif: zod.string().nullish(),
+  rc: zod.string().nullish(),
+  ai: zod.string().nullish(),
 });
 export const GetPublicStoresResponse = zod.array(GetPublicStoresResponseItem);
 
@@ -136,6 +176,14 @@ export const GetErpStoresResponseItem = zod.object({
   slug: zod.string(),
   isActive: zod.boolean().optional(),
   createdAt: zod.string().optional(),
+  address: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  logoUrl: zod.string().nullish(),
+  tvaRate: zod.string().nullish(),
+  showTvaByDefault: zod.boolean().nullish(),
+  nif: zod.string().nullish(),
+  rc: zod.string().nullish(),
+  ai: zod.string().nullish(),
 });
 export const GetErpStoresResponse = zod.array(GetErpStoresResponseItem);
 
@@ -147,6 +195,14 @@ export const CreateErpStoreBody = zod.object({
   nameEn: zod.string(),
   slug: zod.string(),
   isActive: zod.boolean().optional(),
+  address: zod.string().optional(),
+  phone: zod.string().optional(),
+  logoUrl: zod.string().optional(),
+  tvaRate: zod.string().optional(),
+  showTvaByDefault: zod.boolean().optional(),
+  nif: zod.string().optional(),
+  rc: zod.string().optional(),
+  ai: zod.string().optional(),
 });
 
 /**
@@ -159,8 +215,37 @@ export const GetErpStoresAllResponseItem = zod.object({
   slug: zod.string(),
   isActive: zod.boolean().optional(),
   createdAt: zod.string().optional(),
+  address: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  logoUrl: zod.string().nullish(),
+  tvaRate: zod.string().nullish(),
+  showTvaByDefault: zod.boolean().nullish(),
+  nif: zod.string().nullish(),
+  rc: zod.string().nullish(),
+  ai: zod.string().nullish(),
 });
 export const GetErpStoresAllResponse = zod.array(GetErpStoresAllResponseItem);
+
+/**
+ * @summary Stores the current user belongs to (with profile fields)
+ */
+export const GetErpStoresMineResponseItem = zod.object({
+  id: zod.number(),
+  nameAr: zod.string(),
+  nameEn: zod.string(),
+  slug: zod.string(),
+  isActive: zod.boolean().optional(),
+  createdAt: zod.string().optional(),
+  address: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  logoUrl: zod.string().nullish(),
+  tvaRate: zod.string().nullish(),
+  showTvaByDefault: zod.boolean().nullish(),
+  nif: zod.string().nullish(),
+  rc: zod.string().nullish(),
+  ai: zod.string().nullish(),
+});
+export const GetErpStoresMineResponse = zod.array(GetErpStoresMineResponseItem);
 
 /**
  * @summary Update a store (rename / activate / deactivate)
@@ -173,6 +258,14 @@ export const UpdateErpStoreBody = zod.object({
   nameAr: zod.string().optional(),
   nameEn: zod.string().optional(),
   isActive: zod.boolean().optional(),
+  address: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  logoUrl: zod.string().nullish(),
+  tvaRate: zod.string().optional(),
+  showTvaByDefault: zod.boolean().optional(),
+  nif: zod.string().nullish(),
+  rc: zod.string().nullish(),
+  ai: zod.string().nullish(),
 });
 
 export const UpdateErpStoreResponse = zod.object({
@@ -182,6 +275,14 @@ export const UpdateErpStoreResponse = zod.object({
   slug: zod.string(),
   isActive: zod.boolean().optional(),
   createdAt: zod.string().optional(),
+  address: zod.string().nullish(),
+  phone: zod.string().nullish(),
+  logoUrl: zod.string().nullish(),
+  tvaRate: zod.string().nullish(),
+  showTvaByDefault: zod.boolean().nullish(),
+  nif: zod.string().nullish(),
+  rc: zod.string().nullish(),
+  ai: zod.string().nullish(),
 });
 
 /**
@@ -1968,6 +2069,14 @@ export const GetErpStaffResponseItem = zod.object({
         slug: zod.string(),
         isActive: zod.boolean().optional(),
         createdAt: zod.string().optional(),
+        address: zod.string().nullish(),
+        phone: zod.string().nullish(),
+        logoUrl: zod.string().nullish(),
+        tvaRate: zod.string().nullish(),
+        showTvaByDefault: zod.boolean().nullish(),
+        nif: zod.string().nullish(),
+        rc: zod.string().nullish(),
+        ai: zod.string().nullish(),
       }),
     )
     .optional(),

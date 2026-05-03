@@ -8,13 +8,25 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Store as StoreIcon, Plus, Trash2, Edit2 } from "lucide-react";
 
-type FormState = { id?: number; nameAr: string; nameEn: string; slug: string; isActive: boolean };
-const empty: FormState = { nameAr: "", nameEn: "", slug: "", isActive: true };
+type FormState = {
+  id?: number;
+  nameAr: string; nameEn: string; slug: string; isActive: boolean;
+  address: string; phone: string; logoUrl: string;
+  tvaRate: string; showTvaByDefault: boolean;
+  nif: string; rc: string; ai: string;
+};
+const empty: FormState = {
+  nameAr: "", nameEn: "", slug: "", isActive: true,
+  address: "", phone: "", logoUrl: "",
+  tvaRate: "19", showTvaByDefault: false,
+  nif: "", rc: "", ai: "",
+};
 
 export default function Stores() {
   const qc = useQueryClient();
@@ -34,19 +46,27 @@ export default function Stores() {
       setError("Nom AR, EN et slug requis / الاسم بالعربية والإنجليزية والمعرف مطلوبة");
       return;
     }
+    const payload = {
+      nameAr: form.nameAr.trim(), nameEn: form.nameEn.trim(),
+      isActive: form.isActive,
+      address: form.address.trim() || undefined,
+      phone: form.phone.trim() || undefined,
+      logoUrl: form.logoUrl.trim() || undefined,
+      tvaRate: form.tvaRate.trim() || "19",
+      showTvaByDefault: form.showTvaByDefault,
+      nif: form.nif.trim() || undefined,
+      rc: form.rc.trim() || undefined,
+      ai: form.ai.trim() || undefined,
+    };
     if (form.id) {
       update.mutate(
-        { id: form.id, data: { nameAr: form.nameAr.trim(), nameEn: form.nameEn.trim(), isActive: form.isActive } },
+        { id: form.id, data: payload },
         { onSuccess: () => { invalidate(); setOpen(false); setForm(empty); },
           onError: (e: unknown) => setError((e as { message?: string })?.message ?? "Erreur") }
       );
     } else {
       create.mutate(
-        { data: {
-          nameAr: form.nameAr.trim(), nameEn: form.nameEn.trim(),
-          slug: form.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-"),
-          isActive: form.isActive,
-        } },
+        { data: { ...payload, slug: form.slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-") } },
         { onSuccess: () => { invalidate(); setOpen(false); setForm(empty); },
           onError: (e: unknown) => setError((e as { message?: string })?.message ?? "Erreur") }
       );
@@ -92,6 +112,8 @@ export default function Stores() {
                     <TableHead>Slug</TableHead>
                     <TableHead>Nom EN</TableHead>
                     <TableHead>الاسم</TableHead>
+                    <TableHead>NIF / RC</TableHead>
+                    <TableHead>TVA</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -102,6 +124,12 @@ export default function Stores() {
                       <TableCell className="font-mono text-xs">{s.slug}</TableCell>
                       <TableCell className="font-medium">{s.nameEn}</TableCell>
                       <TableCell dir="rtl">{s.nameAr}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
+                        {s.nif || "—"} / {s.rc || "—"}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {s.showTvaByDefault ? <span className="text-emerald-700">Activée ({s.tvaRate ?? "19"}%)</span> : <span className="text-muted-foreground">Hors taxes</span>}
+                      </TableCell>
                       <TableCell>
                         {s.isActive ? (
                           <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-semibold">Actif</span>
@@ -111,7 +139,12 @@ export default function Stores() {
                       </TableCell>
                       <TableCell className="text-right space-x-1">
                         <Button size="sm" variant="ghost" className="h-7"
-                          onClick={() => { setForm({ id: s.id, nameAr: s.nameAr, nameEn: s.nameEn, slug: s.slug, isActive: s.isActive ?? true }); setError(null); setOpen(true); }}
+                          onClick={() => { setForm({
+                            id: s.id, nameAr: s.nameAr, nameEn: s.nameEn, slug: s.slug, isActive: s.isActive ?? true,
+                            address: s.address ?? "", phone: s.phone ?? "", logoUrl: s.logoUrl ?? "",
+                            tvaRate: s.tvaRate ?? "19", showTvaByDefault: !!s.showTvaByDefault,
+                            nif: s.nif ?? "", rc: s.rc ?? "", ai: s.ai ?? "",
+                          }); setError(null); setOpen(true); }}
                           data-testid={`btn-edit-store-${s.id}`}>
                           <Edit2 className="h-3.5 w-3.5" />
                         </Button>
@@ -120,7 +153,7 @@ export default function Stores() {
                           onClick={() => handleDelete(s.id, s.nameEn, (s as { itemCount?: number }).itemCount ?? 0)}
                           disabled={((s as { itemCount?: number }).itemCount ?? 0) > 0}
                           title={((s as { itemCount?: number }).itemCount ?? 0) > 0
-                            ? `Magasin non vide (${(s as { itemCount?: number }).itemCount} éléments). Réassignez ou supprimez les données d'abord. / المتجر يحتوي على بيانات`
+                            ? `Magasin non vide / المتجر يحتوي على بيانات`
                             : "Supprimer / حذف"}
                           data-testid={`btn-delete-store-${s.id}`}>
                           <Trash2 className="h-3.5 w-3.5" />
@@ -129,7 +162,7 @@ export default function Stores() {
                     </TableRow>
                   ))}
                   {(!stores || stores.length === 0) && (
-                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Aucun magasin</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Aucun magasin</TableCell></TableRow>
                   )}
                 </TableBody>
               </Table>
@@ -139,11 +172,11 @@ export default function Stores() {
       </Card>
 
       <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setError(null); }}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>{form.id ? "Modifier magasin / تعديل المتجر" : "Nouveau magasin / متجر جديد"}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <Label>Nom EN *</Label>
               <Input value={form.nameEn} onChange={(e) => setForm({ ...form, nameEn: e.target.value })} data-testid="input-store-name-en" autoFocus />
@@ -153,17 +186,51 @@ export default function Stores() {
               <Input dir="rtl" value={form.nameAr} onChange={(e) => setForm({ ...form, nameAr: e.target.value })} data-testid="input-store-name-ar" />
             </div>
             {!form.id && (
-              <div>
+              <div className="col-span-2">
                 <Label>Slug * (a-z, 0-9, -)</Label>
                 <Input value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="principal" data-testid="input-store-slug" />
-                <p className="text-xs text-muted-foreground mt-1">Identifiant unique permanent / معرف فريد دائم</p>
               </div>
             )}
-            <label className="flex items-center gap-2 text-sm">
+            <div className="col-span-2">
+              <Label>Adresse / العنوان</Label>
+              <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} data-testid="input-store-address" />
+            </div>
+            <div>
+              <Label>Téléphone / الهاتف</Label>
+              <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} data-testid="input-store-phone" />
+            </div>
+            <div>
+              <Label>Logo URL</Label>
+              <Input value={form.logoUrl} onChange={(e) => setForm({ ...form, logoUrl: e.target.value })} placeholder="https://..." data-testid="input-store-logo" />
+            </div>
+            <div>
+              <Label>NIF</Label>
+              <Input value={form.nif} onChange={(e) => setForm({ ...form, nif: e.target.value })} data-testid="input-store-nif" />
+            </div>
+            <div>
+              <Label>RC</Label>
+              <Input value={form.rc} onChange={(e) => setForm({ ...form, rc: e.target.value })} data-testid="input-store-rc" />
+            </div>
+            <div>
+              <Label>AI / Article d'imposition</Label>
+              <Input value={form.ai} onChange={(e) => setForm({ ...form, ai: e.target.value })} data-testid="input-store-ai" />
+            </div>
+            <div>
+              <Label>Taux TVA (%)</Label>
+              <Input type="number" step="0.01" min="0" value={form.tvaRate} onChange={(e) => setForm({ ...form, tvaRate: e.target.value })} data-testid="input-store-tva" />
+            </div>
+            <div className="col-span-2 flex items-center justify-between border rounded-md px-3 py-2 bg-slate-50">
+              <div>
+                <Label className="cursor-pointer">Assujetti à la TVA par défaut / خاضع للضريبة</Label>
+                <p className="text-xs text-muted-foreground">Affichera HT/TVA/TTC sur les factures</p>
+              </div>
+              <Switch checked={form.showTvaByDefault} onCheckedChange={(v) => setForm({ ...form, showTvaByDefault: v })} data-testid="switch-store-tva-default" />
+            </div>
+            <label className="col-span-2 flex items-center gap-2 text-sm">
               <input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} data-testid="input-store-active" />
               <span>Actif / نشط</span>
             </label>
-            {error && <p className="text-sm text-red-600">{error}</p>}
+            {error && <p className="col-span-2 text-sm text-red-600">{error}</p>}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Annuler / إلغاء</Button>

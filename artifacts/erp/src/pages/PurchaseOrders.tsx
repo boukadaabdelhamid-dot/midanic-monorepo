@@ -20,9 +20,12 @@ import {
 } from "@/components/ui/table";
 import {
   Plus, Pencil, Trash2, Search, Save, Eye, EyeOff, Cloud, History,
-  FileText, Settings, Filter, X, Check, Truck, ShoppingBag, RefreshCw,
+  FileText, Settings, Filter, X, Check, Truck, ShoppingBag, RefreshCw, Printer,
 } from "lucide-react";
 import { format } from "date-fns";
+import InvoiceDialog from "@/components/InvoiceDialog";
+import type { InvoiceData } from "@/components/InvoiceTemplate";
+import { useCurrentStore } from "@/hooks/use-current-store";
 
 const fmt = (n: number) =>
   n.toLocaleString("fr-DZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -302,6 +305,9 @@ function PurchaseEditor({
   const [lines, setLines] = useState<EditLine[]>([]);
   const [code, setCode] = useState("");
   const [showMontant, setShowMontant] = useState(true);
+  const [invoiceShowTva, setInvoiceShowTva] = useState(false);
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const store = useCurrentStore();
 
   const { data: existingItems } = useGetPurchaseOrderItems(editing?.id ?? 0, {
     query: { enabled: open && !!editing },
@@ -646,6 +652,31 @@ function PurchaseEditor({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Annuler / إلغاء
           </Button>
+          {isExisting && (
+            <>
+              <Button
+                variant="outline"
+                className="border-[#1B3057] text-[#1B3057] hover:bg-blue-50"
+                onClick={() => { setInvoiceShowTva(false); setInvoiceOpen(true); }}
+                disabled={!supplier || lines.length === 0}
+                title="Facture sans TVA / فاتورة بدون ضريبة"
+                data-testid="button-print-purchase-invoice"
+              >
+                <Printer className="h-4 w-4 mr-1.5" />
+                Facture / فاتورة
+              </Button>
+              <Button
+                variant="ghost"
+                className="text-amber-700 hover:bg-amber-50"
+                onClick={() => { setInvoiceShowTva(true); setInvoiceOpen(true); }}
+                disabled={!supplier || lines.length === 0}
+                data-testid="button-print-purchase-invoice-tva"
+                title="Facture avec TVA / مع ضريبة"
+              >
+                + TVA
+              </Button>
+            </>
+          )}
           {isExisting && !isReceived && (
             <Button
               variant="outline"
@@ -670,6 +701,30 @@ function PurchaseEditor({
             </Button>
           )}
         </DialogFooter>
+
+        <InvoiceDialog
+          open={invoiceOpen}
+          onOpenChange={setInvoiceOpen}
+          data={editing ? {
+            kind: "purchase",
+            number: `FA-${String(editing.id).padStart(6, "0")}`,
+            date: editing.createdAt ? new Date(editing.createdAt) : new Date(),
+            store,
+            party: {
+              name: supplier?.name ?? "—",
+              address: supplier?.address ?? null,
+              phone: supplier?.phone ?? null,
+            },
+            lines: lines.map((l) => ({
+              designation: l.designation,
+              qty: l.qty,
+              unitPrice: l.pu,
+            })),
+            showTva: invoiceShowTva,
+            tvaRate: parseFloat(store?.tvaRate ?? "19"),
+            notes: refAchat ? `Réf: ${refAchat}` : undefined,
+          } : null}
+        />
 
         <SupplierPickerDialog
           open={supplierPickerOpen}

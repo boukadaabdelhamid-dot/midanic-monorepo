@@ -37,6 +37,14 @@ router.get("/erp/stores/mine", authenticate, async (req: AuthRequest, res) => {
       nameEn: schema.storesTable.nameEn,
       slug: schema.storesTable.slug,
       isActive: schema.storesTable.isActive,
+      address: schema.storesTable.address,
+      phone: schema.storesTable.phone,
+      logoUrl: schema.storesTable.logoUrl,
+      tvaRate: schema.storesTable.tvaRate,
+      showTvaByDefault: schema.storesTable.showTvaByDefault,
+      nif: schema.storesTable.nif,
+      rc: schema.storesTable.rc,
+      ai: schema.storesTable.ai,
     })
       .from(schema.userStoresTable)
       .innerJoin(schema.storesTable, eq(schema.userStoresTable.storeId, schema.storesTable.id))
@@ -94,7 +102,7 @@ router.get("/erp/stores", authenticate, requireAdmin, async (req, res) => {
 
 router.post("/erp/stores", authenticate, requireAdmin, async (req: AuthRequest, res) => {
   try {
-    const { nameAr, nameEn, slug, isActive } = req.body || {};
+    const { nameAr, nameEn, slug, isActive, address, phone, logoUrl, tvaRate, showTvaByDefault, nif, rc, ai } = req.body || {};
     if (!nameAr || !nameEn || !slug) {
       res.status(400).json({ error: "nameAr, nameEn, slug required" });
       return;
@@ -109,6 +117,14 @@ router.post("/erp/stores", authenticate, requireAdmin, async (req: AuthRequest, 
     const [store] = await db.insert(schema.storesTable).values({
       nameAr, nameEn, slug: cleanSlug,
       isActive: isActive !== false,
+      address: address ?? null,
+      phone: phone ?? null,
+      logoUrl: logoUrl ?? null,
+      tvaRate: tvaRate !== undefined ? String(tvaRate) : "19",
+      showTvaByDefault: !!showTvaByDefault,
+      nif: nif ?? null,
+      rc: rc ?? null,
+      ai: ai ?? null,
     }).returning();
     // Auto-grant the creator (admin) access
     await db.insert(schema.userStoresTable).values({ userId: req.user!.id, storeId: store.id }).onConflictDoNothing();
@@ -119,11 +135,19 @@ router.post("/erp/stores", authenticate, requireAdmin, async (req: AuthRequest, 
 router.patch("/erp/stores/:id", authenticate, requireAdmin, async (req, res) => {
   try {
     const id = pid(req, "id");
-    const { nameAr, nameEn, isActive } = req.body || {};
+    const b = req.body || {};
     const update: Record<string, unknown> = {};
-    if (nameAr !== undefined) update["nameAr"] = nameAr;
-    if (nameEn !== undefined) update["nameEn"] = nameEn;
-    if (isActive !== undefined) update["isActive"] = !!isActive;
+    if (b.nameAr !== undefined) update["nameAr"] = b.nameAr;
+    if (b.nameEn !== undefined) update["nameEn"] = b.nameEn;
+    if (b.isActive !== undefined) update["isActive"] = !!b.isActive;
+    if (b.address !== undefined) update["address"] = b.address || null;
+    if (b.phone !== undefined) update["phone"] = b.phone || null;
+    if (b.logoUrl !== undefined) update["logoUrl"] = b.logoUrl || null;
+    if (b.tvaRate !== undefined) update["tvaRate"] = String(b.tvaRate);
+    if (b.showTvaByDefault !== undefined) update["showTvaByDefault"] = !!b.showTvaByDefault;
+    if (b.nif !== undefined) update["nif"] = b.nif || null;
+    if (b.rc !== undefined) update["rc"] = b.rc || null;
+    if (b.ai !== undefined) update["ai"] = b.ai || null;
     if (Object.keys(update).length === 0) {
       res.status(400).json({ error: "Nothing to update" });
       return;

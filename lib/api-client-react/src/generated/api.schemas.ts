@@ -60,6 +60,14 @@ export interface Store {
   slug: string;
   isActive?: boolean;
   createdAt?: string;
+  address?: string | null;
+  phone?: string | null;
+  logoUrl?: string | null;
+  tvaRate?: string | null;
+  showTvaByDefault?: boolean | null;
+  nif?: string | null;
+  rc?: string | null;
+  ai?: string | null;
 }
 
 export interface User {
@@ -94,12 +102,28 @@ export interface CreateStoreRequest {
   nameEn: string;
   slug: string;
   isActive?: boolean;
+  address?: string;
+  phone?: string;
+  logoUrl?: string;
+  tvaRate?: string;
+  showTvaByDefault?: boolean;
+  nif?: string;
+  rc?: string;
+  ai?: string;
 }
 
 export interface UpdateStoreRequest {
   nameAr?: string;
   nameEn?: string;
   isActive?: boolean;
+  address?: string | null;
+  phone?: string | null;
+  logoUrl?: string | null;
+  tvaRate?: string;
+  showTvaByDefault?: boolean;
+  nif?: string | null;
+  rc?: string | null;
+  ai?: string | null;
 }
 
 export interface Product {

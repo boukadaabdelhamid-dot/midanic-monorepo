@@ -22,8 +22,11 @@ import {
 } from "@/components/ui/dialog";
 import {
   Plus, Pencil, Trash2, ShoppingCart, Search, Save, RotateCcw, Printer,
-  X, Eye, EyeOff, Settings, Users, Barcode, Check,
+  X, Eye, EyeOff, Settings, Users, Barcode, Check, FileText,
 } from "lucide-react";
+import InvoiceDialog from "@/components/InvoiceDialog";
+import type { InvoiceData } from "@/components/InvoiceTemplate";
+import { useCurrentStore } from "@/hooks/use-current-store";
 
 type CartLine = {
   productId: number;
@@ -40,9 +43,12 @@ const fmt = (n: number) =>
 export default function Pos() {
   const qc = useQueryClient();
   const { user } = useMe();
+  const store = useCurrentStore();
   const { data: productsResp } = useGetProducts({ limit: 500 });
   const { data: customersResp } = useGetErpCustomers();
   const createOrder = useCreateOrder();
+  const [invoice, setInvoice] = useState<{ data: InvoiceData; auto: boolean } | null>(null);
+  const [proformaOpen, setProformaOpen] = useState(false);
 
   const products: Product[] = (productsResp?.products ?? []) as Product[];
   const customers: CustomerSummary[] = (customersResp ?? []) as CustomerSummary[];
@@ -123,6 +129,37 @@ export default function Pos() {
     setEmptyState(false); setCode(""); setQty(1);
   }
 
+  function buildInvoiceLines() {
+    return lines.map((l) => ({
+      designation: l.designation,
+      qty: l.qty,
+      unitPrice: l.pu,
+    }));
+  }
+
+  function openProforma() {
+    if (lines.length === 0) {
+      alert("Ajoutez au moins un article / أضف منتجاً واحداً على الأقل");
+      return;
+    }
+    const data: InvoiceData = {
+      kind: "proforma",
+      number: `PRO-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.floor(Math.random() * 9000 + 1000)}`,
+      date: new Date(),
+      store,
+      party: {
+        name: client?.name ?? "DIVER COMPTOIR",
+        phone: client?.phone ?? null,
+      },
+      lines: buildInvoiceLines(),
+      showTva: !!store?.showTvaByDefault,
+      tvaRate: parseFloat(store?.tvaRate ?? "19"),
+      notes: "Devis valable 7 jours / صالح لمدة 7 أيام",
+    };
+    setInvoice({ data, auto: false });
+    setProformaOpen(true);
+  }
+
   function handlePaymentConfirm(opts: { mode: "comptant" | "terme"; cloture: boolean; impression: boolean }) {
     if (lines.length === 0) {
       alert("Ajoutez au moins un article / أضف منتجاً واحداً على الأقل");
@@ -130,22 +167,33 @@ export default function Pos() {
     }
     const items = lines.map((l) => ({ productId: l.productId, quantity: l.qty }));
     const customerName = client?.name ?? "DIVER COMPTOIR";
+    const snapshotLines = buildInvoiceLines();
+    const snapshotClient = client;
     createOrder.mutate(
-      { data: { customerName, customerPhone: "0000000000", customerAddress: "Vente comptoir", items } },
+      { data: { customerName, customerPhone: client?.phone ?? "0000000000", customerAddress: "Vente comptoir", items } },
       {
         onSuccess: (order) => {
           qc.invalidateQueries({ queryKey: getGetTransactionsQueryKey() });
-          if (opts.impression) { try { window.print(); } catch { /* noop */ } }
           setPaymentOpen(false);
+          if (opts.impression) {
+            const data: InvoiceData = {
+              kind: "sale",
+              number: `FV-${String(order.id).padStart(6, "0")}`,
+              date: new Date(),
+              store,
+              party: {
+                name: customerName,
+                phone: snapshotClient?.phone ?? null,
+              },
+              lines: snapshotLines,
+              showTva: !!store?.showTvaByDefault,
+              tvaRate: parseFloat(store?.tvaRate ?? "19"),
+              notes: opts.mode === "terme" ? "Vente à terme / بيع بالأجل" : undefined,
+            };
+            setInvoice({ data, auto: true });
+          }
           resetSale();
           if (opts.cloture) setEmptyState(true);
-          const sellerName = order.sellerUser?.name || order.sellerUser?.email || user?.name || user?.email || "—";
-          alert(
-            `Vente #${order.id} enregistrée (${opts.mode === "comptant" ? "Comptant" : "À terme"}).\n` +
-            `Vendeur / البائع: ${sellerName}\n` +
-            `Le montant a été crédité à votre caisse / تم إضافة المبلغ إلى صندوقك.\n` +
-            `Voir l'historique des commandes pour les détails.`
-          );
         },
         onError: (err) => alert(`Erreur: ${(err as Error).message}`),
       }
@@ -308,6 +356,15 @@ export default function Pos() {
             >
               Payer
             </Button>
+            <Button
+              variant="outline"
+              className="w-full h-10 mt-1 border-amber-300 text-amber-700 hover:bg-amber-50 font-semibold"
+              onClick={openProforma}
+              data-testid="button-proforma"
+            >
+              <FileText className="h-4 w-4 mr-1.5" />
+              Facture proforma / فاتورة أولية
+            </Button>
           </CardContent>
         </Card>
 
@@ -434,6 +491,13 @@ export default function Pos() {
         versement={versement} setVersement={setVersement}
         onConfirm={handlePaymentConfirm}
         isPending={createOrder.isPending}
+      />
+
+      <InvoiceDialog
+        open={!!invoice}
+        onOpenChange={(o) => { if (!o) { setInvoice(null); setProformaOpen(false); } }}
+        data={invoice?.data ?? null}
+        autoPrint={invoice?.auto}
       />
     </div>
   );

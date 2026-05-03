@@ -175,6 +175,23 @@ paths:
                 items:
                   $ref: "#/components/schemas/Store"
 
+  /erp/stores/mine:
+    get:
+      operationId: getErpStoresMine
+      tags: [erp]
+      summary: Stores the current user belongs to (with profile fields)
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: My stores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Store"
+
   /erp/stores/{id}:
     patch:
       operationId: updateErpStore
@@ -1914,6 +1931,30 @@ components:
           type: boolean
         createdAt:
           type: string
+        address:
+          type: string
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        logoUrl:
+          type: string
+          nullable: true
+        tvaRate:
+          type: string
+          nullable: true
+        showTvaByDefault:
+          type: boolean
+          nullable: true
+        nif:
+          type: string
+          nullable: true
+        rc:
+          type: string
+          nullable: true
+        ai:
+          type: string
+          nullable: true
       required: [id, nameAr, nameEn, slug]
 
     SelectStoreRequest:
@@ -1941,6 +1982,14 @@ components:
         nameEn: { type: string }
         slug:   { type: string }
         isActive: { type: boolean }
+        address: { type: string }
+        phone: { type: string }
+        logoUrl: { type: string }
+        tvaRate: { type: string }
+        showTvaByDefault: { type: boolean }
+        nif: { type: string }
+        rc: { type: string }
+        ai: { type: string }
       required: [nameAr, nameEn, slug]
 
     UpdateStoreRequest:
@@ -1949,6 +1998,14 @@ components:
         nameAr:   { type: string }
         nameEn:   { type: string }
         isActive: { type: boolean }
+        address: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        logoUrl: { type: string, nullable: true }
+        tvaRate: { type: string }
+        showTvaByDefault: { type: boolean }
+        nif: { type: string, nullable: true }
+        rc: { type: string, nullable: true }
+        ai: { type: string, nullable: true }
 
     User:
       type: object
