@@ -3,6 +3,12 @@ import { setAuthTokenGetter } from "@workspace/api-client-react";
 
 setAuthTokenGetter(() => localStorage.getItem("midanic_token"));
 
+/** Call this from outside React components (e.g. QueryClient error handler) */
+export function forceLogout() {
+  localStorage.removeItem("midanic_token");
+  window.location.href = `${import.meta.env.BASE_URL}login`.replace(/\/+/g, "/");
+}
+
 type AuthContextType = {
   token: string | null;
   setToken: (t: string) => void;

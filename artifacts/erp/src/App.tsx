@@ -1,8 +1,8 @@
 import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, MutationCache, QueryCache } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider, useAuth } from "@/hooks/use-auth";
+import { AuthProvider, useAuth, forceLogout } from "@/hooks/use-auth";
 import { Layout } from "@/components/layout/Layout";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/Login";
@@ -21,10 +21,25 @@ import Customers from "@/pages/Customers";
 import Caisse from "@/pages/Caisse";
 import RealTime from "@/pages/RealTime";
 
+function is401(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    (error as { status: number }).status === 401
+  );
+}
+
 const queryClient = new QueryClient({
+  queryCache: new QueryCache({
+    onError: (error) => { if (is401(error)) forceLogout(); },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error) => { if (is401(error)) forceLogout(); },
+  }),
   defaultOptions: {
     queries: {
-      retry: 1,
+      retry: (failureCount, error) => !is401(error) && failureCount < 1,
       staleTime: 30_000,
     },
   },

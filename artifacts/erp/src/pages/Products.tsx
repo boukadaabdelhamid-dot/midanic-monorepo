@@ -276,28 +276,46 @@ export default function Products() {
       isActive: form.isActive,
       isExposed: form.isExposed,
     };
-    const onSettled = () => {
-      qc.invalidateQueries({ queryKey: getGetProductsQueryKey() });
-      setDialog({ open: false, editing: null });
-    };
+    const forceRefresh = () => qc.invalidateQueries({ queryKey: getGetProductsQueryKey(), refetchType: "all" });
     if (dialog.editing) {
-      updateProduct.mutate({ id: dialog.editing.id, data }, { onSettled });
+      updateProduct.mutate({ id: dialog.editing.id, data }, {
+        onSuccess: () => { forceRefresh(); setDialog({ open: false, editing: null }); },
+        onError: (err) => alert(`Erreur: ${err.message}`),
+      });
     } else {
-      createProduct.mutate({ data }, { onSettled });
+      createProduct.mutate({ data }, {
+        onSuccess: () => { forceRefresh(); setDialog({ open: false, editing: null }); },
+        onError: (err) => alert(`Erreur: ${err.message}`),
+      });
     }
   };
 
   const handleDelete = (id: number) => {
     if (!confirm("Supprimer ce produit ?")) return;
     deleteProduct.mutate({ id }, {
-      onSettled: () => qc.invalidateQueries({ queryKey: getGetProductsQueryKey() })
+      onSettled: () => qc.invalidateQueries({ queryKey: getGetProductsQueryKey(), refetchType: "all" })
     });
   };
 
+  const PRODUCTS_PARAMS = { limit: "200" } as const;
+
   const toggleVisibility = (p: Product) => {
+    // Optimistic update — flip icon immediately
+    qc.setQueryData(getGetProductsQueryKey(PRODUCTS_PARAMS), (old: typeof productsRes) => {
+      if (!old?.products) return old;
+      return {
+        ...old,
+        products: old.products.map((prod) =>
+          prod.id === p.id ? { ...prod, isExposed: !p.isExposed } : prod
+        ),
+      };
+    });
     updateProduct.mutate(
       { id: p.id, data: { isExposed: !p.isExposed } },
-      { onSettled: () => qc.invalidateQueries({ queryKey: getGetProductsQueryKey() }) }
+      {
+        onSuccess: () => qc.invalidateQueries({ queryKey: getGetProductsQueryKey(), refetchType: "all" }),
+        onError: () => qc.invalidateQueries({ queryKey: getGetProductsQueryKey(), refetchType: "all" }),
+      }
     );
   };
 
