@@ -1,10 +1,27 @@
 // @refresh reset
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { useGetMe, getGetMeQueryKey, type User, setAuthTokenGetter } from "@workspace/api-client-react";
+import { useGetMe, getGetMeQueryKey, type User, setAuthTokenGetter, setExtraHeadersGetter } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 setAuthTokenGetter(() => {
   return localStorage.getItem("midanic_token");
+});
+
+// Resolve store slug from URL (?store=) or persisted localStorage and send
+// it as X-Store-Slug on every request so the storefront stays scoped.
+setExtraHeadersGetter(() => {
+  try {
+    const url = new URL(window.location.href);
+    const fromQuery = url.searchParams.get("store");
+    if (fromQuery) {
+      localStorage.setItem("midanic_store_slug", fromQuery);
+      return { "X-Store-Slug": fromQuery };
+    }
+    const stored = localStorage.getItem("midanic_store_slug");
+    return stored ? { "X-Store-Slug": stored } : null;
+  } catch {
+    return null;
+  }
 });
 
 type AuthContextType = {

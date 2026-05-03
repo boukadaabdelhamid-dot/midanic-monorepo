@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { setAuthTokenGetter } from "@workspace/api-client-react";
+import { setAuthTokenGetter, setExtraHeadersGetter } from "@workspace/api-client-react";
 import React, {
   ReactNode,
   createContext,
@@ -25,19 +25,22 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
+  const [storeSlug, setStoreSlug] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [storedToken, storedUser] = await Promise.all([
+        const [storedToken, storedUser, storedSlug] = await Promise.all([
           AsyncStorage.getItem("midanic_token"),
           AsyncStorage.getItem("midanic_user"),
+          AsyncStorage.getItem("midanic_store_slug"),
         ]);
         if (storedToken && storedUser) {
           setToken(storedToken);
           setUser(JSON.parse(storedUser) as User);
         }
+        if (storedSlug) setStoreSlug(storedSlug);
       } catch (err) {
         console.warn("[AuthContext] Failed to restore session:", err);
       } finally {
@@ -46,6 +49,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     load();
   }, []);
+
+  useEffect(() => {
+    setExtraHeadersGetter(() => (storeSlug ? { "X-Store-Slug": storeSlug } : null));
+  }, [storeSlug]);
 
   useEffect(() => {
     setAuthTokenGetter(() => token);

@@ -23,6 +23,29 @@ router.get("/stores/public", async (_req, res) => {
   } catch (err) { (err as Error).message; res.status(500).json({ error: "Internal server error" }); }
 });
 
+// Staff: list MY accessible stores (admin or employee).
+router.get("/erp/stores/mine", authenticate, async (req: AuthRequest, res) => {
+  try {
+    const role = req.user?.role;
+    if (role !== "admin" && role !== "employee") {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+    const rows = await db.select({
+      id: schema.storesTable.id,
+      nameAr: schema.storesTable.nameAr,
+      nameEn: schema.storesTable.nameEn,
+      slug: schema.storesTable.slug,
+      isActive: schema.storesTable.isActive,
+    })
+      .from(schema.userStoresTable)
+      .innerJoin(schema.storesTable, eq(schema.userStoresTable.storeId, schema.storesTable.id))
+      .where(eq(schema.userStoresTable.userId, req.user!.id))
+      .orderBy(schema.storesTable.id);
+    res.json(rows.filter((r) => r.isActive));
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
+});
+
 // Admin: list all stores
 router.get("/erp/stores", authenticate, requireAdmin, async (req, res) => {
   try {

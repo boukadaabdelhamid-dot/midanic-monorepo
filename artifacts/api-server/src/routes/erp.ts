@@ -66,7 +66,18 @@ router.get("/erp/attendance", authenticate, requireAdmin, requireStore, async (r
 
 router.post("/erp/attendance", authenticate, requireAdmin, requireStore, async (req: AuthRequest, res) => {
   try {
-    const body = { ...req.body, storeId: req.currentStoreId! };
+    const storeId = req.currentStoreId!;
+    const employeeId = Number(req.body?.employeeId);
+    if (!Number.isInteger(employeeId)) {
+      res.status(400).json({ error: "employeeId required" });
+      return;
+    }
+    const [emp] = await db.select({ id: schema.employeesTable.id })
+      .from(schema.employeesTable)
+      .where(and(eq(schema.employeesTable.id, employeeId), eq(schema.employeesTable.storeId, storeId)))
+      .limit(1);
+    if (!emp) { res.status(403).json({ error: "Employee does not belong to current store" }); return; }
+    const body = { ...req.body, storeId };
     const [record] = await db.insert(schema.attendanceTable).values(body).returning();
     res.status(201).json(record);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
@@ -85,7 +96,18 @@ router.get("/erp/leaves", authenticate, requireAdmin, requireStore, async (req: 
 
 router.post("/erp/leaves", authenticate, requireAdmin, requireStore, async (req: AuthRequest, res) => {
   try {
-    const body = { ...req.body, storeId: req.currentStoreId! };
+    const storeId = req.currentStoreId!;
+    const employeeId = Number(req.body?.employeeId);
+    if (!Number.isInteger(employeeId)) {
+      res.status(400).json({ error: "employeeId required" });
+      return;
+    }
+    const [emp] = await db.select({ id: schema.employeesTable.id })
+      .from(schema.employeesTable)
+      .where(and(eq(schema.employeesTable.id, employeeId), eq(schema.employeesTable.storeId, storeId)))
+      .limit(1);
+    if (!emp) { res.status(403).json({ error: "Employee does not belong to current store" }); return; }
+    const body = { ...req.body, storeId };
     const [leave] = await db.insert(schema.leavesTable).values(body).returning();
     res.status(201).json(leave);
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
