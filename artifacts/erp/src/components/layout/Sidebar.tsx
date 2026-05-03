@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard, ShoppingCart, Package, Users, Clock,
   Calendar, Truck, FileText, BarChart2, CreditCard,
-  UserCheck, LogOut, Menu, X, Wallet, Activity, Home
+  UserCheck, LogOut, Menu, X, Wallet, Activity, Home,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
 import logoPath from "@assets/logo_des_13_midanic_1777739613232.jpeg";
 import { useAuth } from "@/hooks/use-auth";
@@ -27,19 +28,38 @@ const navItems = [
   { href: "/accounting", icon: CreditCard, labelEn: "Comptabilité", labelAr: "المحاسبة" },
 ];
 
+const COLLAPSE_KEY = "midanic.erp.sidebarCollapsed";
+
 export function Sidebar() {
   const [location] = useLocation();
   const { logout } = useAuth();
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem(COLLAPSE_KEY) === "1";
+  });
 
-  const sidebarContent = (
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(COLLAPSE_KEY, collapsed ? "1" : "0");
+    }
+  }, [collapsed]);
+
+  const renderContent = (isCollapsed: boolean) => (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border">
-        <img src={logoPath} alt="Midanic" className="h-8 w-auto rounded" />
-        <div>
-          <div className="font-bold text-sidebar-foreground text-sm leading-tight">Midanic ERP</div>
-          <div className="text-xs text-sidebar-foreground/60" dir="rtl">ميدانيك</div>
-        </div>
+      <div
+        className={cn(
+          "flex items-center border-b border-sidebar-border py-5",
+          isCollapsed ? "justify-center px-2" : "gap-3 px-4",
+        )}
+      >
+        <img src={logoPath} alt="Midanic" className="h-8 w-auto rounded shrink-0" />
+        {!isCollapsed && (
+          <div className="min-w-0">
+            <div className="font-bold text-sidebar-foreground text-sm leading-tight truncate">Midanic ERP</div>
+            <div className="text-xs text-sidebar-foreground/60 truncate" dir="rtl">ميدانيك</div>
+          </div>
+        )}
       </div>
 
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
@@ -49,33 +69,42 @@ export function Sidebar() {
             <Link key={href} href={href} onClick={() => setOpen(false)}>
               <div
                 data-testid={`nav-${href.replace("/", "")}`}
+                title={isCollapsed ? `${labelEn} / ${labelAr}` : undefined}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors cursor-pointer",
+                  "flex items-center rounded-md text-sm font-medium transition-colors cursor-pointer",
+                  isCollapsed ? "justify-center px-2 py-2.5" : "gap-3 px-3 py-2.5",
                   active
                     ? "bg-sidebar-accent text-sidebar-accent-foreground"
                     : "text-sidebar-foreground/70 hover:bg-sidebar-accent/50 hover:text-sidebar-foreground"
                 )}
               >
                 <Icon className="h-4 w-4 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="truncate">{labelEn}</div>
-                  <div className="truncate text-xs opacity-70" dir="rtl">{labelAr}</div>
-                </div>
+                {!isCollapsed && (
+                  <div className="flex-1 min-w-0">
+                    <div className="truncate">{labelEn}</div>
+                    <div className="truncate text-xs opacity-70" dir="rtl">{labelAr}</div>
+                  </div>
+                )}
               </div>
             </Link>
           );
         })}
       </nav>
 
-      <div className="p-3 border-t border-sidebar-border">
+      <div className={cn("border-t border-sidebar-border", isCollapsed ? "p-2" : "p-3")}>
         <Button
           variant="ghost"
-          className="w-full justify-start text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50"
+          size={isCollapsed ? "icon" : "default"}
+          className={cn(
+            "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50",
+            isCollapsed ? "w-full h-9" : "w-full justify-start"
+          )}
           onClick={logout}
           data-testid="button-logout"
+          title={isCollapsed ? "Logout / خروج" : undefined}
         >
-          <LogOut className="h-4 w-4 mr-2" />
-          Logout / خروج
+          <LogOut className={cn("h-4 w-4", !isCollapsed && "mr-2")} />
+          {!isCollapsed && <span>Logout / خروج</span>}
         </Button>
       </div>
     </div>
@@ -90,6 +119,7 @@ export function Sidebar() {
           size="icon"
           className="text-sidebar-foreground mr-3"
           onClick={() => setOpen(!open)}
+          data-testid="button-mobile-menu"
         >
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </Button>
@@ -105,17 +135,31 @@ export function Sidebar() {
         />
       )}
 
-      {/* Mobile sidebar */}
+      {/* Mobile sidebar — always expanded for readability */}
       <div className={cn(
         "lg:hidden fixed top-14 left-0 bottom-0 z-50 w-64 bg-sidebar transition-transform",
         open ? "translate-x-0" : "-translate-x-full"
       )}>
-        {sidebarContent}
+        {renderContent(false)}
       </div>
 
-      {/* Desktop sidebar */}
-      <div className="hidden lg:flex lg:flex-col lg:w-60 lg:shrink-0 bg-sidebar min-h-screen">
-        {sidebarContent}
+      {/* Desktop sidebar — collapsible */}
+      <div
+        className={cn(
+          "hidden lg:flex lg:flex-col lg:shrink-0 bg-sidebar min-h-screen relative transition-[width] duration-200",
+          collapsed ? "lg:w-16" : "lg:w-60"
+        )}
+      >
+        {renderContent(collapsed)}
+        <button
+          type="button"
+          onClick={() => setCollapsed((c) => !c)}
+          data-testid="button-toggle-sidebar"
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className="absolute top-6 -right-3 z-10 h-6 w-6 rounded-full bg-sidebar border border-sidebar-border text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent flex items-center justify-center shadow"
+        >
+          {collapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
+        </button>
       </div>
     </>
   );
