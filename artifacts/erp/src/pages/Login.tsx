@@ -41,17 +41,29 @@ export default function Login() {
           setToken(res.token);
           clear();
           const stores = res.stores ?? [];
-          if (stores.length === 0) {
+          // Backend auto-stamps currentStoreId on the login token when a user
+          // has exactly one active store (covers all employees and
+          // single-store admins). When that's the case, skip select-store
+          // entirely — /auth/select-store is admin-only and would 403 for
+          // employees.
+          if (res.currentStoreId != null) {
+            setStores(stores, res.currentStoreId);
+            setLocation("/home");
+          } else if (stores.length === 0) {
             // customer or no store assigned
             setLocation("/home");
           } else if (stores.length === 1) {
-            // auto-select the only store
+            // Defensive fallback: try select-store; on 403 still navigate.
             selectStore.mutate(
               { data: { storeId: stores[0].id } },
               {
                 onSuccess: (sres) => {
                   setToken(sres.token);
                   setStores(stores, sres.currentStoreId);
+                  setLocation("/home");
+                },
+                onError: () => {
+                  setStores(stores, stores[0].id);
                   setLocation("/home");
                 },
               }
