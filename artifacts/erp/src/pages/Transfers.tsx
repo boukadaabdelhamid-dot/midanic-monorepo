@@ -471,8 +471,12 @@ function TransferDetailDialog({
   const cancel = useCancelErpTransfer();
 
   const t = detail as StockTransferDetail | undefined;
-  const isSource = t ? (isAdmin || currentStoreId === t.sourceStoreId) : false;
-  const isDest = t ? (isAdmin || currentStoreId === t.destinationStoreId) : false;
+  // Action gating must mirror the backend exactly: the backend requires
+  // currentStoreId to match the transfer side (admins do NOT get a blanket
+  // bypass — they must select the relevant store). Hiding buttons that the
+  // server would reject prevents misleading 403s.
+  const isSource = t ? currentStoreId === t.sourceStoreId : false;
+  const isDest = t ? currentStoreId === t.destinationStoreId : false;
 
   const act = (m: { mutate: (v: { id: number }, opts: { onSuccess: () => void }) => void }) => {
     m.mutate({ id }, { onSuccess: () => onChanged() });
@@ -565,7 +569,7 @@ function TransferDetailDialog({
                   </Button>
                 </>
               )}
-              {(t.status === "approved" || (t.status === "requested" && isAdmin && isSource)) && isSource && (
+              {((t.status === "approved") || (t.status === "requested" && isAdmin)) && isSource && (
                 <Button size="sm" onClick={() => act(prepare)} disabled={prepare.isPending} data-testid="button-prepare">
                   <PackageCheck className="h-4 w-4 mr-1" /> Prepare / تجهيز
                 </Button>

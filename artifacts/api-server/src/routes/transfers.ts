@@ -364,7 +364,7 @@ router.post("/erp/transfers", authenticate, requireStaff, requireStore, async (r
 // prepared  → in_transit (source/ship) | cancelled (source, admin only)
 // in_transit → received (dest)
 function ensure(req: AuthRequest, ok: boolean, res: import("express").Response, msg = "Forbidden"): boolean {
-  if (!ok) { res.status(403).json({ error: msg }); return false; }
+  if (!ok) { res.status(403).json({ error: msg, code: "STORE_ACCESS_REVOKED" }); return false; }
   return true;
 }
 
