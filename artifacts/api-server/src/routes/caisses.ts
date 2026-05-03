@@ -135,13 +135,12 @@ router.get("/erp/caisses", authenticate, requireStaff, requireStore, async (req:
         .where(eq(schema.caissesTable.storeId, storeId))
         .orderBy(desc(schema.caissesTable.kind), schema.caissesTable.id);
     } else {
+      // Non-admin staff: only their own caisse (no main, no colleagues').
       rows = await db.select().from(schema.caissesTable)
         .where(and(
           eq(schema.caissesTable.storeId, storeId),
-          or(
-            eq(schema.caissesTable.kind, "main"),
-            eq(schema.caissesTable.ownerUserId, userId),
-          )!,
+          eq(schema.caissesTable.kind, "staff"),
+          eq(schema.caissesTable.ownerUserId, userId),
         ));
     }
 

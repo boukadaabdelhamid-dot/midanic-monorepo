@@ -3,7 +3,7 @@ import { eq, desc, sql, lt, and, inArray } from "drizzle-orm";
 import { db, schema } from "../lib/db";
 import { authenticate, requireAdmin, requireStaff, requireStore, optionalAuth, type AuthRequest } from "../lib/auth";
 import { resolvePublicStore } from "../lib/store-context";
-import { broadcastToAdmins } from "../lib/ws";
+import { broadcastToAdmins, broadcastToStoreUsers } from "../lib/ws";
 import { ensureCaisse } from "./caisses";
 
 
@@ -185,8 +185,10 @@ async function handleCreateOrder(req: AuthRequest, res: import("express").Respon
 
       // Credit the seller's virtual caisse for staff/admin POS sales.
       // Storefront (customer-placed) orders have no seller and skip this.
+      let sellerCaisseId: number | null = null;
       if (sellerUserId !== null && totalAmount > 0) {
         const sellerCaisse = await ensureCaisse(storeId, sellerUserId, tx);
+        sellerCaisseId = sellerCaisse.id;
         const amountStr = totalAmount.toFixed(2);
         await tx.update(schema.caissesTable)
           .set({ balance: sql`${schema.caissesTable.balance} + ${amountStr}` })
@@ -202,7 +204,7 @@ async function handleCreateOrder(req: AuthRequest, res: import("express").Respon
         });
       }
 
-      return { order, enrichedItems, totalAmount, sellerUserId };
+      return { order, enrichedItems, totalAmount, sellerUserId, sellerCaisseId };
     });
 
     broadcastToAdmins({
@@ -210,6 +212,16 @@ async function handleCreateOrder(req: AuthRequest, res: import("express").Respon
       storeId,
       order: { id: result.order.id, customerName, customerPhone, customerAddress, totalAmount: result.totalAmount, createdAt: result.order.createdAt },
     });
+
+    // Emit caisse_changed so the seller (and admins viewing the store) get
+    // a live balance update after a POS sale credits their virtual caisse.
+    if (result.sellerCaisseId !== null && result.sellerUserId !== null) {
+      broadcastToStoreUsers(
+        storeId,
+        { type: "caisse_changed", storeId, caisseIds: [result.sellerCaisseId] },
+        [result.sellerUserId],
+      );
+    }
 
     for (const item of result.enrichedItems) {
       if (item.product.stock < 5) {
