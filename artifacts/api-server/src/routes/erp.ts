@@ -137,6 +137,25 @@ router.post("/erp/purchase-orders", authenticate, requireAdmin, async (req, res)
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
+router.get("/erp/purchase-orders/:id/items", authenticate, requireAdmin, async (req, res) => {
+  try {
+    const poId = pid(req, "id");
+    const items = await db.select({
+      id: schema.purchaseItemsTable.id,
+      purchaseOrderId: schema.purchaseItemsTable.purchaseOrderId,
+      productId: schema.purchaseItemsTable.productId,
+      quantity: schema.purchaseItemsTable.quantity,
+      unitCost: schema.purchaseItemsTable.unitCost,
+      productNameEn: schema.productsTable.nameEn,
+      productNameAr: schema.productsTable.nameAr,
+    })
+      .from(schema.purchaseItemsTable)
+      .leftJoin(schema.productsTable, eq(schema.productsTable.id, schema.purchaseItemsTable.productId))
+      .where(eq(schema.purchaseItemsTable.purchaseOrderId, poId));
+    res.json(items);
+  } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
+});
+
 router.put("/erp/purchase-orders/:id/receive", authenticate, requireAdmin, async (req, res) => {
   try {
     const poId = pid(req, "id");

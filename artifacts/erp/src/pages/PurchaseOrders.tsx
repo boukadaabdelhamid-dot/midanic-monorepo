@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import {
   useGetPurchaseOrders, useCreatePurchaseOrder, useReceivePurchaseOrder,
   useGetSuppliers, useGetProducts, useCreateSupplier,
+  useGetPurchaseOrderItems,
   getGetPurchaseOrdersQueryKey, getGetSuppliersQueryKey,
   type PurchaseOrder, type Supplier, type Product,
 } from "@workspace/api-client-react";
@@ -302,22 +303,43 @@ function PurchaseEditor({
   const [code, setCode] = useState("");
   const [showMontant, setShowMontant] = useState(true);
 
-  // Reset when opening for a new purchase
+  const { data: existingItems } = useGetPurchaseOrderItems(editing?.id ?? 0, {
+    query: { enabled: open && !!editing },
+  });
+
+  // Reset header + lines only when the dialog opens or the edited PO changes.
+  // Do NOT depend on `suppliers` here — a supplier refetch must not wipe hydrated lines.
   React.useEffect(() => {
-    if (open) {
-      if (editing) {
-        const s = suppliers.find((x) => x.id === editing.supplierId);
-        setSupplier(s ?? null);
-        setRefAchat(`Bon N°${editing.id}`);
-        setDate(editing.createdAt ? editing.createdAt.slice(0, 16) : new Date().toISOString().slice(0, 16));
-        // Lines for existing PO are not loaded from API (no items endpoint). Keep empty.
-        setLines([]);
-      } else {
-        setSupplier(null); setRefAchat(""); setLines([]); setCode("");
-        setDate(new Date().toISOString().slice(0, 16));
-      }
+    if (!open) return;
+    if (editing) {
+      setRefAchat(editing.notes || `Bon N°${editing.id}`);
+      setDate(editing.createdAt ? editing.createdAt.slice(0, 16) : new Date().toISOString().slice(0, 16));
+      setLines([]);
+    } else {
+      setSupplier(null); setRefAchat(""); setLines([]); setCode("");
+      setDate(new Date().toISOString().slice(0, 16));
     }
+  }, [open, editing]);
+
+  // Resolve supplier object as soon as the suppliers list is available.
+  React.useEffect(() => {
+    if (!open || !editing) return;
+    const s = suppliers.find((x) => x.id === editing.supplierId);
+    if (s) setSupplier(s);
   }, [open, editing, suppliers]);
+
+  // Hydrate lines from server when items load for an existing PO
+  React.useEffect(() => {
+    if (!open || !editing || !existingItems) return;
+    setLines(existingItems.map((it) => ({
+      productId: it.productId,
+      designation: (it.productNameEn || it.productNameAr || `#${it.productId}`).toUpperCase(),
+      qty: it.quantity,
+      qtyPrepared: editing.status === "received" ? it.quantity : 0,
+      qtyGratuit: 0,
+      pu: parseFloat(it.unitCost ?? "0"),
+    })));
+  }, [open, editing, existingItems]);
 
   const subtotal = lines.reduce((s, l) => s + l.pu * l.qty, 0);
 

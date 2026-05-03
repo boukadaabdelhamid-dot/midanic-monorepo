@@ -764,6 +764,26 @@ export const CreatePurchaseOrderBody = zod.object({
 });
 
 /**
+ * @summary List items of a purchase order
+ */
+export const GetPurchaseOrderItemsParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetPurchaseOrderItemsResponseItem = zod.object({
+  id: zod.number(),
+  purchaseOrderId: zod.number(),
+  productId: zod.number(),
+  quantity: zod.number(),
+  unitCost: zod.string(),
+  productNameEn: zod.string().nullish(),
+  productNameAr: zod.string().nullish(),
+});
+export const GetPurchaseOrderItemsResponse = zod.array(
+  GetPurchaseOrderItemsResponseItem,
+);
+
+/**
  * @summary Mark purchase order as received (updates stock)
  */
 export const ReceivePurchaseOrderParams = zod.object({

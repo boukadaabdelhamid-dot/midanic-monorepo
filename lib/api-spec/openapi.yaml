@@ -844,6 +844,29 @@ paths:
               schema:
                 $ref: "#/components/schemas/PurchaseOrder"
 
+  /erp/purchase-orders/{id}/items:
+    get:
+      operationId: getPurchaseOrderItems
+      tags: [erp]
+      summary: List items of a purchase order
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PurchaseOrderItem"
+
   /erp/purchase-orders/{id}/receive:
     put:
       operationId: receivePurchaseOrder
@@ -1676,6 +1699,27 @@ components:
           type: string
           nullable: true
       required: [id, supplierId, status, totalAmount]
+
+    PurchaseOrderItem:
+      type: object
+      properties:
+        id:
+          type: integer
+        purchaseOrderId:
+          type: integer
+        productId:
+          type: integer
+        quantity:
+          type: integer
+        unitCost:
+          type: string
+        productNameEn:
+          type: string
+          nullable: true
+        productNameAr:
+          type: string
+          nullable: true
+      required: [id, purchaseOrderId, productId, quantity, unitCost]
 
     CreatePurchaseOrderRequest:
       type: object

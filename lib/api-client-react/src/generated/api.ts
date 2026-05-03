@@ -55,6 +55,7 @@ import type {
   ProductStockLevel,
   ProductsResponse,
   PurchaseOrder,
+  PurchaseOrderItem,
   RegisterRequest,
   Review,
   SuccessResponse,
@@ -3387,6 +3388,94 @@ export const useCreatePurchaseOrder = <
 > => {
   return useMutation(getCreatePurchaseOrderMutationOptions(options));
 };
+
+/**
+ * @summary List items of a purchase order
+ */
+export const getGetPurchaseOrderItemsUrl = (id: number) => {
+  return `/api/erp/purchase-orders/${id}/items`;
+};
+
+export const getPurchaseOrderItems = async (
+  id: number,
+  options?: RequestInit,
+): Promise<PurchaseOrderItem[]> => {
+  return customFetch<PurchaseOrderItem[]>(getGetPurchaseOrderItemsUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetPurchaseOrderItemsQueryKey = (id: number) => {
+  return [`/api/erp/purchase-orders/${id}/items`] as const;
+};
+
+export const getGetPurchaseOrderItemsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPurchaseOrderItems>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPurchaseOrderItems>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetPurchaseOrderItemsQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getPurchaseOrderItems>>
+  > = ({ signal }) => getPurchaseOrderItems(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPurchaseOrderItems>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetPurchaseOrderItemsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getPurchaseOrderItems>>
+>;
+export type GetPurchaseOrderItemsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List items of a purchase order
+ */
+
+export function useGetPurchaseOrderItems<
+  TData = Awaited<ReturnType<typeof getPurchaseOrderItems>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getPurchaseOrderItems>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetPurchaseOrderItemsQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Mark purchase order as received (updates stock)
