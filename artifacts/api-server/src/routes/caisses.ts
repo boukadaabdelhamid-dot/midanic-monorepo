@@ -2,7 +2,7 @@ import { Router } from "express";
 import { eq, and, or, desc, inArray, sql } from "drizzle-orm";
 import { db, schema } from "../lib/db";
 import { authenticate, requireStaff, requireStore, requireAdmin, isAdmin, type AuthRequest } from "../lib/auth";
-import { broadcastToAdmins } from "../lib/ws";
+import { broadcastToStoreUsers, broadcastToUsers } from "../lib/ws";
 
 const router = Router();
 
@@ -68,11 +68,31 @@ export async function ensureCaisse(
   }
 }
 
-function broadcastCaisseChanged(storeId: number, caisseIds: number[]) {
-  broadcastToAdmins({ type: "caisse_changed", storeId, caisseIds });
+// Caisse balances changed: notify admins of the store AND the owners of the
+// affected caisses (so a staff sees their own balance update live, even if
+// they're not on the store-broadcast list).
+async function broadcastCaisseChanged(storeId: number, caisseIds: number[]) {
+  const owners = caisseIds.length
+    ? await db.select({ ownerUserId: schema.caissesTable.ownerUserId })
+        .from(schema.caissesTable)
+        .where(inArray(schema.caissesTable.id, caisseIds))
+    : [];
+  const ownerIds = owners.map(o => o.ownerUserId).filter((x): x is number => typeof x === "number");
+  broadcastToStoreUsers(storeId, { type: "caisse_changed", storeId, caisseIds }, ownerIds);
 }
-function broadcastCaisseTransferChanged(storeId: number, transferId: number, status: CaisseTransferStatus) {
-  broadcastToAdmins({ type: "caisse_transfer_changed", storeId, transferId, status });
+
+// Transfer state changed: notify admins of the store + sender + recipient.
+function broadcastCaisseTransferChanged(
+  storeId: number,
+  transferId: number,
+  status: CaisseTransferStatus,
+  participantUserIds: number[] = [],
+) {
+  const payload = { type: "caisse_transfer_changed", storeId, transferId, status };
+  broadcastToStoreUsers(storeId, payload, participantUserIds);
+  // Also direct-deliver to participants in case they aren't currently
+  // mapped to that store (defensive — should normally be no-op).
+  if (participantUserIds.length) broadcastToUsers(participantUserIds, payload);
 }
 
 async function loadCaisseOr404(id: number) {
@@ -312,8 +332,9 @@ router.post("/erp/caisse-transfers", authenticate, requireStaff, requireStore, a
       return t;
     });
 
-    broadcastCaisseChanged(storeId, [senderCaisse.id]);
-    broadcastCaisseTransferChanged(storeId, created.id, "pending");
+    const participants = [userId, recipient];
+    await broadcastCaisseChanged(storeId, [senderCaisse.id]);
+    broadcastCaisseTransferChanged(storeId, created.id, "pending", participants);
     res.status(201).json(created);
   } catch (err) {
     const e = err as { http?: number; message?: string };
@@ -369,8 +390,12 @@ router.post("/erp/caisse-transfers/:id/accept", authenticate, requireStaff, requ
         },
       ]);
     });
-    broadcastCaisseChanged(t.storeId, [t.senderCaisseId, t.recipientCaisseId]);
-    broadcastCaisseTransferChanged(t.storeId, t.id, "accepted");
+    const [sndC] = await db.select({ ownerUserId: schema.caissesTable.ownerUserId })
+      .from(schema.caissesTable).where(eq(schema.caissesTable.id, t.senderCaisseId)).limit(1);
+    const participants = [recipientCaisse.ownerUserId, sndC?.ownerUserId]
+      .filter((x): x is number => typeof x === "number");
+    await broadcastCaisseChanged(t.storeId, [t.senderCaisseId, t.recipientCaisseId]);
+    broadcastCaisseTransferChanged(t.storeId, t.id, "accepted", participants);
     res.json({ ok: true });
   } catch (err) {
     const e = err as { http?: number; message?: string };
@@ -414,8 +439,12 @@ router.post("/erp/caisse-transfers/:id/reject", authenticate, requireStaff, requ
         notes: "Rejected by recipient",
       });
     });
-    broadcastCaisseChanged(t.storeId, [t.senderCaisseId, t.recipientCaisseId]);
-    broadcastCaisseTransferChanged(t.storeId, t.id, "rejected");
+    const [sndC] = await db.select({ ownerUserId: schema.caissesTable.ownerUserId })
+      .from(schema.caissesTable).where(eq(schema.caissesTable.id, t.senderCaisseId)).limit(1);
+    const participants = [recipientCaisse.ownerUserId, sndC?.ownerUserId]
+      .filter((x): x is number => typeof x === "number");
+    await broadcastCaisseChanged(t.storeId, [t.senderCaisseId, t.recipientCaisseId]);
+    broadcastCaisseTransferChanged(t.storeId, t.id, "rejected", participants);
     res.json({ ok: true });
   } catch (err) {
     const e = err as { http?: number; message?: string };
@@ -459,8 +488,12 @@ router.post("/erp/caisse-transfers/:id/cancel", authenticate, requireStaff, requ
         notes: "Cancelled by sender",
       });
     });
-    broadcastCaisseChanged(t.storeId, [t.senderCaisseId]);
-    broadcastCaisseTransferChanged(t.storeId, t.id, "cancelled");
+    const [rcpC] = await db.select({ ownerUserId: schema.caissesTable.ownerUserId })
+      .from(schema.caissesTable).where(eq(schema.caissesTable.id, t.recipientCaisseId)).limit(1);
+    const participants = [senderCaisse.ownerUserId, rcpC?.ownerUserId]
+      .filter((x): x is number => typeof x === "number");
+    await broadcastCaisseChanged(t.storeId, [t.senderCaisseId]);
+    broadcastCaisseTransferChanged(t.storeId, t.id, "cancelled", participants);
     res.json({ ok: true });
   } catch (err) {
     const e = err as { http?: number; message?: string };
@@ -516,7 +549,7 @@ router.post("/erp/caisses/admin/deposit", authenticate, requireAdmin, requireSto
         },
       ]);
     });
-    broadcastCaisseChanged(c.storeId, [c.id, main.id]);
+    await broadcastCaisseChanged(c.storeId, [c.id, main.id]);
     res.json({ ok: true });
   } catch (err) {
     const e = err as { http?: number; message?: string };
@@ -569,7 +602,7 @@ router.post("/erp/caisses/admin/withdraw", authenticate, requireAdmin, requireSt
         },
       ]);
     });
-    broadcastCaisseChanged(c.storeId, [c.id, main.id]);
+    await broadcastCaisseChanged(c.storeId, [c.id, main.id]);
     res.json({ ok: true });
   } catch (err) {
     const e = err as { http?: number; message?: string };
@@ -621,7 +654,7 @@ router.post("/erp/caisses/admin/adjust", authenticate, requireAdmin, requireStor
         notes: reason,
       });
     });
-    broadcastCaisseChanged(c.storeId, [c.id]);
+    await broadcastCaisseChanged(c.storeId, [c.id]);
     res.json({ ok: true });
   } catch (err) {
     const e = err as { http?: number; message?: string };

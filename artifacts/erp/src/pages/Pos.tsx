@@ -8,6 +8,7 @@ import {
   type CustomerSummary,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useMe } from "@/hooks/use-me";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,7 @@ const fmt = (n: number) =>
 
 export default function Pos() {
   const qc = useQueryClient();
+  const { user } = useMe();
   const { data: productsResp } = useGetProducts({ limit: 500 });
   const { data: customersResp } = useGetErpCustomers();
   const createOrder = useCreateOrder();
@@ -137,8 +139,11 @@ export default function Pos() {
           setPaymentOpen(false);
           resetSale();
           if (opts.cloture) setEmptyState(true);
+          const sellerName = order.sellerUser?.name || order.sellerUser?.email || user?.name || user?.email || "—";
           alert(
             `Vente #${order.id} enregistrée (${opts.mode === "comptant" ? "Comptant" : "À terme"}).\n` +
+            `Vendeur / البائع: ${sellerName}\n` +
+            `Le montant a été crédité à votre caisse / تم إضافة المبلغ إلى صندوقك.\n` +
             `Voir l'historique des commandes pour les détails.`
           );
         },

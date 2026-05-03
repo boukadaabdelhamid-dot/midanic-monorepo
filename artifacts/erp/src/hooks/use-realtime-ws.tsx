@@ -18,14 +18,14 @@ function buildWsUrl(token: string): string {
 
 export function useRealtimeWS(): void {
   const { token } = useAuth();
-  const { isAdmin } = useMe();
+  const { user } = useMe();
   const qc = useQueryClient();
   const wsRef = useRef<WebSocket | null>(null);
   const retryRef = useRef(0);
   const closedRef = useRef(false);
 
   useEffect(() => {
-    if (!token || !isAdmin) return;
+    if (!token || !user) return;
     closedRef.current = false;
 
     const connect = () => {
@@ -93,5 +93,5 @@ export function useRealtimeWS(): void {
       try { wsRef.current?.close(); } catch { /* noop */ }
       wsRef.current = null;
     };
-  }, [token, isAdmin, qc]);
+  }, [token, user, qc]);
 }

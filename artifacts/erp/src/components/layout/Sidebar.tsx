@@ -23,7 +23,7 @@ const navItems: NavItem[] = [
   { href: "/home", icon: Home, labelEn: "Home", labelAr: "الرئيسية" },
   { href: "/dashboard", icon: LayoutDashboard, labelEn: "Dashboard", labelAr: "لوحة التحكم", adminOnly: true },
   { href: "/realtime", icon: Activity, labelEn: "Temps Réel", labelAr: "الوقت الفعلي", adminOnly: true },
-  { href: "/caisse", icon: Wallet, labelEn: "Caisse", labelAr: "الصندوق" },
+  { href: "/caisse", icon: Wallet, labelEn: "Caisses", labelAr: "الصناديق" },
   { href: "/orders", icon: ShoppingCart, labelEn: "Ventes", labelAr: "المبيعات" },
   { href: "/products", icon: Package, labelEn: "Articles", labelAr: "المنتجات" },
   { href: "/purchase-orders", icon: FileText, labelEn: "Achats", labelAr: "المشتريات", adminOnly: true },
