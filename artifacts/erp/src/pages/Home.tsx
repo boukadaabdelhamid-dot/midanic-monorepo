@@ -26,22 +26,9 @@ export default function Home() {
   const [, navigate] = useLocation();
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="bg-[#1B3057] text-white px-6 py-3 flex items-center justify-between shadow-sm">
-        <div className="flex items-center gap-3">
-          <span className="font-semibold tracking-wide text-base">SIRAJ</span>
-          <span className="inline-flex items-center gap-1.5 text-xs text-white/80">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            MASCARA COIFFURE
-          </span>
-        </div>
-        <div className="text-xs text-white/70 text-right" dir="rtl">
-          {new Date().toLocaleDateString("ar-DZ", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
-        </div>
-      </div>
-
-      <div className="flex-1 px-4 py-6 sm:px-8 sm:py-10">
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-8 max-w-5xl mx-auto">
+    <div className="min-h-screen bg-white">
+      <div className="px-6 py-10 sm:py-14 max-w-5xl mx-auto">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-8 gap-y-10">
           {modules.map(({ labelFr, labelAr, href, icon: Icon, color }) => (
             <button
               key={href}
@@ -50,7 +37,7 @@ export default function Home() {
               data-testid={`home-tile-${href.replace("/", "")}`}
             >
               <div
-                className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full ${color} flex items-center justify-center shadow-md group-hover:shadow-xl group-hover:-translate-y-0.5 transition-all duration-150`}
+                className={`w-20 h-20 sm:w-24 sm:h-24 rounded-full ${color} flex items-center justify-center group-hover:-translate-y-0.5 transition-transform duration-150`}
               >
                 <Icon className="h-9 w-9 sm:h-10 sm:w-10 text-white" strokeWidth={1.75} />
               </div>
