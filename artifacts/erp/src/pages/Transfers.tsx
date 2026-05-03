@@ -604,7 +604,10 @@ function TransferDetailDialog({
                   <Inbox className="h-4 w-4 mr-1" /> Receive / استلام
                 </Button>
               )}
-              {!["received", "cancelled", "rejected"].includes(t.status) && isSource && (
+              {/* Cancel mirrors backend rule: source-side; after stock has
+                  been decremented (prepared/in_transit) admin only. */}
+              {!["received", "cancelled", "rejected"].includes(t.status) && isSource &&
+               (!["prepared", "in_transit"].includes(t.status) || isAdmin) && (
                 <Button size="sm" variant="outline" onClick={() => act(cancel)} disabled={cancel.isPending} data-testid="button-cancel-transfer">
                   <Ban className="h-4 w-4 mr-1" /> Cancel / إلغاء
                 </Button>
