@@ -225,13 +225,27 @@ router.get("/orders/:id", authenticate, async (req: AuthRequest, res) => {
       .where(eq(schema.ordersTable.id, pid(req, "id"))).limit(1);
     if (!order) { res.status(404).json({ error: "Order not found" }); return; }
     // Customers can see their own order regardless of store. Staff must be on
-    // the same store as the order.
+    // the same store as the order AND still hold an active user_stores link
+    // (re-checked per request, so revocations take effect immediately).
     const isOwner = order.userId === req.user!.id;
     const isStaff = req.user!.role === "admin" || req.user!.role === "employee";
     if (!isOwner) {
       if (!isStaff) { res.status(403).json({ error: "Forbidden" }); return; }
       if (typeof req.currentStoreId !== "number" || order.storeId !== req.currentStoreId) {
         res.status(404).json({ error: "Order not found" }); return;
+      }
+      const [link] = await db.select({ id: schema.userStoresTable.userId })
+        .from(schema.userStoresTable)
+        .innerJoin(schema.storesTable, eq(schema.userStoresTable.storeId, schema.storesTable.id))
+        .where(and(
+          eq(schema.userStoresTable.userId, req.user!.id),
+          eq(schema.userStoresTable.storeId, req.currentStoreId),
+          eq(schema.storesTable.isActive, true),
+        ))
+        .limit(1);
+      if (!link) {
+        res.status(403).json({ error: "Store access revoked", code: "STORE_ACCESS_REVOKED" });
+        return;
       }
     }
 

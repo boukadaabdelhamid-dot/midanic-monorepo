@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, integer, numeric } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, numeric, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { categoriesTable } from "./categories";
@@ -36,8 +36,8 @@ export const productsTable = pgTable("products", {
   catalogue4: text("catalogue4"),
   catalogue5: text("catalogue5"),
   catalogue6: text("catalogue6"),
-  isActive: integer("is_active", { mode: "boolean" }).default(true),
-  isExposed: integer("is_exposed", { mode: "boolean" }).default(false),
+  isActive: boolean("is_active").default(true),
+  isExposed: boolean("is_exposed").default(false),
 });
 
 export const insertProductSchema = createInsertSchema(productsTable).omit({ id: true, createdAt: true, rating: true, reviewCount: true });

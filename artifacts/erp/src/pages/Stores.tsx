@@ -53,7 +53,8 @@ export default function Stores() {
     }
   };
 
-  const handleDelete = (id: number, name: string) => {
+  const handleDelete = (id: number, name: string, itemCount: number) => {
+    if (itemCount > 0) return;
     if (!confirm(`Supprimer ${name} ? / حذف ${name} ؟`)) return;
     del.mutate({ id }, {
       onSuccess: invalidate,
@@ -115,8 +116,12 @@ export default function Stores() {
                           <Edit2 className="h-3.5 w-3.5" />
                         </Button>
                         <Button size="sm" variant="ghost"
-                          className="h-7 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          onClick={() => handleDelete(s.id, s.nameEn)}
+                          className="h-7 text-red-600 hover:text-red-700 hover:bg-red-50 disabled:opacity-40"
+                          onClick={() => handleDelete(s.id, s.nameEn, (s as { itemCount?: number }).itemCount ?? 0)}
+                          disabled={((s as { itemCount?: number }).itemCount ?? 0) > 0}
+                          title={((s as { itemCount?: number }).itemCount ?? 0) > 0
+                            ? `Magasin non vide (${(s as { itemCount?: number }).itemCount} éléments). Réassignez ou supprimez les données d'abord. / المتجر يحتوي على بيانات`
+                            : "Supprimer / حذف"}
                           data-testid={`btn-delete-store-${s.id}`}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>

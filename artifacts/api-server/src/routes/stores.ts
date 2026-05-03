@@ -20,7 +20,7 @@ router.get("/stores/public", async (_req, res) => {
       .where(eq(schema.storesTable.isActive, true))
       .orderBy(schema.storesTable.id);
     res.json(stores);
-  } catch (err) { (err as Error).message; res.status(500).json({ error: "Internal server error" }); }
+  } catch (err) { console.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
 // Staff: list MY accessible stores (admin or employee).
@@ -46,11 +46,26 @@ router.get("/erp/stores/mine", authenticate, async (req: AuthRequest, res) => {
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 
-// Admin: list all stores
+// Admin: list all stores with item-count to drive UI delete-disable.
 router.get("/erp/stores", authenticate, requireAdmin, async (req, res) => {
   try {
     const rows = await db.select().from(schema.storesTable).orderBy(schema.storesTable.id);
-    res.json(rows);
+    const counts = await db.execute<{ store_id: number; total: string | number }>(sql`
+      SELECT store_id, SUM(c)::int AS total FROM (
+        SELECT store_id, COUNT(*)::int AS c FROM products      GROUP BY store_id UNION ALL
+        SELECT store_id, COUNT(*)::int AS c FROM categories    GROUP BY store_id UNION ALL
+        SELECT store_id, COUNT(*)::int AS c FROM orders        GROUP BY store_id UNION ALL
+        SELECT store_id, COUNT(*)::int AS c FROM coupons       GROUP BY store_id UNION ALL
+        SELECT store_id, COUNT(*)::int AS c FROM suppliers     GROUP BY store_id UNION ALL
+        SELECT store_id, COUNT(*)::int AS c FROM employees     GROUP BY store_id UNION ALL
+        SELECT store_id, COUNT(*)::int AS c FROM transactions  GROUP BY store_id
+      ) t GROUP BY store_id
+    `);
+    const map = new Map<number, number>();
+    for (const r of counts.rows as { store_id: number; total: string | number }[]) {
+      map.set(Number(r.store_id), Number(r.total));
+    }
+    res.json(rows.map((r) => ({ ...r, itemCount: map.get(r.id) ?? 0 })));
   } catch (err) { req.log.error(err); res.status(500).json({ error: "Internal server error" }); }
 });
 

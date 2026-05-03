@@ -94,9 +94,11 @@ router.get("/auth/me", authenticate, async (req: AuthRequest, res) => {
 
 router.post("/auth/select-store", authenticate, async (req: AuthRequest, res) => {
   try {
-    // Customers should not be selecting an ERP store.
-    if (req.user!.role !== "admin" && req.user!.role !== "employee") {
-      res.status(403).json({ error: "Only staff may select a store" });
+    // Only admins may switch stores. Employees are pinned to their single
+    // assigned store (enforced server-side via the employee=single-store
+    // invariant) and customers must not consume ERP store slots.
+    if (req.user!.role !== "admin") {
+      res.status(403).json({ error: "Only admins may switch stores" });
       return;
     }
     const { storeId } = req.body || {};

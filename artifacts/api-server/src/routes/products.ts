@@ -93,6 +93,13 @@ router.post("/products", authenticate, requireAdmin, requireStore, async (req: A
       catalogue1, catalogue2, catalogue3, catalogue4, catalogue5, catalogue6,
       isActive, isExposed,
     } = req.body;
+    if (categoryId != null) {
+      const [cat] = await db.select({ id: schema.categoriesTable.id })
+        .from(schema.categoriesTable)
+        .where(and(eq(schema.categoriesTable.id, Number(categoryId)), eq(schema.categoriesTable.storeId, storeId)))
+        .limit(1);
+      if (!cat) { res.status(400).json({ error: "categoryId does not belong to current store" }); return; }
+    }
     const [product] = await db.insert(schema.productsTable).values({
       storeId,
       nameAr, nameEn,
@@ -132,6 +139,13 @@ router.put("/products/:id", authenticate, requireAdmin, requireStore, async (req
     // Drop any storeId from body — never let client move products across stores
     const body = { ...req.body };
     delete body.storeId;
+    if (body.categoryId != null) {
+      const [cat] = await db.select({ id: schema.categoriesTable.id })
+        .from(schema.categoriesTable)
+        .where(and(eq(schema.categoriesTable.id, Number(body.categoryId)), eq(schema.categoriesTable.storeId, storeId)))
+        .limit(1);
+      if (!cat) { res.status(400).json({ error: "categoryId does not belong to current store" }); return; }
+    }
     const [product] = await db.update(schema.productsTable)
       .set(body)
       .where(and(eq(schema.productsTable.id, id), eq(schema.productsTable.storeId, storeId)))

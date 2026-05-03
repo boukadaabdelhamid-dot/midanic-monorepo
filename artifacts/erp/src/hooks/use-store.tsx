@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback } from "react";
 import type { Store } from "@workspace/api-client-react";
 
 const STORE_KEY = "midanic.erp.currentStoreId";
@@ -42,10 +42,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     window.localStorage.removeItem(STORE_KEY);
     setStoresState([]);
     setCurrentStoreIdState(null);
-  }, []);
-
-  useEffect(() => {
-    // no-op: state is the source of truth
   }, []);
 
   return (
