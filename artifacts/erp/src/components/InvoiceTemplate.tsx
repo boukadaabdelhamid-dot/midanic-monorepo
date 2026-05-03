@@ -3,6 +3,7 @@ import type { Store } from "@workspace/api-client-react";
 
 export type InvoiceLine = {
   designation: string;
+  reference?: string | null;
   qty: number;
   unitPrice: number;
 };
@@ -195,6 +196,7 @@ export default function InvoiceTemplate({ data }: { data: InvoiceData }) {
             <tr>
               <th style={{ width: 36 }}>#</th>
               <th>Désignation / التسمية</th>
+              <th style={{ width: 110 }}>Réf. / المرجع</th>
               <th className="text-end" style={{ width: 60 }}>Qté</th>
               {showTva ? (
                 <>
@@ -212,7 +214,7 @@ export default function InvoiceTemplate({ data }: { data: InvoiceData }) {
           <tbody>
             {lines.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontStyle: "italic" }}>
+                <td colSpan={6} style={{ textAlign: "center", padding: 24, color: "#94a3b8", fontStyle: "italic" }}>
                   Aucun article / لا توجد مواد
                 </td>
               </tr>
@@ -225,6 +227,7 @@ export default function InvoiceTemplate({ data }: { data: InvoiceData }) {
                   <tr key={i}>
                     <td>{i + 1}</td>
                     <td>{l.designation}</td>
+                    <td style={{ fontFamily: "ui-monospace, monospace", fontSize: 11, color: "#475569" }}>{l.reference || "—"}</td>
                     <td className="text-end num">{l.qty}</td>
                     <td className="text-end num">{fmt(puHt)}</td>
                     <td className="text-end num">{fmt(lineHt)}</td>
@@ -237,21 +240,21 @@ export default function InvoiceTemplate({ data }: { data: InvoiceData }) {
             {showTva ? (
               <>
                 <tr>
-                  <td colSpan={4} className="text-end">Total HT</td>
+                  <td colSpan={5} className="text-end">Total HT</td>
                   <td className="text-end num">{fmt(subtotalHt)} دج</td>
                 </tr>
                 <tr>
-                  <td colSpan={4} className="text-end">TVA {tvaRate.toFixed(2)}%</td>
+                  <td colSpan={5} className="text-end">TVA {tvaRate.toFixed(2)}%</td>
                   <td className="text-end num">{fmt(tvaAmount)} دج</td>
                 </tr>
                 <tr>
-                  <td colSpan={4} className="text-end" style={{ background: "#1B3057", color: "#fff" }}>Total TTC</td>
+                  <td colSpan={5} className="text-end" style={{ background: "#1B3057", color: "#fff" }}>Total TTC</td>
                   <td className="text-end num" style={{ background: "#1B3057", color: "#fff" }}>{fmt(subtotalTtc)} دج</td>
                 </tr>
               </>
             ) : (
               <tr>
-                <td colSpan={4} className="text-end" style={{ background: "#1B3057", color: "#fff" }}>Total / المجموع</td>
+                <td colSpan={5} className="text-end" style={{ background: "#1B3057", color: "#fff" }}>Total / المجموع</td>
                 <td className="text-end num" style={{ background: "#1B3057", color: "#fff" }}>{fmt(subtotalTtc)} دج</td>
               </tr>
             )}

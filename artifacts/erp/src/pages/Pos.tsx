@@ -130,11 +130,19 @@ export default function Pos() {
   }
 
   function buildInvoiceLines() {
-    return lines.map((l) => ({
-      designation: l.designation,
-      qty: l.qty,
-      unitPrice: l.pu,
-    }));
+    return lines.map((l) => {
+      const p = products.find((x) => x.id === l.productId);
+      return {
+        designation: l.designation,
+        reference: p?.reference ?? p?.barcode ?? null,
+        qty: l.qty,
+        unitPrice: l.pu,
+      };
+    });
+  }
+
+  function setInvoiceShowTva(showTva: boolean) {
+    setInvoice((prev) => prev ? { ...prev, data: { ...prev.data, showTva } } : prev);
   }
 
   function openProforma() {
@@ -498,6 +506,7 @@ export default function Pos() {
         onOpenChange={(o) => { if (!o) { setInvoice(null); setProformaOpen(false); } }}
         data={invoice?.data ?? null}
         autoPrint={invoice?.auto}
+        onShowTvaChange={setInvoiceShowTva}
       />
     </div>
   );

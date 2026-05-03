@@ -1,16 +1,26 @@
 import React, { useEffect, useRef } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Printer, X } from "lucide-react";
 import InvoiceTemplate, { type InvoiceData } from "./InvoiceTemplate";
 
+/**
+ * Renders a printable invoice preview. The TVA on/off switch in the header
+ * lets the cashier flip the breakdown right before printing — its initial
+ * value comes from `data.showTva`, which callers are expected to seed from
+ * `store.showTvaByDefault`.
+ */
 export default function InvoiceDialog({
-  open, onOpenChange, data, autoPrint,
+  open, onOpenChange, data, autoPrint, onShowTvaChange,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   data: InvoiceData | null;
   autoPrint?: boolean;
+  /** Optional: notify parent when the user flips the in-dialog TVA toggle. */
+  onShowTvaChange?: (showTva: boolean) => void;
 }) {
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -34,9 +44,22 @@ export default function InvoiceDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[230mm] p-0 max-h-[92vh] overflow-y-auto">
-        <div className="invoice-no-print sticky top-0 z-20 bg-white border-b px-4 py-2 flex items-center justify-between">
+        <div className="invoice-no-print sticky top-0 z-20 bg-white border-b px-4 py-2 flex items-center justify-between gap-3">
           <h2 className="font-semibold text-sm">Aperçu facture / معاينة الفاتورة</h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {data && onShowTvaChange && (
+              <div className="flex items-center gap-2 px-2 py-1 rounded border bg-slate-50">
+                <Label htmlFor="invoice-tva-toggle" className="text-xs cursor-pointer">
+                  TVA {data.showTva ? `(${data.tvaRate.toFixed(0)}%)` : "off"}
+                </Label>
+                <Switch
+                  id="invoice-tva-toggle"
+                  checked={data.showTva}
+                  onCheckedChange={(v) => onShowTvaChange(v)}
+                  data-testid="switch-invoice-tva"
+                />
+              </div>
+            )}
             <Button size="sm" variant="outline" onClick={() => onOpenChange(false)}>
               <X className="h-4 w-4 mr-1" /> Fermer
             </Button>

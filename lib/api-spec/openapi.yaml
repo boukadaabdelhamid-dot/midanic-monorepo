@@ -2349,6 +2349,7 @@ components:
                     type: string
                   product:
                     type: object
+                    nullable: true
                     properties:
                       id:
                         type: integer
@@ -2357,6 +2358,12 @@ components:
                       nameEn:
                         type: string
                       imageUrl:
+                        type: string
+                        nullable: true
+                      reference:
+                        type: string
+                        nullable: true
+                      barcode:
                         type: string
                         nullable: true
 

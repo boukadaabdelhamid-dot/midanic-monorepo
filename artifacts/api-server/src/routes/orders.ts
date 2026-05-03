@@ -295,6 +295,8 @@ router.get("/orders/:id", authenticate, async (req: AuthRequest, res) => {
         nameAr: schema.productsTable.nameAr,
         nameEn: schema.productsTable.nameEn,
         imageUrl: schema.productsTable.imageUrl,
+        reference: schema.productsTable.reference,
+        barcode: schema.productsTable.barcode,
       },
     })
       .from(schema.orderItemsTable)

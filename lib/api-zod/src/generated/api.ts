@@ -730,8 +730,10 @@ export const GetOrderResponse = zod
                 nameAr: zod.string().optional(),
                 nameEn: zod.string().optional(),
                 imageUrl: zod.string().nullish(),
+                reference: zod.string().nullish(),
+                barcode: zod.string().nullish(),
               })
-              .optional(),
+              .nullish(),
           }),
         )
         .optional(),

@@ -296,7 +296,9 @@ export type OrderDetailItemsItemProduct = {
   nameAr?: string;
   nameEn?: string;
   imageUrl?: string | null;
-};
+  reference?: string | null;
+  barcode?: string | null;
+} | null;
 
 export type OrderDetailItemsItem = {
   quantity?: number;

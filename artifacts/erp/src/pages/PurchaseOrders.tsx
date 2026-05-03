@@ -653,29 +653,17 @@ function PurchaseEditor({
             Annuler / إلغاء
           </Button>
           {isExisting && (
-            <>
-              <Button
-                variant="outline"
-                className="border-[#1B3057] text-[#1B3057] hover:bg-blue-50"
-                onClick={() => { setInvoiceShowTva(false); setInvoiceOpen(true); }}
-                disabled={!supplier || lines.length === 0}
-                title="Facture sans TVA / فاتورة بدون ضريبة"
-                data-testid="button-print-purchase-invoice"
-              >
-                <Printer className="h-4 w-4 mr-1.5" />
-                Facture / فاتورة
-              </Button>
-              <Button
-                variant="ghost"
-                className="text-amber-700 hover:bg-amber-50"
-                onClick={() => { setInvoiceShowTva(true); setInvoiceOpen(true); }}
-                disabled={!supplier || lines.length === 0}
-                data-testid="button-print-purchase-invoice-tva"
-                title="Facture avec TVA / مع ضريبة"
-              >
-                + TVA
-              </Button>
-            </>
+            <Button
+              variant="outline"
+              className="border-[#1B3057] text-[#1B3057] hover:bg-blue-50"
+              onClick={() => { setInvoiceShowTva(!!store?.showTvaByDefault); setInvoiceOpen(true); }}
+              disabled={!supplier || lines.length === 0}
+              title="Imprimer la facture (TVA réglable dans l'aperçu)"
+              data-testid="button-print-purchase-invoice"
+            >
+              <Printer className="h-4 w-4 mr-1.5" />
+              Facture / فاتورة
+            </Button>
           )}
           {isExisting && !isReceived && (
             <Button
@@ -705,6 +693,7 @@ function PurchaseEditor({
         <InvoiceDialog
           open={invoiceOpen}
           onOpenChange={setInvoiceOpen}
+          onShowTvaChange={setInvoiceShowTva}
           data={editing ? {
             kind: "purchase",
             number: `FA-${String(editing.id).padStart(6, "0")}`,
@@ -715,11 +704,15 @@ function PurchaseEditor({
               address: supplier?.address ?? null,
               phone: supplier?.phone ?? null,
             },
-            lines: lines.map((l) => ({
-              designation: l.designation,
-              qty: l.qty,
-              unitPrice: l.pu,
-            })),
+            lines: lines.map((l) => {
+              const p = products.find((x) => x.id === l.productId);
+              return {
+                designation: l.designation,
+                reference: p?.reference ?? p?.barcode ?? null,
+                qty: l.qty,
+                unitPrice: l.pu,
+              };
+            }),
             showTva: invoiceShowTva,
             tvaRate: parseFloat(store?.tvaRate ?? "19"),
             notes: refAchat ? `Réf: ${refAchat}` : undefined,

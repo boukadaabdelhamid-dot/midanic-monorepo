@@ -85,14 +85,14 @@ function OrdersHistory() {
     query: { enabled: !!invoiceOrderId, queryKey: getGetOrderQueryKey(invoiceOrderId ?? 0) },
   });
 
-  const openInvoice = (orderId: number, withTva: boolean) => {
-    setShowTva(withTva);
+  const openInvoice = (orderId: number) => {
+    setShowTva(!!store?.showTvaByDefault);
     setInvoiceOrderId(orderId);
   };
 
   const invoiceData: InvoiceData | null = React.useMemo(() => {
     if (!invoiceOrder || !invoiceOrderId) return null;
-    const items = ((invoiceOrder as unknown as { items?: Array<{ quantity: number; unitPrice: string; product?: { nameEn?: string; nameAr?: string } | null }> }).items) ?? [];
+    const items = invoiceOrder.items ?? [];
     return {
       kind: "sale",
       number: `FV-${String(invoiceOrder.id).padStart(6, "0")}`,
@@ -105,7 +105,8 @@ function OrdersHistory() {
       },
       lines: items.map((it) => ({
         designation: (it.product?.nameEn || it.product?.nameAr || "—").toUpperCase(),
-        qty: it.quantity,
+        reference: it.product?.reference ?? it.product?.barcode ?? null,
+        qty: it.quantity ?? 0,
         unitPrice: parseFloat(it.unitPrice ?? "0"),
       })),
       showTva,
@@ -148,7 +149,7 @@ function OrdersHistory() {
                   <TableHead>Date</TableHead>
                   <TableHead>Status / الحالة</TableHead>
                   <TableHead>Action</TableHead>
-                  <TableHead>Facture</TableHead>
+                  <TableHead className="text-right">Facture</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -188,21 +189,13 @@ function OrdersHistory() {
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button size="sm" variant="outline" className="h-8 text-xs"
-                          onClick={() => openInvoice(order.id, false)}
-                          title="Facture sans TVA / فاتورة بدون ضريبة"
-                          data-testid={`button-invoice-${order.id}`}>
-                          <Printer className="h-3.5 w-3.5 mr-1" /> Facture
-                        </Button>
-                        <Button size="sm" variant="ghost" className="h-8 text-xs"
-                          onClick={() => openInvoice(order.id, true)}
-                          title="Facture avec TVA / مع ضريبة"
-                          data-testid={`button-invoice-tva-${order.id}`}>
-                          + TVA
-                        </Button>
-                      </div>
+                    <TableCell className="text-right">
+                      <Button size="sm" variant="outline" className="h-8 text-xs"
+                        onClick={() => openInvoice(order.id)}
+                        title="Imprimer la facture (TVA réglable dans l'aperçu)"
+                        data-testid={`button-invoice-${order.id}`}>
+                        <Printer className="h-3.5 w-3.5 mr-1" /> Facture / فاتورة
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -222,6 +215,7 @@ function OrdersHistory() {
         open={!!invoiceOrderId}
         onOpenChange={(o) => { if (!o) setInvoiceOrderId(null); }}
         data={invoiceData}
+        onShowTvaChange={setShowTva}
       />
     </Card>
   );
