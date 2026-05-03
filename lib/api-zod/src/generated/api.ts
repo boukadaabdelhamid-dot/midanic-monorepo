@@ -1112,17 +1112,22 @@ export const GetErpTransfersResponse = zod.array(GetErpTransfersResponseItem);
 /**
  * @summary Create a transfer (request or direct send)
  */
-export const CreateErpTransferBody = zod.object({
-  destinationStoreId: zod.number(),
-  notes: zod.string().optional(),
-  mode: zod.enum(["request", "send"]).optional(),
-  items: zod.array(
-    zod.object({
-      sourceProductId: zod.number(),
-      quantity: zod.number(),
-    }),
-  ),
-});
+export const CreateErpTransferBody = zod
+  .object({
+    destinationStoreId: zod.number().optional(),
+    sourceStoreId: zod.number().optional(),
+    notes: zod.string().optional(),
+    mode: zod.enum(["request", "send"]).optional(),
+    items: zod.array(
+      zod.object({
+        sourceProductId: zod.number(),
+        quantity: zod.number(),
+      }),
+    ),
+  })
+  .describe(
+    "Provide exactly one of `destinationStoreId` (when current store is the source — push request)\nor `sourceStoreId` (when current store is the destination — pull request).\n",
+  );
 
 /**
  * @summary Get transfer detail with items and event log

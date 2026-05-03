@@ -605,8 +605,14 @@ export type CreateStockTransferRequestItemsItem = {
   quantity: number;
 };
 
+/**
+ * Provide exactly one of `destinationStoreId` (when current store is the source — push request)
+or `sourceStoreId` (when current store is the destination — pull request).
+
+ */
 export interface CreateStockTransferRequest {
-  destinationStoreId: number;
+  destinationStoreId?: number;
+  sourceStoreId?: number;
   notes?: string;
   mode?: CreateStockTransferRequestMode;
   items: CreateStockTransferRequestItemsItem[];

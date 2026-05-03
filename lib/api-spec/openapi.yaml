@@ -2456,8 +2456,13 @@ components:
 
     CreateStockTransferRequest:
       type: object
+      description: |
+        Provide exactly one of `destinationStoreId` (when current store is the source — push request)
+        or `sourceStoreId` (when current store is the destination — pull request).
       properties:
         destinationStoreId:
+          type: integer
+        sourceStoreId:
           type: integer
         notes:
           type: string
@@ -2474,7 +2479,7 @@ components:
               quantity:
                 type: integer
             required: [sourceProductId, quantity]
-      required: [destinationStoreId, items]
+      required: [items]
 
     StockTransferActionRequest:
       type: object

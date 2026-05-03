@@ -45,11 +45,15 @@ function broadcastTransferChanged(t: { id: number; sourceStoreId: number; destin
 // Source actions: prepare, ship, cancel (if no shipment yet)
 // Destination actions: approve, reject, receive
 // Both sides may VIEW.
+// NOTE: admins are NOT given a blanket bypass — they must have selected
+// the relevant store via the store-switcher (currentStoreId), which is
+// the same pattern used everywhere else in the ERP. This prevents an
+// admin currently on store C from acting on a transfer between A and B.
 function actorOnSource(req: AuthRequest, t: { sourceStoreId: number }): boolean {
-  return isAdmin(req) || req.currentStoreId === t.sourceStoreId;
+  return req.currentStoreId === t.sourceStoreId;
 }
 function actorOnDestination(req: AuthRequest, t: { destinationStoreId: number }): boolean {
-  return isAdmin(req) || req.currentStoreId === t.destinationStoreId;
+  return req.currentStoreId === t.destinationStoreId;
 }
 function actorInvolved(req: AuthRequest, t: { sourceStoreId: number; destinationStoreId: number }): boolean {
   return actorOnSource(req, t) || actorOnDestination(req, t);
@@ -154,18 +158,41 @@ router.get("/erp/transfers/:id", authenticate, requireStaff, requireStore, async
 });
 
 // ─── CREATE ────────────────────────────────────────────────────────
-// Body: { destinationStoreId, items: [{ sourceProductId, quantity }], notes, mode: 'request'|'send' }
+// Body: {
+//   destinationStoreId? (when current store = source),
+//   sourceStoreId?      (when current store = destination, "pull request"),
+//   items: [{ sourceProductId, quantity }], notes,
+//   mode: 'request'|'send'
+// }
 // 'request' (default): created in 'requested', destination must approve.
-// 'send' (admin only): created in 'prepared', source stock decremented immediately.
+//   - source-initiated: source asks destination to accept goods (push request)
+//   - destination-initiated: destination asks source to send goods (pull request)
+// 'send' (admin only, source-initiated only): created in 'prepared',
+//   source stock decremented immediately.
 router.post("/erp/transfers", authenticate, requireStaff, requireStore, async (req: AuthRequest, res) => {
   try {
-    const sourceStoreId = req.currentStoreId!;
+    const currentStoreId = req.currentStoreId!;
     const userId = req.user!.id;
-    const { destinationStoreId, items, notes, mode } = req.body || {};
+    const { destinationStoreId, sourceStoreId: sourceStoreIdRaw, items, notes, mode } = req.body || {};
 
-    const destId = Number(destinationStoreId);
-    if (!Number.isInteger(destId) || destId === sourceStoreId) {
-      res.status(400).json({ error: "destinationStoreId must be a different store" });
+    // Determine which side the current store plays
+    let sourceStoreId: number;
+    let destId: number;
+    let initiatorSide: "source" | "destination";
+    if (destinationStoreId !== undefined && sourceStoreIdRaw === undefined) {
+      sourceStoreId = currentStoreId;
+      destId = Number(destinationStoreId);
+      initiatorSide = "source";
+    } else if (sourceStoreIdRaw !== undefined && destinationStoreId === undefined) {
+      sourceStoreId = Number(sourceStoreIdRaw);
+      destId = currentStoreId;
+      initiatorSide = "destination";
+    } else {
+      res.status(400).json({ error: "Provide exactly one of sourceStoreId or destinationStoreId" });
+      return;
+    }
+    if (!Number.isInteger(sourceStoreId) || !Number.isInteger(destId) || sourceStoreId === destId) {
+      res.status(400).json({ error: "Source and destination must be two different stores" });
       return;
     }
     if (!Array.isArray(items) || items.length === 0) {
@@ -173,15 +200,16 @@ router.post("/erp/transfers", authenticate, requireStaff, requireStore, async (r
       return;
     }
 
-    // Validate destination store exists and is active
-    const [destStore] = await db.select({ id: schema.storesTable.id })
+    // Validate the OTHER store exists and is active
+    const otherStoreId = initiatorSide === "source" ? destId : sourceStoreId;
+    const [otherStore] = await db.select({ id: schema.storesTable.id })
       .from(schema.storesTable)
-      .where(and(eq(schema.storesTable.id, destId), eq(schema.storesTable.isActive, true)))
+      .where(and(eq(schema.storesTable.id, otherStoreId), eq(schema.storesTable.isActive, true)))
       .limit(1);
-    if (!destStore) { res.status(400).json({ error: "Destination store not found or inactive" }); return; }
+    if (!otherStore) { res.status(400).json({ error: "Counterparty store not found or inactive" }); return; }
 
-    // Resolve products: each must belong to source store, must have a non-empty
-    // reference or barcode (used to match the destination row).
+    // Resolve products: each must belong to the SOURCE store, must have a
+    // non-empty reference or barcode (used to match the destination row).
     const sourceProductIds = items.map((it: { sourceProductId: unknown }) => Number(it.sourceProductId));
     if (sourceProductIds.some((n: number) => !Number.isInteger(n))) {
       res.status(400).json({ error: "Invalid sourceProductId" }); return;
@@ -189,20 +217,27 @@ router.post("/erp/transfers", authenticate, requireStaff, requireStore, async (r
     const sourceProducts = await db.select().from(schema.productsTable)
       .where(and(inArray(schema.productsTable.id, sourceProductIds), eq(schema.productsTable.storeId, sourceStoreId)));
     if (sourceProducts.length !== new Set(sourceProductIds).size) {
-      res.status(400).json({ error: "One or more products do not belong to your store" });
+      res.status(400).json({ error: "One or more products do not belong to the source store" });
       return;
     }
     const sourceMap = new Map(sourceProducts.map(p => [p.id, p]));
 
     // Build line items + match destination products
     const preparedMode = mode === "send";
-    if (preparedMode && !isAdmin(req)) {
-      res.status(403).json({ error: "Only admins can send directly without prior approval" });
-      return;
+    if (preparedMode) {
+      if (!isAdmin(req)) {
+        res.status(403).json({ error: "Only admins can send directly without prior approval" });
+        return;
+      }
+      if (initiatorSide !== "source") {
+        res.status(400).json({ error: "Direct send requires you to be on the source store" });
+        return;
+      }
     }
 
-    type LineDraft = { sourceProductId: number; destinationProductId: number | null; quantity: number; matchKey: string };
+    type LineDraft = { sourceProductId: number; destinationProductId: number; quantity: number; matchKey: string };
     const drafts: LineDraft[] = [];
+    const unmatched: string[] = [];
     for (const it of items) {
       const src = sourceMap.get(Number(it.sourceProductId))!;
       const qty = Number(it.quantity);
@@ -215,18 +250,30 @@ router.post("/erp/transfers", authenticate, requireStaff, requireStore, async (r
         res.status(400).json({ error: `Product "${src.nameEn}" has no reference or barcode — cannot match across stores` });
         return;
       }
-      // Best-effort lookup in destination
+      // Destination must already have a matching product (invariant enforced upfront)
       const [destProduct] = await db.select({ id: schema.productsTable.id }).from(schema.productsTable)
         .where(and(
           eq(schema.productsTable.storeId, destId),
           or(eq(schema.productsTable.reference, matchKey), eq(schema.productsTable.barcode, matchKey))!,
         )).limit(1);
+      if (!destProduct) {
+        unmatched.push(`"${src.nameEn}" (${matchKey})`);
+        continue;
+      }
       drafts.push({
         sourceProductId: src.id,
-        destinationProductId: destProduct?.id ?? null,
+        destinationProductId: destProduct.id,
         quantity: qty,
         matchKey,
       });
+    }
+    if (unmatched.length > 0) {
+      res.status(400).json({
+        error: `Destination store has no matching product for: ${unmatched.join(", ")}. Create them in the destination store first (matching reference or barcode).`,
+        code: "DESTINATION_PRODUCTS_MISSING",
+        unmatched,
+      });
+      return;
     }
 
     // If preparing immediately, ensure stock is sufficient
@@ -248,7 +295,7 @@ router.post("/erp/transfers", authenticate, requireStaff, requireStore, async (r
         sourceStoreId,
         destinationStoreId: destId,
         initiatorUserId: userId,
-        initiatorSide: "source", // creator's side; for inbound requests use the request endpoint
+        initiatorSide,
         status,
         notes: notes || null,
         ...(preparedMode ? { preparedAt: now } : {}),
@@ -266,8 +313,10 @@ router.post("/erp/transfers", authenticate, requireStaff, requireStore, async (r
         transferId: transfer.id,
         status,
         actorUserId: userId,
-        actorStoreId: sourceStoreId,
-        notes: preparedMode ? "Direct send (admin)" : "Transfer requested",
+        actorStoreId: currentStoreId,
+        notes: preparedMode
+          ? "Direct send (admin)"
+          : (initiatorSide === "destination" ? "Pull request from destination" : "Push request from source"),
       });
 
       // If pre-prepared, decrement source stock and write 'out' inventory movements

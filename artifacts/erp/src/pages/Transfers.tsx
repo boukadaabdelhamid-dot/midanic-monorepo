@@ -62,7 +62,11 @@ export default function Transfers() {
   const { user, isAdmin } = useMe();
   const { currentStoreId } = useStoreContext();
   const [direction, setDirection] = useState<"in" | "out" | "all">("all");
-  const { data: transfers, isLoading } = useGetErpTransfers({ direction });
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const queryParams = statusFilter
+    ? ({ direction, status: statusFilter } as Parameters<typeof useGetErpTransfers>[0])
+    : ({ direction } as Parameters<typeof useGetErpTransfers>[0]);
+  const { data: transfers, isLoading } = useGetErpTransfers(queryParams);
   const [openCreate, setOpenCreate] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
 
@@ -91,15 +95,31 @@ export default function Transfers() {
       </div>
 
       <Tabs value={direction} onValueChange={(v) => setDirection(v as "in" | "out" | "all")}>
-        <TabsList>
-          <TabsTrigger value="all" data-testid="tab-all">All / الكل</TabsTrigger>
-          <TabsTrigger value="in" data-testid="tab-in">
-            <Inbox className="h-3.5 w-3.5 mr-1" /> Incoming / واردة
-          </TabsTrigger>
-          <TabsTrigger value="out" data-testid="tab-out">
-            <Send className="h-3.5 w-3.5 mr-1" /> Outgoing / صادرة
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <TabsList>
+            <TabsTrigger value="all" data-testid="tab-all">All / الكل</TabsTrigger>
+            <TabsTrigger value="in" data-testid="tab-in">
+              <Inbox className="h-3.5 w-3.5 mr-1" /> Incoming / واردة
+            </TabsTrigger>
+            <TabsTrigger value="out" data-testid="tab-out">
+              <Send className="h-3.5 w-3.5 mr-1" /> Outgoing / صادرة
+            </TabsTrigger>
+          </TabsList>
+          <div className="flex items-center gap-2">
+            <Label className="text-xs text-muted-foreground">Status / الحالة</Label>
+            <Select value={statusFilter || "__all"} onValueChange={(v) => setStatusFilter(v === "__all" ? "" : v)}>
+              <SelectTrigger className="h-8 text-sm w-44" data-testid="select-status-filter">
+                <SelectValue placeholder="All statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all">All / الكل</SelectItem>
+                {Object.entries(STATUS_LABELS).map(([k, v]) => (
+                  <SelectItem key={k} value={k}>{v.en} / {v.ar}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         <TabsContent value={direction}>
           <Card className="border shadow-sm mt-3">
             <CardContent className="p-0">
@@ -178,7 +198,7 @@ export default function Transfers() {
         onOpenChange={setOpenCreate}
         otherStores={otherStores}
         isAdmin={isAdmin}
-        onCreated={() => qc.invalidateQueries({ queryKey: getGetErpTransfersQueryKey({ direction }) })}
+        onCreated={() => qc.invalidateQueries({ queryKey: getGetErpTransfersQueryKey(queryParams) })}
       />
       {detailId !== null && (
         <TransferDetailDialog
@@ -189,7 +209,7 @@ export default function Transfers() {
           currentStoreId={currentStoreId}
           onChanged={() => {
             qc.invalidateQueries({ queryKey: getGetErpTransferQueryKey(detailId) });
-            qc.invalidateQueries({ queryKey: getGetErpTransfersQueryKey({ direction }) });
+            qc.invalidateQueries({ queryKey: getGetErpTransfersQueryKey(queryParams) });
           }}
         />
       )}
@@ -207,10 +227,16 @@ function CreateTransferDialog({
   isAdmin: boolean;
   onCreated: () => void;
 }) {
-  const [destStoreId, setDestStoreId] = useState("");
+  // direction = "out": current store sends/pushes to destination (current = source).
+  // direction = "in":  current store requests/pulls from another source (current = destination).
+  const [direction, setDirection] = useState<"out" | "in">("out");
+  const [otherStoreId, setOtherStoreId] = useState("");
   const [mode, setMode] = useState<"request" | "send">("request");
   const [notes, setNotes] = useState("");
   const [lines, setLines] = useState<LineDraft[]>([{ sourceProductId: "", quantity: "1" }]);
+  // For pull requests, products listed must be the SOURCE store's products,
+  // which the current user can't list directly (only their store's products).
+  // We rely on the backend to validate after submit.
   const { data: productsRes } = useGetProducts({ limit: 500 });
   const products = (productsRes?.products ?? []) as Array<{ id: number; nameEn: string; nameAr: string; reference?: string | null; barcode?: string | null; stock: number }>;
   const create = useCreateErpTransfer();
@@ -220,21 +246,30 @@ function CreateTransferDialog({
   const updateLine = (i: number, patch: Partial<LineDraft>) => setLines((l) => l.map((row, idx) => idx === i ? { ...row, ...patch } : row));
 
   const reset = () => {
-    setDestStoreId(""); setMode("request"); setNotes("");
+    setDirection("out"); setOtherStoreId(""); setMode("request"); setNotes("");
     setLines([{ sourceProductId: "", quantity: "1" }]);
   };
 
+  // When switching to "in" (pull request), force mode to request — direct
+  // send from a store you're not on doesn't make sense.
+  React.useEffect(() => {
+    if (direction === "in" && mode === "send") setMode("request");
+  }, [direction, mode]);
+
   const valid = useMemo(() => {
-    if (!destStoreId) return false;
+    if (!otherStoreId) return false;
     if (lines.length === 0) return false;
     return lines.every((l) => l.sourceProductId && Number(l.quantity) > 0);
-  }, [destStoreId, lines]);
+  }, [otherStoreId, lines]);
 
   const submit = () => {
+    const otherId = Number(otherStoreId);
     create.mutate(
       {
         data: {
-          destinationStoreId: Number(destStoreId),
+          ...(direction === "out"
+            ? { destinationStoreId: otherId }
+            : { sourceStoreId: otherId }),
           mode,
           notes: notes || undefined,
           items: lines.map((l) => ({
@@ -256,11 +291,34 @@ function CreateTransferDialog({
           <DialogTitle>New Transfer / تحويل جديد</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
+          <div>
+            <Label className="text-xs mb-1 block">Direction / الاتجاه</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button" size="sm"
+                variant={direction === "out" ? "default" : "outline"}
+                onClick={() => setDirection("out")}
+                data-testid="button-direction-out"
+              >
+                <Send className="h-3.5 w-3.5 mr-1" /> Send to another store / إرسال إلى متجر آخر
+              </Button>
+              <Button
+                type="button" size="sm"
+                variant={direction === "in" ? "default" : "outline"}
+                onClick={() => setDirection("in")}
+                data-testid="button-direction-in"
+              >
+                <Inbox className="h-3.5 w-3.5 mr-1" /> Request from another store / طلب من متجر آخر
+              </Button>
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label className="text-xs mb-1 block">Destination Store / المتجر الوجهة</Label>
-              <Select value={destStoreId} onValueChange={setDestStoreId}>
-                <SelectTrigger className="h-9 text-sm" data-testid="select-destination-store">
+              <Label className="text-xs mb-1 block">
+                {direction === "out" ? "Destination Store / المتجر الوجهة" : "Source Store / المتجر المصدر"}
+              </Label>
+              <Select value={otherStoreId} onValueChange={setOtherStoreId}>
+                <SelectTrigger className="h-9 text-sm" data-testid="select-other-store">
                   <SelectValue placeholder="Pick a store" />
                 </SelectTrigger>
                 <SelectContent>
@@ -272,28 +330,42 @@ function CreateTransferDialog({
             </div>
             <div>
               <Label className="text-xs mb-1 block">Mode / الوضع</Label>
-              <Select value={mode} onValueChange={(v) => setMode(v as "request" | "send")}>
+              <Select value={mode} onValueChange={(v) => setMode(v as "request" | "send")} disabled={direction === "in"}>
                 <SelectTrigger className="h-9 text-sm" data-testid="select-mode">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="request">Request from destination / طلب من الوجهة</SelectItem>
-                  {isAdmin && (
+                  <SelectItem value="request">
+                    {direction === "out" ? "Request approval / طلب موافقة" : "Pull request / طلب سحب"}
+                  </SelectItem>
+                  {isAdmin && direction === "out" && (
                     <SelectItem value="send">Send directly (admin) / إرسال مباشر</SelectItem>
                   )}
                 </SelectContent>
               </Select>
-              {mode === "send" && (
+              {mode === "send" && direction === "out" && (
                 <p className="text-[11px] text-amber-700 mt-1">
                   Stock will be deducted from source immediately / سيخصم المخزون فوراً من المصدر
                 </p>
               )}
+              {direction === "in" && (
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  The source store admin must approve / يجب على إدارة المصدر الموافقة
+                </p>
+              )}
             </div>
           </div>
+          {direction === "in" && (
+            <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+              Enter the source store's product IDs (you may need to coordinate with that store).
+              Items will be matched by reference/barcode against your store before submit.
+              / أدخل معرّفات منتجات المتجر المصدر — سيتم مطابقتها مع متجرك بالمرجع/الباركود.
+            </div>
+          )}
 
           <div>
             <div className="flex items-center justify-between mb-2">
-              <Label className="text-xs">Items / الأصناف</Label>
+              <Label className="text-xs">Items (source-store products) / الأصناف</Label>
               <Button size="sm" variant="outline" type="button" onClick={addLine} data-testid="button-add-line">
                 <Plus className="h-3.5 w-3.5 mr-1" /> Add line / إضافة سطر
               </Button>
@@ -301,22 +373,34 @@ function CreateTransferDialog({
             <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
               {lines.map((line, i) => {
                 const p = products.find((x) => x.id === Number(line.sourceProductId));
-                const noKey = p && !p.reference && !p.barcode;
+                const noKey = direction === "out" && p && !p.reference && !p.barcode;
                 return (
                   <div key={i} className="flex gap-2 items-start">
                     <div className="flex-1">
-                      <Select value={line.sourceProductId} onValueChange={(v) => updateLine(i, { sourceProductId: v })}>
-                        <SelectTrigger className="h-8 text-sm" data-testid={`select-product-${i}`}>
-                          <SelectValue placeholder="Select product" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {products.map((prod) => (
-                            <SelectItem key={prod.id} value={String(prod.id)}>
-                              {prod.nameEn} {prod.reference ? `(${prod.reference})` : ""} — stock {prod.stock}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {direction === "out" ? (
+                        <Select value={line.sourceProductId} onValueChange={(v) => updateLine(i, { sourceProductId: v })}>
+                          <SelectTrigger className="h-8 text-sm" data-testid={`select-product-${i}`}>
+                            <SelectValue placeholder="Select product" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {products.map((prod) => (
+                              <SelectItem key={prod.id} value={String(prod.id)}>
+                                {prod.nameEn} {prod.reference ? `(${prod.reference})` : ""} — stock {prod.stock}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          type="number"
+                          min={1}
+                          placeholder="Source product ID"
+                          className="h-8 text-sm"
+                          value={line.sourceProductId}
+                          onChange={(e) => updateLine(i, { sourceProductId: e.target.value })}
+                          data-testid={`input-product-${i}`}
+                        />
+                      )}
                       {noKey && (
                         <p className="text-[11px] text-red-600 mt-1">
                           No reference/barcode — cannot match across stores / لا يوجد مرجع أو باركود
