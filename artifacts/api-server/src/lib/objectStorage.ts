@@ -24,11 +24,34 @@ export interface StorageFile {
   save(buffer: Buffer, options: { contentType: string; resumable?: boolean }): Promise<void>;
 }
 
+/**
+ * Resolve a user-supplied sub-path under a known root and reject any
+ * attempt to escape the root via ".." segments or absolute paths.
+ */
+function safeJoin(root: string, userPath: string): string {
+  // Strip leading slashes to prevent path.join treating it as absolute
+  const stripped = userPath.replace(/^[/\\]+/, "");
+  const resolved = path.resolve(root, stripped);
+  const normalizedRoot = path.resolve(root);
+  if (!resolved.startsWith(normalizedRoot + path.sep) && resolved !== normalizedRoot) {
+    throw Object.assign(
+      new Error("Path traversal attempt rejected"),
+      { statusCode: 400 }
+    );
+  }
+  return resolved;
+}
+
+/**
+ * LocalFile: persists file data + content-type (in a ".meta" sidecar).
+ * Reconstructs content-type on retrieval so images are served correctly.
+ */
 class LocalFile implements StorageFile {
-  constructor(
-    private readonly filePath: string,
-    private readonly contentType: string = "application/octet-stream",
-  ) {}
+  private readonly metaPath: string;
+
+  constructor(private readonly filePath: string) {
+    this.metaPath = filePath + ".meta";
+  }
 
   async exists(): Promise<[boolean]> {
     try {
@@ -45,16 +68,22 @@ class LocalFile implements StorageFile {
 
   async getMetadata(): Promise<[{ contentType?: string; size?: number | string }]> {
     const stat = await fsPromises.stat(this.filePath);
-    return [{ contentType: this.contentType, size: stat.size }];
+    let contentType = "application/octet-stream";
+    try {
+      const meta = await fsPromises.readFile(this.metaPath, "utf8");
+      const parsed = JSON.parse(meta) as { contentType?: string };
+      if (parsed.contentType) contentType = parsed.contentType;
+    } catch {
+      // No sidecar — default MIME
+    }
+    return [{ contentType, size: stat.size }];
   }
 
   async save(buffer: Buffer, options: { contentType: string }): Promise<void> {
     await fsPromises.mkdir(path.dirname(this.filePath), { recursive: true });
     await fsPromises.writeFile(this.filePath, buffer);
-    this._contentType = options.contentType;
+    await fsPromises.writeFile(this.metaPath, JSON.stringify({ contentType: options.contentType }));
   }
-
-  private _contentType = "application/octet-stream";
 }
 
 type StorageMode = "gcs" | "replit" | "local";
@@ -65,9 +94,9 @@ function detectStorageMode(): StorageMode {
   if (process.env.STORAGE_LOCAL_PATH) return "local";
   throw new Error(
     "Object storage is not configured. Set one of:\n" +
-    "  GOOGLE_CREDENTIALS_JSON — GCS service account JSON (recommended for production)\n" +
-    "  STORAGE_LOCAL_PATH — absolute directory path for Railway Volume or similar persistent disk\n" +
-    "Without it, /api/uploads and image serving endpoints will be unavailable."
+    "  GOOGLE_CREDENTIALS_JSON — GCS service account JSON (recommended for Railway production)\n" +
+    "  STORAGE_LOCAL_PATH — absolute path to a Railway Volume or any persistent disk directory\n" +
+    "Without one of these, /api/uploads and image-serving endpoints will be unavailable."
   );
 }
 
@@ -110,8 +139,10 @@ function getGcsClient(): Storage {
   return _gcsClient;
 }
 
-function getLocalBasePath(): string {
-  return process.env.STORAGE_LOCAL_PATH!;
+function getLocalBase(): string {
+  const p = process.env.STORAGE_LOCAL_PATH;
+  if (!p) throw new Error("STORAGE_LOCAL_PATH is not set");
+  return path.resolve(p);
 }
 
 function parseObjectPath(p: string): { bucketName: string; objectName: string } {
@@ -158,26 +189,26 @@ async function signObjectURL({
     const json = await response.json() as { signed_url: string };
     return json.signed_url;
   }
-  throw new Error("Signed URLs are not supported in local storage mode; use the /api/uploads/:id endpoint directly.");
+  throw new Error(
+    "Signed URLs are not supported in local storage mode. Use POST /api/uploads directly."
+  );
 }
 
 export class ObjectStorageService {
   getPublicObjectSearchPaths(): string[] {
     const mode = getMode();
-    if (mode === "local") return [getLocalBasePath() + "/public"];
+    if (mode === "local") return [path.join(getLocalBase(), "public")];
     const pathsStr = process.env.PUBLIC_OBJECT_SEARCH_PATHS || "";
     const paths = Array.from(
       new Set(pathsStr.split(",").map(p => p.trim()).filter(p => p.length > 0))
     );
-    if (paths.length === 0) {
-      throw new Error("PUBLIC_OBJECT_SEARCH_PATHS not set.");
-    }
+    if (paths.length === 0) throw new Error("PUBLIC_OBJECT_SEARCH_PATHS not set.");
     return paths;
   }
 
   getPrivateObjectDir(): string {
     const mode = getMode();
-    if (mode === "local") return getLocalBasePath() + "/private";
+    if (mode === "local") return path.join(getLocalBase(), "private");
     const dir = process.env.PRIVATE_OBJECT_DIR || "";
     if (!dir) throw new Error("PRIVATE_OBJECT_DIR not set.");
     return dir;
@@ -186,17 +217,17 @@ export class ObjectStorageService {
   async searchPublicObject(filePath: string): Promise<StorageFile | null> {
     const mode = getMode();
     if (mode === "local") {
-      const base = getLocalBasePath() + "/public";
-      const fullPath = path.join(base, filePath);
-      const f = new LocalFile(fullPath);
+      const root = path.join(getLocalBase(), "public");
+      let resolved: string;
+      try { resolved = safeJoin(root, filePath); } catch { return null; }
+      const f = new LocalFile(resolved);
       const [exists] = await f.exists();
       return exists ? f : null;
     }
     for (const searchPath of this.getPublicObjectSearchPaths()) {
       const fullPath = `${searchPath}/${filePath}`;
       const { bucketName, objectName } = parseObjectPath(fullPath);
-      const bucket = getGcsClient().bucket(bucketName);
-      const file = bucket.file(objectName);
+      const file = getGcsClient().bucket(bucketName).file(objectName);
       const [exists] = await file.exists();
       if (exists) return file as unknown as StorageFile;
     }
@@ -222,31 +253,29 @@ export class ObjectStorageService {
     const objectId = randomUUID();
     const mode = getMode();
     if (mode === "local") {
-      const base = getLocalBasePath();
-      const filePath = path.join(base, "private", "uploads", objectId);
-      const f = new LocalFile(filePath, contentType);
+      const root = path.join(getLocalBase(), "private", "uploads");
+      // objectId is a UUID — no traversal risk, but still validate with safeJoin
+      const filePath = safeJoin(root, objectId);
+      const f = new LocalFile(filePath);
       await f.save(buffer, { contentType });
-      const objectPath = `/objects/uploads/${objectId}`;
-      const publicUrl = `/api/uploads/${objectId}`;
-      return { objectPath, publicUrl };
+      return { objectPath: `/objects/uploads/${objectId}`, publicUrl: `/api/uploads/${objectId}` };
     }
     const privateObjectDir = this.getPrivateObjectDir();
     const fullPath = `${privateObjectDir}/uploads/${objectId}`;
     const { bucketName, objectName } = parseObjectPath(fullPath);
-    const bucket = getGcsClient().bucket(bucketName);
-    const file = bucket.file(objectName);
+    const file = getGcsClient().bucket(bucketName).file(objectName);
     await file.save(buffer, { contentType, resumable: false });
-    const objectPath = `/objects/uploads/${objectId}`;
-    const publicUrl = `/api/uploads/${objectId}`;
-    return { objectPath, publicUrl };
+    return { objectPath: `/objects/uploads/${objectId}`, publicUrl: `/api/uploads/${objectId}` };
   }
 
   async getObjectEntityUploadURL(): Promise<string> {
-    const objectId = randomUUID();
     const mode = getMode();
     if (mode === "local") {
-      throw new Error("Signed upload URLs are not supported in local mode; use POST /api/uploads instead.");
+      throw new Error(
+        "Signed upload URLs are not supported in local storage mode. Use POST /api/uploads instead."
+      );
     }
+    const objectId = randomUUID();
     const privateObjectDir = this.getPrivateObjectDir();
     const fullPath = `${privateObjectDir}/uploads/${objectId}`;
     const { bucketName, objectName } = parseObjectPath(fullPath);
@@ -271,8 +300,9 @@ export class ObjectStorageService {
     const entityId = parts.slice(1).join("/");
     const mode = getMode();
     if (mode === "local") {
-      const base = getLocalBasePath();
-      const filePath = path.join(base, "private", entityId);
+      const root = path.join(getLocalBase(), "private");
+      let filePath: string;
+      try { filePath = safeJoin(root, entityId); } catch { throw new ObjectNotFoundError(); }
       const f = new LocalFile(filePath);
       const [exists] = await f.exists();
       if (!exists) throw new ObjectNotFoundError();
@@ -282,8 +312,7 @@ export class ObjectStorageService {
     if (!entityDir.endsWith("/")) entityDir = `${entityDir}/`;
     const objectEntityPath = `${entityDir}${entityId}`;
     const { bucketName, objectName } = parseObjectPath(objectEntityPath);
-    const bucket = getGcsClient().bucket(bucketName);
-    const objectFile = bucket.file(objectName);
+    const objectFile = getGcsClient().bucket(bucketName).file(objectName);
     const [exists] = await objectFile.exists();
     if (!exists) throw new ObjectNotFoundError();
     return objectFile as unknown as StorageFile;

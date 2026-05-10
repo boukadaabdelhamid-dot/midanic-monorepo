@@ -45,9 +45,29 @@
    PORT=3000
    NODE_ENV=production
    ALLOWED_ORIGINS=https://midanic.com,https://admin.midanic.com,https://www.midanic.com
+   AUTO_SEED=true
    ```
-4. **Settings** → **Networking** → **Generate Domain** (يعطيك `api-server-xxx.up.railway.app`)
-5. انتظر النشر الأول (~3-5 دقائق)
+4. **صور المنتجات (Object Storage)** — اختر أحد الخيارين:
+
+   **خيار A — Railway Volume (موصى به للبداية):**
+   - في نفس المشروع: **+ New** → **Volume** → اختر اسماً مثل `uploads`
+   - في إعدادات Volume: **Mount Path** = `/data/uploads`
+   - في Variables الـ api-server أضف:
+     ```
+     STORAGE_LOCAL_PATH=/data/uploads
+     ```
+
+   **خيار B — Google Cloud Storage (أفضل للإنتاج الجاد):**
+   - أنشئ Service Account على GCP وحمّل مفتاح JSON
+   - في Variables الـ api-server أضف:
+     ```
+     GOOGLE_CREDENTIALS_JSON=<محتوى ملف JSON كاملاً>
+     PUBLIC_OBJECT_SEARCH_PATHS=/<bucket-name>/public
+     PRIVATE_OBJECT_DIR=/<bucket-name>/private
+     ```
+
+5. **Settings** → **Networking** → **Generate Domain** (يعطيك `api-server-xxx.up.railway.app`)
+6. انتظر النشر الأول (~3-5 دقائق)
 
 ---
 
