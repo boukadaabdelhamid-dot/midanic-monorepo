@@ -52,6 +52,7 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const { t, lang, toggleLang } = useLang();
   const { user, logout, isAdmin } = useAuth();
+  const isStaff = isAdmin || user?.role === "employee";
   const router = useRouter();
 
   const topPad = insets.top + (Platform.OS === "web" ? 67 : 0);
@@ -152,11 +153,11 @@ export default function ProfileScreen() {
               onPress={() => router.push("/(tabs)/orders")}
             />
           )}
-          {isAdmin && (
+          {isStaff && (
             <MenuRow
               icon="layers"
-              label={t("إدارة الطلبات", "Manage Orders")}
-              onPress={() => router.push("/admin")}
+              label={t("لوحة الإدارة", "Admin Panel")}
+              onPress={() => { Haptics.selectionAsync(); router.push("/admin"); }}
             />
           )}
         </View>
