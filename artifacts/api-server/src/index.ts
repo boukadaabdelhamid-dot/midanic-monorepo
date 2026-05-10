@@ -2,6 +2,8 @@ import { createServer } from "http";
 import app from "./app";
 import { setupWebSocket } from "./lib/ws";
 import { logger } from "./lib/logger";
+import { db, schema } from "./lib/db";
+import { seed } from "./seed";
 
 const rawPort = process.env["PORT"];
 
@@ -15,11 +17,26 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
+async function runSeedIfNeeded() {
+  try {
+    const users = await db.select({ id: schema.usersTable.id }).from(schema.usersTable).limit(1);
+    if (users.length === 0) {
+      logger.info("No users found — running seed...");
+      await seed();
+    } else {
+      logger.info("Database already seeded, skipping.");
+    }
+  } catch (err) {
+    logger.warn({ err }, "Auto-seed skipped (non-fatal)");
+  }
+}
+
 const server = createServer(app);
 setupWebSocket(server);
 
-server.listen(port, () => {
+server.listen(port, async () => {
   logger.info({ port }, "Server listening");
+  await runSeedIfNeeded();
 });
 
 server.on("error", (err) => {

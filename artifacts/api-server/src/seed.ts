@@ -2,7 +2,7 @@ import { db, schema } from "./lib/db";
 import bcrypt from "bcryptjs";
 import { sql, eq } from "drizzle-orm";
 
-async function seed() {
+export async function seed() {
   console.log("Seeding Midanic database...");
 
   // Stores — must exist before any tenant-scoped data.
@@ -57,7 +57,7 @@ async function seed() {
   console.log("Products created:", products.length);
 
   // Admin user
-  const adminHash = await bcrypt.hash("admin123", 10);
+  const adminHash = await bcrypt.hash("admin1234", 10);
   const [adminUser] = await db.insert(schema.usersTable).values({
     name: "Midanic Admin",
     email: "admin@midanic.com",
@@ -117,7 +117,9 @@ async function seed() {
   console.log("Seed complete!");
 }
 
-seed().catch((err) => {
-  console.error("Seed failed:", err);
-  process.exit(1);
-});
+if (process.argv[1] && process.argv[1].includes("seed")) {
+  seed().catch((err) => {
+    console.error("Seed failed:", err);
+    process.exit(1);
+  });
+}
