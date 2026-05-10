@@ -5,6 +5,10 @@ WORKDIR /app
 FROM base AS deps
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
 COPY artifacts/web-store/package.json ./artifacts/web-store/
+COPY artifacts/api-server/package.json ./artifacts/api-server/
+COPY artifacts/erp/package.json ./artifacts/erp/
+COPY artifacts/mobile-store/package.json ./artifacts/mobile-store/
+COPY artifacts/mockup-sandbox/package.json ./artifacts/mockup-sandbox/
 COPY lib ./lib
 RUN pnpm install --frozen-lockfile=false --filter @workspace/web-store...
 
