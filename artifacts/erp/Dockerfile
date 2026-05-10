@@ -16,6 +16,7 @@ FROM deps AS build
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
 ENV NODE_ENV=production
+COPY tsconfig.base.json ./
 COPY artifacts/erp ./artifacts/erp
 RUN pnpm --filter @workspace/erp run build
 
