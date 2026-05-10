@@ -18,13 +18,17 @@ if (Number.isNaN(port) || port <= 0) {
 }
 
 async function runSeedIfNeeded() {
+  if (!process.env.AUTO_SEED || process.env.AUTO_SEED !== "true") {
+    logger.info("AUTO_SEED not enabled — skipping auto-seed. Set AUTO_SEED=true to seed on first boot.");
+    return;
+  }
   try {
     const users = await db.select({ id: schema.usersTable.id }).from(schema.usersTable).limit(1);
     if (users.length === 0) {
-      logger.info("No users found — running seed...");
+      logger.info("AUTO_SEED=true and no users found — running seed...");
       await seed();
     } else {
-      logger.info("Database already seeded, skipping.");
+      logger.info("Database already has data, skipping seed.");
     }
   } catch (err) {
     logger.warn({ err }, "Auto-seed skipped (non-fatal)");

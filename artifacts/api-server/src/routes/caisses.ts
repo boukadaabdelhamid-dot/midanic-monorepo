@@ -43,12 +43,14 @@ async function adminHasStoreAccess(req: AuthRequest, storeId: number): Promise<b
  * If ownerUserId is null, returns/creates the store's main caisse.
  * Idempotent under concurrent calls thanks to partial unique indexes.
  */
+type DbLike = Pick<typeof db, "select" | "insert" | "update" | "delete">;
+
 export async function ensureCaisse(
   storeId: number,
   ownerUserId: number | null,
-  txArg?: typeof db,
+  txArg?: DbLike,
 ): Promise<typeof schema.caissesTable.$inferSelect> {
-  const tx = txArg ?? db;
+  const tx: DbLike = txArg ?? db;
   const kind: "main" | "staff" = ownerUserId === null ? "main" : "staff";
   const where = ownerUserId === null
     ? and(eq(schema.caissesTable.storeId, storeId), eq(schema.caissesTable.kind, "main"))

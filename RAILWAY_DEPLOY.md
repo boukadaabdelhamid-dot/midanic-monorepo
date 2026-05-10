@@ -37,8 +37,7 @@
 2. **Settings** → **Service Settings**:
    - **Service Name:** `api-server`
    - **Root Directory:** اتركه فارغاً (المشروع كله)
-   - **Build:** Railway سيكتشف `artifacts/api-server/Dockerfile` تلقائياً عبر `railway.json`
-   - أو يدوياً: **Config Path:** `artifacts/api-server/railway.json`
+   - **Config Path:** `artifacts/api-server/railway.json` (يستخدم Nixpacks تلقائياً)
 3. **Variables** أضِف:
    ```
    DATABASE_URL=${{Postgres.DATABASE_URL}}

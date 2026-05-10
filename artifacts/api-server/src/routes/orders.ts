@@ -187,7 +187,7 @@ async function handleCreateOrder(req: AuthRequest, res: import("express").Respon
       // Storefront (customer-placed) orders have no seller and skip this.
       let sellerCaisseId: number | null = null;
       if (sellerUserId !== null && totalAmount > 0) {
-        const sellerCaisse = await ensureCaisse(storeId, sellerUserId, tx as unknown as typeof db);
+        const sellerCaisse = await ensureCaisse(storeId, sellerUserId, tx);
         sellerCaisseId = sellerCaisse.id;
         const amountStr = totalAmount.toFixed(2);
         await tx.update(schema.caissesTable)
