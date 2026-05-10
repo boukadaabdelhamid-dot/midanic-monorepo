@@ -7,6 +7,5 @@
 **/coverage
 .git
 .local
-attached_assets
 *.log
 .DS_Store
