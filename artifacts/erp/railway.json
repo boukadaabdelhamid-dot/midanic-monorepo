@@ -1,10 +1,11 @@
 {
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
-    "builder": "DOCKERFILE",
-    "dockerfilePath": "artifacts/erp/Dockerfile"
+    "builder": "NIXPACKS",
+    "buildCommand": "pnpm install --filter @workspace/erp... && pnpm --filter @workspace/erp run build"
   },
   "deploy": {
+    "startCommand": "npx serve -s /app/artifacts/erp/dist/public -l $PORT",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
