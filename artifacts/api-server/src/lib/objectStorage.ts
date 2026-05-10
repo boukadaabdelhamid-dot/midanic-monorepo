@@ -5,6 +5,10 @@ import { ObjectAclPolicy, ObjectPermission } from "./objectAcl";
 
 const REPLIT_SIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 
+function isReplitEnvironment(): boolean {
+  return !!(process.env.REPL_ID || process.env.REPLIT_DEV_DOMAIN);
+}
+
 function buildStorageClient(): Storage {
   const credentialsJson = process.env.GOOGLE_CREDENTIALS_JSON;
 
@@ -13,26 +17,41 @@ function buildStorageClient(): Storage {
     return new Storage({ credentials });
   }
 
-  return new Storage({
-    credentials: {
-      audience: "replit",
-      subject_token_type: "access_token",
-      token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
-      type: "external_account",
-      credential_source: {
-        url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
-        format: {
-          type: "json",
-          subject_token_field_name: "access_token",
+  if (isReplitEnvironment()) {
+    return new Storage({
+      credentials: {
+        audience: "replit",
+        subject_token_type: "access_token",
+        token_url: `${REPLIT_SIDECAR_ENDPOINT}/token`,
+        type: "external_account",
+        credential_source: {
+          url: `${REPLIT_SIDECAR_ENDPOINT}/credential`,
+          format: {
+            type: "json",
+            subject_token_field_name: "access_token",
+          },
         },
+        universe_domain: "googleapis.com",
       },
-      universe_domain: "googleapis.com",
-    },
-    projectId: "",
-  });
+      projectId: "",
+    });
+  }
+
+  throw new Error(
+    "Object storage is not configured. " +
+    "Set GOOGLE_CREDENTIALS_JSON (GCS Service Account JSON) to enable image uploads. " +
+    "Without it, /api/uploads and signed-URL endpoints will be unavailable."
+  );
 }
 
-export const objectStorageClient = buildStorageClient();
+let _storageClient: Storage | undefined;
+
+export function getObjectStorageClient(): Storage {
+  if (!_storageClient) {
+    _storageClient = buildStorageClient();
+  }
+  return _storageClient;
+}
 
 export class ObjectNotFoundError extends Error {
   constructor() {
@@ -77,7 +96,7 @@ export class ObjectStorageService {
     for (const searchPath of this.getPublicObjectSearchPaths()) {
       const fullPath = `${searchPath}/${filePath}`;
       const { bucketName, objectName } = parseObjectPath(fullPath);
-      const bucket = objectStorageClient.bucket(bucketName);
+      const bucket = getObjectStorageClient().bucket(bucketName);
       const file = bucket.file(objectName);
       const [exists] = await file.exists();
       if (exists) return file;
@@ -104,7 +123,7 @@ export class ObjectStorageService {
     const objectId = randomUUID();
     const fullPath = `${privateObjectDir}/uploads/${objectId}`;
     const { bucketName, objectName } = parseObjectPath(fullPath);
-    const bucket = objectStorageClient.bucket(bucketName);
+    const bucket = getObjectStorageClient().bucket(bucketName);
     const file = bucket.file(objectName);
     await file.save(buffer, { contentType, resumable: false });
     const objectPath = `/objects/uploads/${objectId}`;
@@ -140,7 +159,7 @@ export class ObjectStorageService {
     if (!entityDir.endsWith("/")) entityDir = `${entityDir}/`;
     const objectEntityPath = `${entityDir}${entityId}`;
     const { bucketName, objectName } = parseObjectPath(objectEntityPath);
-    const bucket = objectStorageClient.bucket(bucketName);
+    const bucket = getObjectStorageClient().bucket(bucketName);
     const objectFile = bucket.file(objectName);
     const [exists] = await objectFile.exists();
     if (!exists) throw new ObjectNotFoundError();
@@ -162,7 +181,7 @@ async function signObjectURL({
 
   if (credentialsJson) {
     const credentials = JSON.parse(credentialsJson) as { client_email: string; private_key: string };
-    const file = objectStorageClient.bucket(bucketName).file(objectName);
+    const file = getObjectStorageClient().bucket(bucketName).file(objectName);
     const [url] = await file.getSignedUrl({
       version: "v4",
       action: method === "PUT" ? "write" : method === "GET" ? "read" : method === "DELETE" ? "delete" : "read",

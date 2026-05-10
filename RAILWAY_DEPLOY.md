@@ -91,19 +91,22 @@
 # تصدير DATABASE_URL من Railway
 export DATABASE_URL="<رابط Postgres من Railway>"
 
-# تطبيق المخطط
+# تطبيق المخطط وإنشاء الجداول
 pnpm --filter @workspace/db run push
 
-# (اختياري) seed بيانات الإدارة الافتراضية
-node scripts/seed-admin.mjs
+# (اختياري) seed بيانات الإدارة الافتراضية — admin@midanic.com / admin1234
+pnpm --filter @workspace/api-server exec tsx src/seed.ts
 ```
 
-أو استخدم خدمة **Railway CLI**:
+أو استخدم **Railway CLI** لتشغيل الأوامر مباشرة:
 ```bash
 npm i -g @railway/cli
 railway login
 railway link
-railway run --service Postgres pnpm --filter @workspace/db run push
+# تطبيق المخطط على Postgres في Railway
+DATABASE_URL="<رابط Postgres>" railway run pnpm --filter @workspace/db run push
+# seed الإدارة
+DATABASE_URL="<رابط Postgres>" railway run pnpm --filter @workspace/api-server exec tsx src/seed.ts
 ```
 
 ---
