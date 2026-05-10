@@ -20,7 +20,10 @@ import { AuthProvider } from "@/context/AuthContext";
 import { LanguageProvider } from "@/context/LanguageContext";
 import { NotificationsProvider } from "@/context/NotificationsContext";
 
-setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
+const apiUrl =
+  process.env.EXPO_PUBLIC_API_URL ||
+  (process.env.EXPO_PUBLIC_DOMAIN ? `https://${process.env.EXPO_PUBLIC_DOMAIN}` : "");
+setBaseUrl(apiUrl);
 
 SplashScreen.preventAutoHideAsync();
 
