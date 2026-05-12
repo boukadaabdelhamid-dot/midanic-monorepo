@@ -21,4 +21,4 @@ ENV NODE_ENV=production
 COPY --from=build /app /app
 WORKDIR /app/artifacts/api-server
 EXPOSE 3000
-CMD ["sh", "-c", "cd /app/lib/db && pnpm exec drizzle-kit push --force --config ./drizzle.config.ts && cd /app/artifacts/api-server && node --enable-source-maps ./dist/index.mjs"]
+CMD ["node", "--enable-source-maps", "./dist/index.mjs"]

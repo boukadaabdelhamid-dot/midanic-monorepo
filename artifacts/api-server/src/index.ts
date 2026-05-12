@@ -1,4 +1,8 @@
 import { createServer } from "http";
+import { fileURLToPath } from "url";
+import path from "path";
+import fs from "fs";
+import { Pool } from "pg";
 import app from "./app";
 import { setupWebSocket } from "./lib/ws";
 import { logger } from "./lib/logger";
@@ -15,6 +19,48 @@ const port = Number(rawPort);
 
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
+}
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const migrationsFolder = path.resolve(__dirname, "../../../lib/db/drizzle");
+
+async function runMigrations() {
+  const sqlFile = path.join(migrationsFolder, "0000_left_moon_knight.sql");
+  if (!fs.existsSync(sqlFile)) {
+    logger.warn({ sqlFile }, "Migration file not found, skipping.");
+    return;
+  }
+  const sql = fs.readFileSync(sqlFile, "utf8");
+  const statements = sql
+    .split("--> statement-breakpoint")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const pool = new Pool({ connectionString: process.env["DATABASE_URL"] });
+  let applied = 0;
+  let skipped = 0;
+  for (const stmt of statements) {
+    try {
+      await pool.query(stmt);
+      applied++;
+    } catch (err: any) {
+      const msg: string = err?.message ?? "";
+      if (
+        msg.includes("already exists") ||
+        msg.includes("duplicate column") ||
+        msg.includes("already been created")
+      ) {
+        skipped++;
+      } else {
+        logger.error({ err, stmt: stmt.slice(0, 120) }, "Migration statement failed");
+        await pool.end();
+        process.exit(1);
+      }
+    }
+  }
+  await pool.end();
+  logger.info({ applied, skipped }, "DB migrations done.");
 }
 
 async function runSeedIfNeeded() {
@@ -36,6 +82,7 @@ setupWebSocket(server);
 
 server.listen(port, async () => {
   logger.info({ port }, "Server listening");
+  await runMigrations();
   await runSeedIfNeeded();
 });
 
