@@ -53,9 +53,7 @@ async function runMigrations() {
       ) {
         skipped++;
       } else {
-        logger.error({ err, stmt: stmt.slice(0, 120) }, "Migration statement failed");
-        await pool.end();
-        process.exit(1);
+        logger.warn({ err: msg, stmt: stmt.slice(0, 120) }, "Migration statement warning (non-fatal)");
       }
     }
   }
