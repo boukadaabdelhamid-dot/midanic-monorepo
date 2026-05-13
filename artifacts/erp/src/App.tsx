@@ -2,13 +2,12 @@ import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider, MutationCache } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider, useAuth, forceLogout } from "@/hooks/use-auth";
+import { AuthProvider, forceLogout } from "@/hooks/use-auth";
 import { StoreProvider, useStoreContext } from "@/hooks/use-store";
 import { useMe } from "@/hooks/use-me";
 import { useRealtimeWS } from "@/hooks/use-realtime-ws";
 import { Layout } from "@/components/layout/Layout";
 import NotFound from "@/pages/not-found";
-import Login from "@/pages/Login";
 import SelectStore from "@/pages/SelectStore";
 import Stores from "@/pages/Stores";
 import Home from "@/pages/Home";
@@ -52,10 +51,8 @@ const queryClient = new QueryClient({
 });
 
 function ProtectedRoute({ component: Component, adminOnly = false }: { component: React.ComponentType; adminOnly?: boolean }) {
-  const { token } = useAuth();
   const { currentStoreId } = useStoreContext();
   const { isAdmin, isLoading, user } = useMe();
-  if (!token) return <Redirect to="/login" />;
   if (isLoading) return <Layout><div className="p-6 text-sm text-muted-foreground">…</div></Layout>;
   const stores = (user as { stores?: unknown[] } | null)?.stores ?? [];
   if (!currentStoreId && stores.length > 0) return <Redirect to="/select-store" />;
@@ -68,10 +65,8 @@ function ProtectedRoute({ component: Component, adminOnly = false }: { component
 }
 
 function ProtectedHome() {
-  const { token } = useAuth();
   const { currentStoreId } = useStoreContext();
   const { user, isLoading } = useMe();
-  if (!token) return <Redirect to="/login" />;
   if (isLoading) return <Layout><div className="p-6 text-sm text-muted-foreground">…</div></Layout>;
   const stores = (user as { stores?: unknown[] } | null)?.stores ?? [];
   if (!currentStoreId && stores.length > 0) return <Redirect to="/select-store" />;
@@ -79,17 +74,15 @@ function ProtectedHome() {
 }
 
 function Router() {
-  const { token } = useAuth();
   // Single WS connection scoped to the whole app — keeps transfer list,
   // order list, and inventory cache fresh in real time across pages.
   useRealtimeWS();
 
   return (
     <Switch>
-      <Route path="/login" component={Login} />
       <Route path="/select-store" component={SelectStore} />
       <Route path="/">
-        {token ? <Redirect to="/home" /> : <Redirect to="/login" />}
+        <Redirect to="/home" />
       </Route>
       <Route path="/stores">
         <ProtectedRoute component={Stores} adminOnly />
