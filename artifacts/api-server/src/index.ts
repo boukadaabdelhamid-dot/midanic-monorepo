@@ -2,11 +2,10 @@ import { createServer } from "http";
 import { fileURLToPath } from "url";
 import path from "path";
 import fs from "fs";
-import { Pool } from "pg";
 import app from "./app";
 import { setupWebSocket } from "./lib/ws";
 import { logger } from "./lib/logger";
-import { db, schema } from "./lib/db";
+import { db, schema, pool } from "./lib/db";
 import { seed } from "./seed";
 
 const rawPort = process.env["PORT"];
@@ -37,7 +36,6 @@ async function runMigrations() {
     .map((s) => s.trim())
     .filter(Boolean);
 
-  const pool = new Pool({ connectionString: process.env["DATABASE_URL"] });
   let applied = 0;
   let skipped = 0;
   for (const stmt of statements) {
@@ -57,7 +55,6 @@ async function runMigrations() {
       }
     }
   }
-  await pool.end();
   logger.info({ applied, skipped }, "DB migrations done.");
 }
 
