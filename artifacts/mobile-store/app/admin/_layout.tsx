@@ -1,13 +1,32 @@
-import { Stack } from "expo-router";
+import { Redirect, Stack } from "expo-router";
 import React, { useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { AdminBottomNav } from "@/components/admin/AdminBottomNav";
 import { MoreSheet } from "@/components/admin/MoreSheet";
+import { useAuth } from "@/context/AuthContext";
 import { useColors } from "@/hooks/useColors";
 
 export default function AdminLayout() {
   const colors = useColors();
   const [moreOpen, setMoreOpen] = useState(false);
+  const { token, user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <View style={[styles.loading, { backgroundColor: colors.background }]}>
+        <ActivityIndicator color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (!token) {
+    return <Redirect href="/auth/login" />;
+  }
+
+  const role = user?.role;
+  if (role !== "admin" && role !== "employee") {
+    return <Redirect href="/(tabs)" />;
+  }
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>
