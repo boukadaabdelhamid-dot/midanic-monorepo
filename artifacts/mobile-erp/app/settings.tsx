@@ -86,18 +86,13 @@ export default function SettingsScreen() {
             <Row
               icon="map-pin"
               label={t("تبديل المتجر", "Switch Store")}
-              onPress={() => router.push("/admin/stores")}
+              onPress={() => router.push("/stores")}
             />
           </View>
         </View>
 
         <View>
           <View style={[styles.card, { borderColor: colors.border }]}>
-            <Row
-              icon="arrow-left"
-              label={t("الخروج إلى المتجر", "Exit to Shop")}
-              onPress={() => router.replace("/(tabs)")}
-            />
             <Row icon="log-out" label={t("تسجيل الخروج", "Sign Out")} onPress={handleLogout} danger />
           </View>
         </View>

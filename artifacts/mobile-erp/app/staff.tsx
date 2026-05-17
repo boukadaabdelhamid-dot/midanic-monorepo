@@ -44,7 +44,7 @@ export default function StaffScreen() {
   const [editing, setEditing] = useState<StaffMember | null>(null);
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "employee" as "admin" | "employee" });
 
-  if (!isAdmin) return <Redirect href="/admin" />;
+  if (!isAdmin) return <Redirect href="/" />;
 
   const handleCreate = async () => {
     if (!form.name || !form.email || !form.password) return;

@@ -43,7 +43,7 @@ export default function NewPurchaseOrder() {
   const productsQ = useGetProducts({ search: search || undefined, limit: 30 });
   const create = useCreatePurchaseOrder();
 
-  if (!isAdmin) return <Redirect href="/admin" />;
+  if (!isAdmin) return <Redirect href="/" />;
 
   const products = productsQ.data?.products ?? [];
   const suppliers = suppliersQ.data ?? [];

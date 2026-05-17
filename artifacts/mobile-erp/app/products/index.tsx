@@ -76,7 +76,7 @@ export default function ProductsList() {
           renderItem={({ item }: { item: Product }) => (
             <Pressable
               style={({ pressed }) => [styles.row, { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.85 : 1 }]}
-              onPress={() => router.push(`/admin/products/${item.id}` as never)}
+              onPress={() => router.push(`/products/${item.id}` as never)}
             >
               <View style={{ flex: 1 }}>
                 <Text style={[styles.name, { color: colors.foreground }]} numberOfLines={1}>

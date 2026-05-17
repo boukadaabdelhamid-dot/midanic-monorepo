@@ -92,7 +92,7 @@ export default function TransfersScreen() {
 
       <Pressable
         style={[styles.newBtn, { backgroundColor: colors.primary }]}
-        onPress={() => router.push("/admin/transfers/new")}
+        onPress={() => router.push("/transfers/new")}
       >
         <Feather name="plus" size={14} color={colors.primaryForeground} />
         <Text style={[styles.newBtnTxt, { color: colors.primaryForeground }]}>

@@ -32,16 +32,16 @@ export default function StoresScreen() {
   const select = useSelectStore();
 
   useEffect(() => {
-    AsyncStorage.getItem("midanic_store_slug").then(setActiveSlug);
+    AsyncStorage.getItem("midanic_erp_store_slug").then(setActiveSlug);
   }, []);
 
-  if (!isAdmin) return <Redirect href="/admin" />;
+  if (!isAdmin) return <Redirect href="/" />;
 
   const handleSwitch = async (storeId: number, slug: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       const res = await select.mutateAsync({ data: { storeId } });
-      await AsyncStorage.setItem("midanic_store_slug", slug);
+      await AsyncStorage.setItem("midanic_erp_store_slug", slug);
       setActiveSlug(slug);
       if (token && user && res?.token) {
         await login(res.token, { ...user, currentStoreId: storeId });

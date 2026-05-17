@@ -47,7 +47,7 @@ export default function InventoryScreen() {
   const handleScanned = (code: string) => {
     setScanOpen(false);
     const match = products.find((p) => p.barcode === code || p.reference === code);
-    if (match) router.push(`/admin/inventory/${match.id}`);
+    if (match) router.push(`/inventory/${match.id}`);
     else setSearch(code);
   };
 
@@ -133,7 +133,7 @@ export default function InventoryScreen() {
                   styles.row,
                   { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed ? 0.85 : 1 },
                 ]}
-                onPress={() => router.push(`/admin/inventory/${item.id}` as never)}
+                onPress={() => router.push(`/inventory/${item.id}` as never)}
               >
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.name, { color: colors.foreground }]} numberOfLines={1}>

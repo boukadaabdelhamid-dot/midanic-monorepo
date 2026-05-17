@@ -77,12 +77,12 @@ export default function AdminDashboard() {
   };
 
   const allActions: { ar: string; en: string; icon: React.ComponentProps<typeof Feather>["name"]; href: string; adminOnly?: boolean }[] = [
-    { ar: "الصندوق", en: "Caisse", icon: "shopping-bag", href: "/admin/caisse" },
-    { ar: "الطلبات", en: "Online Orders", icon: "package", href: "/admin/online-orders" },
-    { ar: "المخزون", en: "Inventory", icon: "box", href: "/admin/inventory" },
-    { ar: "التحويلات", en: "Transfers", icon: "shuffle", href: "/admin/transfers" },
-    { ar: "أوامر الشراء", en: "Purchase Orders", icon: "truck", href: "/admin/purchase-orders", adminOnly: true },
-    { ar: "التقارير", en: "Reports", icon: "bar-chart-2", href: "/admin/reports", adminOnly: true },
+    { ar: "الصندوق", en: "Caisse", icon: "shopping-bag", href: "/caisse" },
+    { ar: "الطلبات", en: "Online Orders", icon: "package", href: "/online-orders" },
+    { ar: "المخزون", en: "Inventory", icon: "box", href: "/inventory" },
+    { ar: "التحويلات", en: "Transfers", icon: "shuffle", href: "/transfers" },
+    { ar: "أوامر الشراء", en: "Purchase Orders", icon: "truck", href: "/purchase-orders", adminOnly: true },
+    { ar: "التقارير", en: "Reports", icon: "bar-chart-2", href: "/reports", adminOnly: true },
   ];
   const actions = allActions.filter((a) => !a.adminOnly || isAdmin);
 

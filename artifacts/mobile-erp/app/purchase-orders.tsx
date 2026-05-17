@@ -58,7 +58,7 @@ export default function PurchaseOrdersScreen() {
       {isAdmin ? (
         <Pressable
           style={[styles.newBtn, { backgroundColor: colors.primary }]}
-          onPress={() => router.push("/admin/purchase-orders/new")}
+          onPress={() => router.push("/purchase-orders/new")}
         >
           <Feather name="plus" size={14} color={colors.primaryForeground} />
           <Text style={[styles.newBtnTxt, { color: colors.primaryForeground }]}>

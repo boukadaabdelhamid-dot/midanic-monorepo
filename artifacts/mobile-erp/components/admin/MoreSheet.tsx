@@ -21,14 +21,14 @@ interface MoreItem {
 }
 
 const ITEMS: MoreItem[] = [
-  { href: "/admin/transfers", ar: "التحويلات", en: "Transfers", icon: "shuffle" },
-  { href: "/admin/purchase-orders", ar: "أوامر الشراء", en: "Purchase Orders", icon: "truck", adminOnly: true },
-  { href: "/admin/products", ar: "المنتجات", en: "Products", icon: "tag", adminOnly: true },
-  { href: "/admin/reports", ar: "التقارير", en: "Reports", icon: "bar-chart-2", adminOnly: true },
-  { href: "/admin/customers", ar: "العملاء", en: "Customers", icon: "users" },
-  { href: "/admin/stores", ar: "المتاجر", en: "Stores", icon: "map-pin", adminOnly: true },
-  { href: "/admin/staff", ar: "الموظفون", en: "Staff", icon: "user-check", adminOnly: true },
-  { href: "/admin/settings", ar: "الإعدادات", en: "Settings", icon: "settings" },
+  { href: "/transfers", ar: "التحويلات", en: "Transfers", icon: "shuffle" },
+  { href: "/purchase-orders", ar: "أوامر الشراء", en: "Purchase Orders", icon: "truck", adminOnly: true },
+  { href: "/products", ar: "المنتجات", en: "Products", icon: "tag", adminOnly: true },
+  { href: "/reports", ar: "التقارير", en: "Reports", icon: "bar-chart-2", adminOnly: true },
+  { href: "/customers", ar: "العملاء", en: "Customers", icon: "users" },
+  { href: "/stores", ar: "المتاجر", en: "Stores", icon: "map-pin", adminOnly: true },
+  { href: "/staff", ar: "الموظفون", en: "Staff", icon: "user-check", adminOnly: true },
+  { href: "/settings", ar: "الإعدادات", en: "Settings", icon: "settings" },
 ];
 
 export function MoreSheet({ visible, onClose }: MoreSheetProps) {

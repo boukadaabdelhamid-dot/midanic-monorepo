@@ -30,7 +30,7 @@ export function AdminHeader({ title, showBack, onStorePress }: AdminHeaderProps)
 
   const [storeSlug, setStoreSlug] = React.useState<string | null>(null);
   React.useEffect(() => {
-    AsyncStorage.getItem("midanic_store_slug").then(setStoreSlug);
+    AsyncStorage.getItem("midanic_erp_store_slug").then(setStoreSlug);
   }, []);
 
   const currentStore = stores.find((s) => s.slug === storeSlug) ?? stores[0];
@@ -93,7 +93,7 @@ export function AdminHeader({ title, showBack, onStorePress }: AdminHeaderProps)
       </Pressable>
 
       <Pressable
-        onPress={() => router.push("/admin/online-orders")}
+        onPress={() => router.push("/online-orders")}
         style={styles.iconBtn}
         hitSlop={10}
       >

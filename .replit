@@ -11,6 +11,27 @@ env = { "CI" = "true" }
 [workflows]
 runButton = "Project"
 
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "artifacts/mobile-erp: expo"
+
+[[workflows.workflow]]
+name = "artifacts/mobile-erp: expo"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "PORT=19559 pnpm --filter @workspace/mobile-erp run dev"
+waitForPort = 19559
+
 [agent]
 stack = "PNPM_WORKSPACE"
 expertMode = true

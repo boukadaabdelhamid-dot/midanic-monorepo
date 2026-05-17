@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/mobile-erp/"
+title = "Midanic ERP"
+version = "1.0.0"
+id = "artifacts/mobile-erp"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/mobile-erp/" ]
+localPort = 19559
+
+[services.development]
+run = "pnpm --filter @workspace/mobile-erp run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/mobile-erp", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/mobile-erp", "run", "serve" ]
+
+[services.env]
+PORT = "19559"
+BASE_PATH = "/mobile-erp/"

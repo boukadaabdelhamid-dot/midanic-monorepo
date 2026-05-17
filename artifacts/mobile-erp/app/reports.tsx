@@ -65,7 +65,7 @@ export default function ReportsScreen() {
     return { online: { count: online.length, sum: sumOnline }, inStore: { count: inStore.length, sum: sumStore } };
   }, [ordersQ.data, from, to]);
 
-  if (!isAdmin) return <Redirect href="/admin" />;
+  if (!isAdmin) return <Redirect href="/" />;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.background }]}>

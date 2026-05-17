@@ -28,10 +28,10 @@ export function AdminBottomNav({ onMore }: AdminBottomNavProps) {
   const insets = useSafeAreaInsets();
 
   const items: NavItem[] = [
-    { key: "/admin", ar: "الرئيسية", en: "Home", icon: "home", href: "/admin" },
-    { key: "/admin/caisse", ar: "الصندوق", en: "Caisse", icon: "shopping-bag", href: "/admin/caisse" },
-    { key: "/admin/online-orders", ar: "الطلبات", en: "Orders", icon: "package", href: "/admin/online-orders" },
-    { key: "/admin/inventory", ar: "المخزون", en: "Stock", icon: "box", href: "/admin/inventory" },
+    { key: "/", ar: "الرئيسية", en: "Home", icon: "home", href: "/" },
+    { key: "/caisse", ar: "الصندوق", en: "Caisse", icon: "shopping-bag", href: "/caisse" },
+    { key: "/online-orders", ar: "الطلبات", en: "Orders", icon: "package", href: "/online-orders" },
+    { key: "/inventory", ar: "المخزون", en: "Stock", icon: "box", href: "/inventory" },
     { key: "more", ar: "المزيد", en: "More", icon: "more-horizontal", onPress: onMore },
   ];
 
@@ -49,7 +49,7 @@ export function AdminBottomNav({ onMore }: AdminBottomNavProps) {
       ]}
     >
       {items.map((it) => {
-        const active = it.href && (pathname === it.href || (it.href === "/admin/inventory" && pathname.startsWith("/admin/inventory")));
+        const active = it.href && (pathname === it.href || (it.href === "/inventory" && pathname.startsWith("/inventory")));
         return (
           <Pressable
             key={it.key}
