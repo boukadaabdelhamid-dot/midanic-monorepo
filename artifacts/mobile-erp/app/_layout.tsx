@@ -27,7 +27,10 @@ import { useColors } from "@/hooks/useColors";
 const apiUrl =
   process.env.EXPO_PUBLIC_API_URL ||
   (process.env.EXPO_PUBLIC_DOMAIN ? `https://${process.env.EXPO_PUBLIC_DOMAIN}` : "");
-setBaseUrl(apiUrl);
+if (!apiUrl) {
+  console.warn("[mobile-erp] No API base URL configured — set EXPO_PUBLIC_API_URL or EXPO_PUBLIC_DOMAIN");
+}
+setBaseUrl(apiUrl || null);
 
 SplashScreen.preventAutoHideAsync();
 

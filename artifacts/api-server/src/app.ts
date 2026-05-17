@@ -30,12 +30,17 @@ const allowedOrigins = (process.env["ALLOWED_ORIGINS"] ?? "")
   .map((o) => o.trim())
   .filter(Boolean);
 
+const REPLIT_DEV_DOMAIN_RE = /^https?:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.replit\.dev(:\d+)?$/i;
+
 app.use(
   cors({
     origin: (origin, cb) => {
       if (!origin) return cb(null, true);
       if (allowedOrigins.length === 0) return cb(null, true);
       if (allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
+        return cb(null, true);
+      }
+      if (REPLIT_DEV_DOMAIN_RE.test(origin)) {
         return cb(null, true);
       }
       return cb(new Error("Not allowed by CORS"));

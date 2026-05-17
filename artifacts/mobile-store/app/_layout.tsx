@@ -23,7 +23,10 @@ import { NotificationsProvider } from "@/context/NotificationsContext";
 const apiUrl =
   process.env.EXPO_PUBLIC_API_URL ||
   (process.env.EXPO_PUBLIC_DOMAIN ? `https://${process.env.EXPO_PUBLIC_DOMAIN}` : "");
-setBaseUrl(apiUrl);
+if (!apiUrl) {
+  console.warn("[mobile-store] No API base URL configured — set EXPO_PUBLIC_API_URL or EXPO_PUBLIC_DOMAIN");
+}
+setBaseUrl(apiUrl || null);
 
 SplashScreen.preventAutoHideAsync();
 
@@ -40,6 +43,7 @@ function RootLayoutNav() {
         <Stack.Screen name="order/[id]" options={{ headerShown: false }} />
         <Stack.Screen name="auth/login" options={{ headerShown: false }} />
         <Stack.Screen name="auth/register" options={{ headerShown: false }} />
+        <Stack.Screen name="admin" options={{ headerShown: false }} />
       </Stack>
       <NotificationBanner />
     </>

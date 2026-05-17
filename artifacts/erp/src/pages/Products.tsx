@@ -307,6 +307,10 @@ export default function Products() {
       isExposed: form.isExposed,
     };
     const forceRefresh = () => qc.invalidateQueries({ queryKey: getGetProductsQueryKey(), refetchType: "all" });
+    const readErr = (err: unknown): string => {
+      const e = err as { data?: { error?: string }; message?: string } | undefined;
+      return e?.data?.error || e?.message || "Erreur inconnue";
+    };
     if (dialog.editing) {
       const editingId = dialog.editing.id;
       updateProduct.mutate({ id: editingId, data }, {
@@ -316,12 +320,12 @@ export default function Products() {
           setDialog({ open: false, editing: null });
           forceRefresh();
         },
-        onError: (err) => alert(`Erreur: ${err.message}`),
+        onError: (err) => alert(`Erreur / خطأ: ${readErr(err)}`),
       });
     } else {
       createProduct.mutate({ data }, {
         onSuccess: () => { forceRefresh(); setDialog({ open: false, editing: null }); },
-        onError: (err) => alert(`Erreur: ${err.message}`),
+        onError: (err) => alert(`Erreur / خطأ: ${readErr(err)}`),
       });
     }
   };
@@ -780,7 +784,10 @@ export default function Products() {
                           onClick={() => {
                             generateBarcode.mutate(undefined, {
                               onSuccess: (r) => setForm((f) => ({ ...f, barcode: r.barcode })),
-                              onError: (e) => alert((e as Error).message),
+                              onError: (e) => {
+                                const err = e as { data?: { error?: string }; message?: string };
+                                alert(`Erreur / خطأ: ${err?.data?.error || err?.message || "Echec génération"}`);
+                              },
                             });
                           }}
                           data-testid="button-generate-barcode"

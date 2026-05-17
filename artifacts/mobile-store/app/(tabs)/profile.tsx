@@ -91,13 +91,13 @@ export default function ProfileScreen() {
         </Text>
         <Pressable
           style={[styles.authBtn, { backgroundColor: colors.primary }]}
-          onPress={() => router.push("/auth/login")}
+          onPress={() => router.push("/auth/login" as never)}
         >
           <Text style={[styles.authBtnText, { color: colors.primaryForeground }]}>
             {t("تسجيل الدخول", "Sign In")}
           </Text>
         </Pressable>
-        <Pressable onPress={() => router.push("/auth/register")}>
+        <Pressable onPress={() => router.push("/auth/register" as never)}>
           <Text style={[styles.registerLink, { color: colors.primary }]}>
             {t("إنشاء حساب", "Create Account")}
           </Text>
@@ -148,10 +148,25 @@ export default function ProfileScreen() {
           <MenuRow
             icon="package"
             label={t("طلباتي", "My Orders")}
-            onPress={() => router.push("/(tabs)/orders")}
+            onPress={() => router.push("/(tabs)/orders" as never)}
           />
         </View>
       </View>
+
+      {(user.role === "admin" || user.role === "employee") ? (
+        <View style={[styles.section, { marginTop: 16 }]}>
+          <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
+            {t("لوحة الإدارة", "Admin Panel")}
+          </Text>
+          <View style={[styles.card, { borderColor: colors.border }]}>
+            <MenuRow
+              icon="grid"
+              label={t("الانتقال إلى الإدارة", "Switch to Admin")}
+              onPress={() => { Haptics.selectionAsync(); router.push("/admin" as never); }}
+            />
+          </View>
+        </View>
+      ) : null}
 
       <View style={[styles.section, { marginTop: 16 }]}>
         <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>
