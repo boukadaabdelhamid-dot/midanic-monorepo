@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   useGetProducts,
   useGetErpCustomers,
@@ -13,6 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -20,16 +21,12 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Plus, Pencil, Trash2, Search, Save, RotateCcw, Printer,
+  Plus, Pencil, Trash2, ShoppingCart, Search, Save, RotateCcw, Printer,
   X, Eye, EyeOff, Settings, Users, Barcode, Check, FileText,
 } from "lucide-react";
 import InvoiceDialog from "@/components/InvoiceDialog";
 import type { InvoiceData } from "@/components/InvoiceTemplate";
 import { useCurrentStore } from "@/hooks/use-current-store";
-import { Row } from "@/components/pos/Row";
-import { ClientPickerButton } from "@/components/pos/ClientPickerButton";
-import { ProductPickerDialog } from "@/components/pos/ProductPickerDialog";
-import { PaymentDialog } from "@/components/pos/PaymentDialog";
 
 type CartLine = {
   productId: number;
@@ -512,5 +509,224 @@ export default function Pos() {
         onShowTvaChange={setInvoiceShowTva}
       />
     </div>
+  );
+}
+
+function Row({
+  label, value, highlight, muted,
+}: { label: string; value: string; highlight?: "green" | "red"; muted?: boolean }) {
+  const valColor =
+    highlight === "green" ? "text-emerald-400" :
+    highlight === "red" ? "text-red-300" :
+    muted ? "text-white/60" : "text-white";
+  const labelColor = muted ? "text-white/60" : highlight ? "text-white/90" : "text-white/80";
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <span className={labelColor}>{label}</span>
+      <span className={`font-bold ${highlight ? "text-lg" : ""} ${valColor}`}>{value}</span>
+    </div>
+  );
+}
+
+function ClientPickerButton({
+  onPick, customers,
+}: { onPick: (c: CustomerSummary | null) => void; customers: CustomerSummary[] }) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const filtered = customers.filter((c) =>
+    c.name.toLowerCase().includes(q.toLowerCase()) || c.email.toLowerCase().includes(q.toLowerCase())
+  );
+  return (
+    <>
+      <Button size="icon" variant="ghost" className="h-7 w-7 text-blue-600"
+        onClick={() => setOpen(true)} aria-label="Choisir client" data-testid="button-pick-client">
+        <Pencil className="h-4 w-4" />
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Choisir un client / اختيار العميل</DialogTitle>
+          </DialogHeader>
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filtre" className="h-10" autoFocus />
+          <div className="max-h-80 overflow-y-auto border rounded">
+            <button type="button"
+              className="w-full text-left px-3 py-2 hover:bg-slate-50 text-sm border-b"
+              onClick={() => { onPick(null); setOpen(false); }}>
+              <span className="font-semibold">DIVER COMPTOIR</span>
+              <span className="text-xs text-muted-foreground block">Client par défaut</span>
+            </button>
+            {filtered.map((c) => (
+              <button key={c.id} type="button"
+                className="w-full text-left px-3 py-2 hover:bg-slate-50 text-sm border-b"
+                onClick={() => { onPick(c); setOpen(false); }}
+                data-testid={`button-client-${c.id}`}>
+                <span className="font-semibold">{c.name}</span>
+                <span className="text-xs text-muted-foreground block">{c.email}</span>
+              </button>
+            ))}
+            {filtered.length === 0 && (
+              <div className="text-center py-6 text-muted-foreground text-sm">Aucun client</div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function ProductPickerDialog({
+  open, onOpenChange, products, onPick,
+}: {
+  open: boolean; onOpenChange: (o: boolean) => void;
+  products: Product[]; onPick: (p: Product) => void;
+}) {
+  const [q, setQ] = useState("");
+  useEffect(() => { if (open) setQ(""); }, [open]);
+  const filtered = useMemo(() => {
+    const trimmed = q.trim().toLowerCase();
+    if (!trimmed) return products;
+    return products.filter(
+      (p) =>
+        (p.nameEn ?? "").toLowerCase().includes(trimmed) ||
+        (p.nameAr ?? "").toLowerCase().includes(trimmed) ||
+        (p.barcode ?? "").toLowerCase().includes(trimmed) ||
+        (p.reference ?? "").toLowerCase().includes(trimmed)
+    );
+  }, [q, products]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-center">Choisir un article / اختيار منتج</DialogTitle>
+        </DialogHeader>
+        <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filtre" className="h-11" autoFocus data-testid="input-picker-filter" />
+        <div className="max-h-[60vh] overflow-y-auto border rounded">
+          {filtered.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">Aucun article trouvé</div>
+          ) : (
+            filtered.map((p) => (
+              <button key={p.id} type="button"
+                className="w-full flex items-center gap-3 px-3 py-2.5 border-b hover:bg-blue-50 text-left transition-colors"
+                onClick={() => onPick(p)}
+                data-testid={`button-pick-product-${p.id}`}>
+                <div className="h-10 w-10 rounded-full bg-slate-200 flex items-center justify-center overflow-hidden flex-shrink-0">
+                  {p.imageUrl ? (
+                    <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <ShoppingCart className="h-5 w-5 text-slate-400" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold text-sm uppercase truncate">
+                    {p.nameEn || p.nameAr}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {parseFloat(p.price ?? "0").toLocaleString("fr-DZ", { minimumFractionDigits: 2 })} DZD
+                  </div>
+                </div>
+                <div className="text-sm font-bold text-slate-600 ml-2">{p.stock}</div>
+              </button>
+            ))
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PaymentDialog({
+  open, onOpenChange, net, client, versement, setVersement, onConfirm, isPending,
+}: {
+  open: boolean; onOpenChange: (o: boolean) => void;
+  net: number; client: CustomerSummary | null;
+  versement: number; setVersement: (n: number) => void;
+  onConfirm: (opts: { mode: "comptant" | "terme"; cloture: boolean; impression: boolean }) => void;
+  isPending: boolean;
+}) {
+  const [cloture, setCloture] = useState(true);
+  const [impression, setImpression] = useState(true);
+  const [versementOn, setVersementOn] = useState(false);
+  const [localAmount, setLocalAmount] = useState("");
+
+  const soldeClient = Number(client?.total_spent ?? 0);
+  const seuilCredit = 20000;
+
+  useEffect(() => {
+    if (open) { setLocalAmount(""); setVersement(0); }
+  }, [open, setVersement]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-center">Règlement de la commande / تسوية الطلبية</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 py-2">
+          <div className="flex items-center justify-between gap-4 text-sm pb-2 border-b">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <Switch checked={cloture} onCheckedChange={setCloture} data-testid="switch-cloture" />
+              <span>Clôture</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <Switch checked={impression} onCheckedChange={setImpression} data-testid="switch-impression" />
+              <span>Impression</span>
+            </label>
+          </div>
+
+          <div className="space-y-1.5 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Solde actuel du client</span>
+              <span className={soldeClient < 0 ? "text-red-600 font-semibold" : "font-semibold"}>{fmt(soldeClient)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Seuil de crédit</span>
+              <span className="font-semibold">{fmt(seuilCredit)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Versement sur cet achat</span>
+              <span className="font-semibold">{fmt(versement)}</span>
+            </div>
+          </div>
+
+          <div className="relative">
+            <Input
+              type="number" step="0.01" min="0" value={localAmount}
+              onChange={(e) => { setLocalAmount(e.target.value); setVersement(parseFloat(e.target.value) || 0); }}
+              placeholder="0,00"
+              className="h-12 text-xl font-bold pr-12 text-right"
+              disabled={!versementOn}
+              data-testid="input-versement"
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold">DA</span>
+          </div>
+
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Versement min nécessaire</span>
+            <span className="font-semibold">0,00</span>
+          </div>
+
+          <label className="flex items-center gap-2 cursor-pointer text-sm">
+            <Switch checked={versementOn} onCheckedChange={setVersementOn} data-testid="switch-versement" />
+            <span>Versement</span>
+          </label>
+        </div>
+
+        <DialogFooter className="flex-row gap-2 sm:justify-stretch">
+          <Button variant="outline"
+            className="flex-1 border-amber-300 text-amber-700 hover:bg-amber-50"
+            onClick={() => !isPending && onConfirm({ mode: "terme", cloture, impression })}
+            data-testid="button-aterme">
+            <RotateCcw className="h-4 w-4 mr-1.5" />À terme
+          </Button>
+          <Button
+            className="flex-1 bg-emerald-600 hover:bg-emerald-700"
+            onClick={() => !isPending && onConfirm({ mode: "comptant", cloture, impression })}
+            data-testid="button-comptant">
+            <Check className="h-4 w-4 mr-1.5" />Comptant ({fmt(net)})
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
