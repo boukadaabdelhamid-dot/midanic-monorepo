@@ -24,14 +24,10 @@ if (!isBuild && !basePath) {
   );
 }
 
-// Compute the API base URL.
-// In Replit dev, REPLIT_DEV_DOMAIN is like "abc-00-xyz.picard.replit.dev"
-// where "-00-" corresponds to externalPort 80. The API server is on
-// externalPort 8080, accessible at "abc-8080-xyz.picard.replit.dev".
-const replitDomain = process.env.REPLIT_DEV_DOMAIN;
-const apiBaseUrl = replitDomain
-  ? `https://${replitDomain.replace(/-00-/, "-8080-")}`
-  : (process.env.VITE_API_URL ?? "");
+// In development the Vite dev server proxies /api and /ws to the local
+// API server on port 8080 — no CORS, no domain guessing needed.
+// In production builds VITE_API_URL (set at deploy time) is used instead.
+const apiBaseUrl = isBuild ? (process.env.VITE_API_URL ?? "") : "";
 
 export default defineConfig({
   base: basePath,
@@ -75,6 +71,17 @@ export default defineConfig({
     allowedHosts: true,
     fs: {
       strict: true,
+    },
+    proxy: {
+      "/api": {
+        target: "http://localhost:8080",
+        changeOrigin: true,
+      },
+      "/ws": {
+        target: "ws://localhost:8080",
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
   preview: {

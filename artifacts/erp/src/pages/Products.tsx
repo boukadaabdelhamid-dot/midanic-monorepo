@@ -147,7 +147,7 @@ async function uploadImage(file: File): Promise<string> {
   const token = localStorage.getItem("midanic_token");
   const fd = new FormData();
   fd.append("file", file);
-  const res = await fetch(`${API_BASE}/uploads`, {
+  const res = await fetch(`${API_BASE}/api/uploads`, {
     method: "POST",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: fd,
