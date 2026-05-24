@@ -30,7 +30,8 @@ const allowedOrigins = (process.env["ALLOWED_ORIGINS"] ?? "")
   .map((o) => o.trim())
   .filter(Boolean);
 
-const REPLIT_DEV_DOMAIN_RE = /^https?:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.replit\.dev(:\d+)?$/i;
+// Matches both *.replit.dev (dev previews) and *.replit.app (production deploys)
+const REPLIT_DOMAIN_RE = /^https?:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.replit\.(dev|app)(:\d+)?$/i;
 
 app.use(
   cors({
@@ -40,12 +41,14 @@ app.use(
       if (allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
         return cb(null, true);
       }
-      if (REPLIT_DEV_DOMAIN_RE.test(origin)) {
+      if (REPLIT_DOMAIN_RE.test(origin)) {
         return cb(null, true);
       }
       return cb(new Error("Not allowed by CORS"));
     },
     credentials: true,
+    allowedHeaders: ["Content-Type", "Authorization", "X-Store-Slug"],
+    exposedHeaders: ["Content-Type"],
   }),
 );
 app.use(express.json());
