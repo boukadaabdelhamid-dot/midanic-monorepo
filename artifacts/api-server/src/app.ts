@@ -30,18 +30,20 @@ const allowedOrigins = (process.env["ALLOWED_ORIGINS"] ?? "")
   .map((o) => o.trim())
   .filter(Boolean);
 
-// Matches both *.replit.dev (dev previews) and *.replit.app (production deploys)
+// Matches both *.replit.dev (dev previews) and *.replit.app (production deploys).
+// Only used in development — in production every origin must be in ALLOWED_ORIGINS.
 const REPLIT_DOMAIN_RE = /^https?:\/\/[a-z0-9-]+(\.[a-z0-9-]+)*\.replit\.(dev|app)(:\d+)?$/i;
+const isDev = process.env["NODE_ENV"] !== "production";
 
 app.use(
   cors({
     origin: (origin, cb) => {
       if (!origin) return cb(null, true);
-      if (allowedOrigins.length === 0) return cb(null, true);
+      if (allowedOrigins.length === 0 && isDev) return cb(null, true);
       if (allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
         return cb(null, true);
       }
-      if (REPLIT_DOMAIN_RE.test(origin)) {
+      if (isDev && REPLIT_DOMAIN_RE.test(origin)) {
         return cb(null, true);
       }
       return cb(new Error("Not allowed by CORS"));

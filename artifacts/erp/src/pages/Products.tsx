@@ -6,6 +6,7 @@ import {
   getGetProductsQueryKey,
   type Product, type Category,
 } from "@workspace/api-client-react";
+import { useToast } from "@/hooks/use-toast";
 import JsBarcode from "jsbarcode";
 import { useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -178,6 +179,7 @@ function ToggleSwitch({ checked, onCheckedChange, label }: { checked: boolean; o
 
 export default function Products() {
   const qc = useQueryClient();
+  const { toast } = useToast();
   const { data: productsRes, isLoading } = useGetProducts({ limit: 200 });
   const { data: categories } = useGetCategories();
   const createProduct = useCreateProduct();
@@ -187,6 +189,7 @@ export default function Products() {
   const [labelDialog, setLabelDialog] = useState<{ items: LabelTarget[] } | null>(null);
 
   const [dialog, setDialog] = useState<{ open: boolean; editing: Product | null }>({ open: false, editing: null });
+  const [dialogError, setDialogError] = useState<string | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
   const [activeTab, setActiveTab] = useState("general");
   const [search, setSearch] = useState("");
@@ -252,6 +255,7 @@ export default function Products() {
   const openCreate = () => {
     setForm(emptyForm);
     setActiveTab("general");
+    setDialogError(null);
     setDialog({ open: true, editing: null });
   };
   const openEdit = (p: Product) => {
@@ -272,6 +276,7 @@ export default function Products() {
       isActive: p.isActive ?? true, isExposed: p.isExposed ?? false,
     });
     setActiveTab("general");
+    setDialogError(null);
     setDialog({ open: true, editing: p });
   };
 
@@ -317,15 +322,16 @@ export default function Products() {
         onSuccess: () => {
           // Immediately store overrides in local state so table updates without waiting for refetch
           setProductOverrides((m) => new Map(m).set(editingId, data as Partial<Product>));
+          setDialogError(null);
           setDialog({ open: false, editing: null });
           forceRefresh();
         },
-        onError: (err) => alert(`Erreur / خطأ: ${readErr(err)}`),
+        onError: (err) => setDialogError(`Erreur / خطأ: ${readErr(err)}`),
       });
     } else {
       createProduct.mutate({ data }, {
-        onSuccess: () => { forceRefresh(); setDialog({ open: false, editing: null }); },
-        onError: (err) => alert(`Erreur / خطأ: ${readErr(err)}`),
+        onSuccess: () => { forceRefresh(); setDialogError(null); setDialog({ open: false, editing: null }); },
+        onError: (err) => setDialogError(`Erreur / خطأ: ${readErr(err)}`),
       });
     }
   };
@@ -354,7 +360,7 @@ export default function Products() {
         onError: () => {
           // Revert on failure
           setExposedMap((m) => { const n = new Map(m); n.delete(p.id); return n; });
-          alert("Erreur lors de la mise à jour");
+          toast({ variant: "destructive", title: "Erreur / خطأ", description: "Erreur lors de la mise à jour de la visibilité" });
         },
       }
     );
@@ -424,7 +430,7 @@ export default function Products() {
                   .filter((p) => selected.has(p.id) && p.barcode)
                   .map((p) => ({ product: p as Product, qty: 1 }));
                 if (items.length === 0) {
-                  alert("Aucun article sélectionné n'a de code-barres / لا يوجد منتج محدد له باركود");
+                  toast({ variant: "destructive", title: "Aucun code-barres / لا باركود", description: "Aucun article sélectionné n'a de code-barres / لا يوجد منتج محدد له باركود" });
                   return;
                 }
                 setLabelDialog({ items });
@@ -786,7 +792,7 @@ export default function Products() {
                               onSuccess: (r) => setForm((f) => ({ ...f, barcode: r.barcode })),
                               onError: (e) => {
                                 const err = e as { data?: { error?: string }; message?: string };
-                                alert(`Erreur / خطأ: ${err?.data?.error || err?.message || "Echec génération"}`);
+                                setDialogError(`Erreur / خطأ: ${err?.data?.error || err?.message || "Echec génération"}`);
                               },
                             });
                           }}
@@ -1117,19 +1123,26 @@ export default function Products() {
           </Tabs>
 
           {/* Footer */}
-          <div className="flex justify-between items-center px-6 py-3 border-t bg-muted/20">
-            <Button variant="ghost" size="sm" onClick={() => setDialog({ open: false, editing: null })}>
-              Annuler / إلغاء
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={createProduct.isPending || updateProduct.isPending || !form.nameEn || !form.price}
-              size="sm"
-              data-testid="button-save-product-footer"
-              className="bg-[#1B3057] hover:bg-[#1B3057]/90"
-            >
-              Enregistrer / حفظ
-            </Button>
+          <div className="border-t bg-muted/20">
+            {dialogError && (
+              <p className="px-6 py-2 text-xs text-red-600 bg-red-50 border-b border-red-100">
+                {dialogError}
+              </p>
+            )}
+            <div className="flex justify-between items-center px-6 py-3">
+              <Button variant="ghost" size="sm" onClick={() => { setDialogError(null); setDialog({ open: false, editing: null }); }}>
+                Annuler / إلغاء
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={createProduct.isPending || updateProduct.isPending || !form.nameEn || !form.price}
+                size="sm"
+                data-testid="button-save-product-footer"
+                className="bg-[#1B3057] hover:bg-[#1B3057]/90"
+              >
+                Enregistrer / حفظ
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

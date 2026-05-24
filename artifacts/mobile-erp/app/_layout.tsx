@@ -24,11 +24,19 @@ import { LanguageProvider } from "@/context/LanguageContext";
 import { NotificationsProvider } from "@/context/NotificationsContext";
 import { useColors } from "@/hooks/useColors";
 
-const apiUrl =
+// Build a concrete base URL for the API client.
+// Strip a trailing /api suffix if the caller inadvertently includes it —
+// the generated client appends its own /api prefix on every request.
+const rawApiUrl =
   process.env.EXPO_PUBLIC_API_URL ||
-  (process.env.EXPO_PUBLIC_DOMAIN ? `https://${process.env.EXPO_PUBLIC_DOMAIN}` : "");
+  (process.env.EXPO_PUBLIC_DOMAIN
+    ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
+    : "");
+const apiUrl = rawApiUrl.replace(/\/api\/?$/, "");
 if (!apiUrl) {
-  console.warn("[mobile-erp] No API base URL configured — set EXPO_PUBLIC_API_URL or EXPO_PUBLIC_DOMAIN");
+  console.warn(
+    "[mobile-erp] No API base URL configured — set EXPO_PUBLIC_API_URL or EXPO_PUBLIC_DOMAIN",
+  );
 }
 setBaseUrl(apiUrl || null);
 
