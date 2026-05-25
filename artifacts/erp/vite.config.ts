@@ -24,10 +24,12 @@ if (!isBuild && !basePath) {
   );
 }
 
-// In development the Vite dev server proxies /api and /ws to the local
-// API server on port 8080 — no CORS, no domain guessing needed.
-// In production builds VITE_API_URL (set at deploy time) is used instead.
-const apiBaseUrl = isBuild ? (process.env.VITE_API_URL ?? "") : "";
+// In Replit dev, port 8080 is exposed at https://<REPLIT_DEV_DOMAIN>:8080.
+// In production builds (Railway), VITE_API_URL is set externally.
+const replitDomain = process.env.REPLIT_DEV_DOMAIN;
+const apiBaseUrl = replitDomain
+  ? `https://${replitDomain}:8080`
+  : (process.env.VITE_API_URL ?? "");
 
 export default defineConfig({
   base: basePath,
@@ -71,17 +73,6 @@ export default defineConfig({
     allowedHosts: true,
     fs: {
       strict: true,
-    },
-    proxy: {
-      "/api": {
-        target: "http://localhost:8080",
-        changeOrigin: true,
-      },
-      "/ws": {
-        target: "ws://localhost:8080",
-        changeOrigin: true,
-        ws: true,
-      },
     },
   },
   preview: {

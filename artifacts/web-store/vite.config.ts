@@ -24,13 +24,11 @@ if (!isBuild && !basePath) {
   );
 }
 
-// Compute the API base URL.
-// In Replit dev, REPLIT_DEV_DOMAIN is like "abc-00-xyz.picard.replit.dev"
-// where "-00-" corresponds to externalPort 80. The API server is on
-// externalPort 8080, accessible at "abc-8080-xyz.picard.replit.dev".
+// In Replit dev, port 8080 is exposed at https://<REPLIT_DEV_DOMAIN>:8080.
+// In production builds (Railway), VITE_API_URL is set externally.
 const replitDomain = process.env.REPLIT_DEV_DOMAIN;
 const apiBaseUrl = replitDomain
-  ? `https://${replitDomain.replace(/-00-/, "-8080-")}`
+  ? `https://${replitDomain}:8080`
   : (process.env.VITE_API_URL ?? "");
 
 export default defineConfig({
