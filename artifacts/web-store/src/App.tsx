@@ -15,6 +15,8 @@ import Cart from "@/pages/Cart";
 import Checkout from "@/pages/Checkout";
 import Orders from "@/pages/Orders";
 import OrderDetail from "@/pages/OrderDetail";
+import Login from "@/pages/Login";
+import Register from "@/pages/Register";
 
 // Admin Pages
 import AdminDashboard from "@/pages/admin/Dashboard";
@@ -52,6 +54,8 @@ function Router() {
           <Route path="/checkout" component={Checkout} />
           <Route path="/orders" component={Orders} />
           <Route path="/orders/:id" component={OrderDetail} />
+          <Route path="/auth/login" component={Login} />
+          <Route path="/auth/register" component={Register} />
           
           <Route path="/admin">
             <AdminGuard><AdminDashboard /></AdminGuard>

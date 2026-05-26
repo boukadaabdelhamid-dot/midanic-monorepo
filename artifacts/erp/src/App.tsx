@@ -1,15 +1,15 @@
 import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
-import { QueryClient, QueryClientProvider, MutationCache, useQueryClient } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, MutationCache } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider, forceLogout, useAuth } from "@/hooks/use-auth";
+import { AuthProvider, useAuth, forceLogout } from "@/hooks/use-auth";
 import { StoreProvider, useStoreContext } from "@/hooks/use-store";
 import { useMe } from "@/hooks/use-me";
 import { useRealtimeWS } from "@/hooks/use-realtime-ws";
 import { Layout } from "@/components/layout/Layout";
 import NotFound from "@/pages/not-found";
+import Login from "@/pages/Login";
 import SelectStore from "@/pages/SelectStore";
-import { useEffect, useRef } from "react";
 import Stores from "@/pages/Stores";
 import Home from "@/pages/Home";
 import Dashboard from "@/pages/Dashboard";
@@ -52,8 +52,10 @@ const queryClient = new QueryClient({
 });
 
 function ProtectedRoute({ component: Component, adminOnly = false }: { component: React.ComponentType; adminOnly?: boolean }) {
+  const { token } = useAuth();
   const { currentStoreId } = useStoreContext();
   const { isAdmin, isLoading, user } = useMe();
+  if (!token) return <Redirect to="/login" />;
   if (isLoading) return <Layout><div className="p-6 text-sm text-muted-foreground">…</div></Layout>;
   const stores = (user as { stores?: unknown[] } | null)?.stores ?? [];
   if (!currentStoreId && stores.length > 0) return <Redirect to="/select-store" />;
@@ -66,8 +68,10 @@ function ProtectedRoute({ component: Component, adminOnly = false }: { component
 }
 
 function ProtectedHome() {
+  const { token } = useAuth();
   const { currentStoreId } = useStoreContext();
   const { user, isLoading } = useMe();
+  if (!token) return <Redirect to="/login" />;
   if (isLoading) return <Layout><div className="p-6 text-sm text-muted-foreground">…</div></Layout>;
   const stores = (user as { stores?: unknown[] } | null)?.stores ?? [];
   if (!currentStoreId && stores.length > 0) return <Redirect to="/select-store" />;
@@ -75,15 +79,17 @@ function ProtectedHome() {
 }
 
 function Router() {
+  const { token } = useAuth();
   // Single WS connection scoped to the whole app — keeps transfer list,
   // order list, and inventory cache fresh in real time across pages.
   useRealtimeWS();
 
   return (
     <Switch>
+      <Route path="/login" component={Login} />
       <Route path="/select-store" component={SelectStore} />
       <Route path="/">
-        <Redirect to="/home" />
+        {token ? <Redirect to="/home" /> : <Redirect to="/login" />}
       </Route>
       <Route path="/stores">
         <ProtectedRoute component={Stores} adminOnly />
@@ -147,71 +153,18 @@ function Router() {
   );
 }
 
-const ADMIN_EMAIL = "admin@midanic.com";
-const ADMIN_PASS = "admin1234";
-const STORE_KEY = "midanic.erp.currentStoreId";
-
-function AutoLoginGate({ children }: { children: React.ReactNode }) {
-  const { token, setToken } = useAuth();
-  const qc = useQueryClient();
-  const busy = useRef(false);
-
-  const doLogin = async () => {
-    if (busy.current) return;
-    busy.current = true;
-    try {
-      const base = (import.meta.env.VITE_API_URL as string | undefined) ?? "";
-      for (let attempt = 0; attempt < 5; attempt++) {
-        try {
-          const res = await fetch(`${base}/api/auth/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: ADMIN_EMAIL, password: ADMIN_PASS }),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.token) {
-              setToken(data.token);
-              if (data.stores?.length >= 1) {
-                localStorage.setItem(STORE_KEY, String(data.stores[0].id));
-              }
-              qc.invalidateQueries();
-              break;
-            }
-          }
-        } catch {
-          await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
-        }
-      }
-    } finally {
-      busy.current = false;
-    }
-  };
-
-  useEffect(() => {
-    if (!token) doLogin();
-    const handler = () => doLogin();
-    window.addEventListener("midanic:relogin", handler);
-    return () => window.removeEventListener("midanic:relogin", handler);
-  }, [token]);
-
-  return <>{children}</>;
-}
-
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <AutoLoginGate>
-          <StoreProvider>
-            <TooltipProvider>
-              <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-                <Router />
-              </WouterRouter>
-              <Toaster />
-            </TooltipProvider>
-          </StoreProvider>
-        </AutoLoginGate>
+        <StoreProvider>
+          <TooltipProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <Router />
+            </WouterRouter>
+            <Toaster />
+          </TooltipProvider>
+        </StoreProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

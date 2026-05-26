@@ -9,7 +9,7 @@ const STORE_KEY = "midanic.erp.currentStoreId";
 export function forceLogout() {
   localStorage.removeItem("midanic_token");
   localStorage.removeItem(STORE_KEY);
-  window.dispatchEvent(new CustomEvent("midanic:relogin"));
+  window.location.href = `${import.meta.env.BASE_URL}login`.replace(/\/+/g, "/");
 }
 
 type AuthContextType = {
