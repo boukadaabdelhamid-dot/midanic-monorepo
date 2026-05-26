@@ -1,27 +1,18 @@
-FROM node:20-alpine AS base
-RUN corepack enable && corepack prepare pnpm@10.26.1 --activate
-WORKDIR /app
-
-FROM base AS deps
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY artifacts/web-store/package.json ./artifacts/web-store/
-COPY artifacts/api-server/package.json ./artifacts/api-server/
-COPY artifacts/erp/package.json ./artifacts/erp/
-COPY lib ./lib
-RUN pnpm install --frozen-lockfile=false --filter @workspace/web-store...
-
-FROM deps AS build
+FROM node:20-alpine AS build
 ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
+RUN apk add --no-cache git
+RUN git clone --depth 1 https://github.com/boukadaabdelhamid-dot/midanic-monorepo.git /repo
+WORKDIR /repo
+RUN corepack enable && corepack prepare pnpm@10.26.1 --activate
 ENV NODE_ENV=production
-COPY tsconfig.base.json ./
-COPY artifacts/web-store ./artifacts/web-store
+RUN pnpm install --frozen-lockfile=false --filter @workspace/web-store...
 RUN pnpm --filter @workspace/web-store run build
 
-FROM base AS runtime
+FROM node:20-alpine AS runtime
 ENV NODE_ENV=production
 RUN npm install -g serve@14
-COPY --from=build /app/artifacts/web-store/dist/public /app/public
+COPY --from=build /repo/artifacts/web-store/dist/public /app/public
 WORKDIR /app
 EXPOSE 3000
 CMD ["sh", "-c", "serve -s public -l ${PORT:-3000}"]

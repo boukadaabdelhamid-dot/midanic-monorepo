@@ -1,22 +1,16 @@
-FROM node:20-alpine AS base
+FROM node:20-alpine AS build
+RUN apk add --no-cache git
+RUN git clone --depth 1 https://github.com/boukadaabdelhamid-dot/midanic-monorepo.git /repo
+WORKDIR /repo
 RUN corepack enable && corepack prepare pnpm@10.26.1 --activate
-WORKDIR /app
-
-FROM base AS deps
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
-COPY artifacts/api-server/package.json ./artifacts/api-server/
-COPY artifacts/erp/package.json ./artifacts/erp/
-COPY artifacts/web-store/package.json ./artifacts/web-store/
-COPY lib ./lib
-RUN pnpm install --frozen-lockfile=false --filter @workspace/api-server...
-
-FROM deps AS build
-COPY artifacts/api-server ./artifacts/api-server
+RUN pnpm install --frozen-lockfile=false --filter @workspace/api-server... --filter @workspace/db
+ENV NODE_ENV=production
 RUN pnpm --filter @workspace/api-server run build
 
-FROM base AS runtime
+FROM node:20-alpine AS runtime
+RUN corepack enable && corepack prepare pnpm@10.26.1 --activate
 ENV NODE_ENV=production
-COPY --from=build /app /app
+COPY --from=build /repo /app
 WORKDIR /app/artifacts/api-server
 EXPOSE 3000
 CMD ["node", "--enable-source-maps", "./dist/index.mjs"]
