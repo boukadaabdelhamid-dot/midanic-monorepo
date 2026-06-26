@@ -9,15 +9,11 @@ import { queryClient } from "@/lib/query-client";
 import { ServerConfigProvider } from "@/context/ServerConfigContext";
 import { AuthProvider } from "@/context/AuthContext";
 
-SplashScreen.preventAutoHideAsync().catch(() => {
-  /* no-op: splash may already be hidden */
-});
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   useEffect(() => {
-    SplashScreen.hideAsync().catch(() => {
-      /* no-op */
-    });
+    SplashScreen.hideAsync().catch(() => {});
   }, []);
 
   return (
@@ -32,7 +28,18 @@ export default function RootLayout() {
                 <Stack.Screen name="onboarding" />
                 <Stack.Screen name="login" />
                 <Stack.Screen name="select-store" />
-                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="(drawer)" />
+                <Stack.Screen name="order-detail" />
+                <Stack.Screen name="product-form" />
+                <Stack.Screen name="employee-form" />
+                <Stack.Screen name="supplier-form" />
+                <Stack.Screen name="customer-detail" />
+                <Stack.Screen name="po-form" />
+                <Stack.Screen name="accounting-form" />
+                <Stack.Screen name="leave-form" />
+                <Stack.Screen name="inventory-adjust" />
+                <Stack.Screen name="transfer-detail" />
+                <Stack.Screen name="staff-form" />
               </Stack>
             </AuthProvider>
           </ServerConfigProvider>

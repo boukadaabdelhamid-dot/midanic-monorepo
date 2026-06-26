@@ -28,7 +28,7 @@ export default function Index() {
   if (!serverUrl) return <Redirect href="/onboarding" />;
   if (!isAuthenticated) return <Redirect href="/login" />;
   if (needsStoreSelection) return <Redirect href="/select-store" />;
-  return <Redirect href="/(tabs)" />;
+  return <Redirect href="/(drawer)/" />;
 }
 
 const styles = StyleSheet.create({
