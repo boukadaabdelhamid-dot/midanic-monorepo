@@ -1,0 +1,17 @@
+kind = "web"
+previewPath = "/mobile/"
+title = "Midanic Mobile"
+version = "1.0.0"
+id = "artifacts/mobile-app"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/mobile/" ]
+localPort = 8000
+
+[services.development]
+run = "NODE_ENV=production pnpm --filter @workspace/mobile-app exec expo export -p web && node .replit-artifact/serve.mjs"
+
+[services.env]
+PORT = "8000"
