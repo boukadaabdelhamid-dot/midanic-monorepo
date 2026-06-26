@@ -124,3 +124,4 @@ APP_URL = "https://fccb435f-1d8b-42dd-b133-4f0125a27889-00-26fw7xiph8vew.worf.re
 
 [nix]
 channel = "stable-25_05"
+packages = ["eas-cli"]
