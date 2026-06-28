@@ -1,6 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   FlatList,
+  Platform,
   Pressable,
   RefreshControl,
   StyleSheet,
@@ -16,6 +18,7 @@ import { useAuth } from "@/context/AuthContext";
 import { DrawerHeader } from "@/components/DrawerHeader";
 import { EmptyState, ErrorState, LoadingState, Pill } from "@/components/ErpUi";
 import { CURRENCY, fmtInt, fmtNum } from "@/lib/format";
+import { BarcodeScannerModal } from "@/components/BarcodeScannerModal";
 
 function ProductCard({ product, isLow }: { product: Product; isLow: boolean }) {
   const c = useColors();
@@ -68,12 +71,59 @@ export default function ProductsScreen() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const [search, setSearch] = useState("");
+  const [scannerOpen, setScannerOpen] = useState(false);
+  const [pendingBarcode, setPendingBarcode] = useState<string | null>(null);
+  const navigatedRef = useRef(false);
 
   const products = useGetProducts({ limit: 60, search: search || undefined });
   const lowStock = useGetLowStock();
 
+  const barcodeSearch = useGetProducts(
+    pendingBarcode ? { filterBarcode: pendingBarcode, limit: 1 } : undefined,
+    { query: { enabled: !!pendingBarcode } }
+  );
+
   const lowIds = useMemo(() => new Set((lowStock.data ?? []).map((p) => p.id)), [lowStock.data]);
   const items = useMemo(() => products.data?.products ?? [], [products.data]);
+
+  const handleBarcodeScan = (code: string) => {
+    setScannerOpen(false);
+    navigatedRef.current = false;
+
+    const normalizedCode = code.trim();
+
+    const found = items.find(
+      (p: any) =>
+        p.barcode === normalizedCode ||
+        p.reference === normalizedCode ||
+        String(p.id) === normalizedCode
+    );
+    if (found) {
+      navigatedRef.current = true;
+      router.push({ pathname: "/product-form", params: { id: found.id } });
+      return;
+    }
+
+    setPendingBarcode(normalizedCode);
+  };
+
+  useEffect(() => {
+    if (!pendingBarcode || barcodeSearch.isLoading || navigatedRef.current) return;
+    const found = (barcodeSearch.data?.products ?? [])[0];
+    if (found) {
+      navigatedRef.current = true;
+      router.push({ pathname: "/product-form", params: { id: found.id } });
+    } else {
+      setSearch(pendingBarcode);
+      if (Platform.OS !== "web") {
+        Alert.alert(
+          "لم يُعثر على المنتج",
+          `لا يوجد منتج بالباركود:\n${pendingBarcode}\n\nتم تعيين البحث للرمز.`
+        );
+      }
+    }
+    setPendingBarcode(null);
+  }, [pendingBarcode, barcodeSearch.isLoading, barcodeSearch.data]);
 
   const AddButton = isAdmin ? (
     <Pressable
@@ -90,20 +140,32 @@ export default function ProductsScreen() {
       <DrawerHeader title="المنتجات" subtitle="Articles" rightAction={AddButton} />
 
       <View style={[styles.searchWrap, { backgroundColor: c.background }]}>
-        <View style={[styles.searchBox, { backgroundColor: c.inputBg, borderColor: c.border }]}>
-          <Ionicons name="search-outline" size={18} color={c.textMuted} />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="ابحث عن منتج…"
-            placeholderTextColor={c.textMuted}
-            style={[styles.searchInput, { color: c.text }]}
-          />
-          {search ? (
-            <Pressable onPress={() => setSearch("")}>
-              <Ionicons name="close-circle" size={18} color={c.textMuted} />
-            </Pressable>
-          ) : null}
+        <View style={[styles.searchRow]}>
+          <View style={[styles.searchBox, { backgroundColor: c.inputBg, borderColor: c.border }]}>
+            <Ionicons name="search-outline" size={18} color={c.textMuted} />
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="ابحث عن منتج…"
+              placeholderTextColor={c.textMuted}
+              style={[styles.searchInput, { color: c.text }]}
+            />
+            {search ? (
+              <Pressable onPress={() => setSearch("")}>
+                <Ionicons name="close-circle" size={18} color={c.textMuted} />
+              </Pressable>
+            ) : null}
+          </View>
+          <Pressable
+            onPress={() => setScannerOpen(true)}
+            style={({ pressed }) => [
+              styles.scanBtn,
+              { backgroundColor: c.primary, opacity: pressed ? 0.8 : 1 },
+            ]}
+            hitSlop={4}
+          >
+            <Ionicons name="barcode-outline" size={22} color="#FFFFFF" />
+          </Pressable>
         </View>
         {products.data ? (
           <Text style={[styles.count, { color: c.textMuted }]}>
@@ -132,6 +194,12 @@ export default function ProductsScreen() {
           }
         />
       )}
+
+      <BarcodeScannerModal
+        visible={scannerOpen}
+        onScanned={handleBarcodeScan}
+        onClose={() => setScannerOpen(false)}
+      />
     </View>
   );
 }
@@ -139,9 +207,15 @@ export default function ProductsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   searchWrap: { paddingHorizontal: 16, paddingVertical: 10 },
+  searchRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   searchBox: {
+    flex: 1,
     flexDirection: "row", alignItems: "center", gap: 8,
     height: 44, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12,
+  },
+  scanBtn: {
+    width: 44, height: 44, borderRadius: 12,
+    alignItems: "center", justifyContent: "center",
   },
   searchInput: { flex: 1, fontSize: 15, textAlign: "right", height: "100%" as any },
   count: { fontSize: 12, textAlign: "right", marginTop: 6 },
