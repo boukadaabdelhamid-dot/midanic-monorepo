@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   useGetSuppliers, useCreateSupplier, useUpdateSupplier,
   useGetSupplierOperations, useCreateSupplierOperation,
@@ -16,7 +16,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { Plus, Pencil, CreditCard, TrendingDown, TrendingUp, FileText, RefreshCw, SlidersHorizontal, MoreVertical } from "lucide-react";
+import { Plus, Pencil, CreditCard, TrendingDown, TrendingUp, FileText, RefreshCw, SlidersHorizontal, MoreVertical, ChevronUp, ChevronDown, ChevronsUpDown, X } from "lucide-react";
 
 const fmt = (n: string | number | null | undefined) =>
   parseFloat(String(n ?? "0")).toLocaleString("fr-DZ", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -343,6 +343,39 @@ export default function Suppliers() {
   const [adjustSupplier, setAdjustSupplier] = useState<Supplier | null>(null);
   const [adjustOpen, setAdjustOpen] = useState(false);
 
+  const [filters, setFilters] = useState({ name: "", contactName: "", email: "", phone: "", balanceStatus: "all" });
+  const [sort, setSort] = useState<{ col: "name" | "balance"; dir: "asc" | "desc" }>({ col: "name", dir: "asc" });
+  const setFilter = (k: keyof typeof filters, v: string) => setFilters((p) => ({ ...p, [k]: v }));
+  const resetFilters = () => setFilters({ name: "", contactName: "", email: "", phone: "", balanceStatus: "all" });
+  const hasActiveFilter =
+    !!filters.name || !!filters.contactName || !!filters.email || !!filters.phone || filters.balanceStatus !== "all";
+  const toggleSort = (col: "name" | "balance") =>
+    setSort((p) => (p.col === col ? { col, dir: p.dir === "asc" ? "desc" : "asc" } : { col, dir: "asc" }));
+  const sortIcon = (col: "name" | "balance") =>
+    sort.col !== col
+      ? <ChevronsUpDown className="h-3.5 w-3.5 opacity-40" />
+      : sort.dir === "asc"
+      ? <ChevronUp className="h-3.5 w-3.5" />
+      : <ChevronDown className="h-3.5 w-3.5" />;
+
+  const total = (suppliers ?? []).length;
+  const filtered = useMemo(() => {
+    let list = (suppliers ?? []) as Supplier[];
+    const inc = (val: string | null | undefined, q: string) => (val ?? "").toLowerCase().includes(q.toLowerCase());
+    if (filters.name) list = list.filter((s) => inc(s.name, filters.name));
+    if (filters.contactName) list = list.filter((s) => inc(s.contactName, filters.contactName));
+    if (filters.email) list = list.filter((s) => inc(s.email, filters.email));
+    if (filters.phone) list = list.filter((s) => inc(s.phone, filters.phone));
+    if (filters.balanceStatus === "debit") list = list.filter((s) => parseFloat(s.currentBalance ?? "0") > 0);
+    if (filters.balanceStatus === "credit") list = list.filter((s) => parseFloat(s.currentBalance ?? "0") < 0);
+    if (filters.balanceStatus === "zero") list = list.filter((s) => parseFloat(s.currentBalance ?? "0") === 0);
+    return [...list].sort((a, b) => {
+      const dir = sort.dir === "asc" ? 1 : -1;
+      if (sort.col === "name") return dir * (a.name ?? "").localeCompare(b.name ?? "");
+      return dir * (parseFloat(a.currentBalance ?? "0") - parseFloat(b.currentBalance ?? "0"));
+    });
+  }, [suppliers, filters, sort]);
+
   const openCreate = () => { setForm(emptyForm); setDialog({ open: true, editing: null }); };
   const openEdit = (s: Supplier) => {
     setForm({ name: s.name ?? "", contactName: s.contactName ?? "", email: s.email ?? "", phone: s.phone ?? "", address: s.address ?? "", notes: s.notes ?? "" });
@@ -378,20 +411,68 @@ export default function Suppliers() {
           {isLoading ? (
             <div className="p-4 space-y-3">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-12" />)}</div>
           ) : (
+            <>
+              <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b bg-slate-50/50 text-sm">
+                <span className="text-muted-foreground">
+                  <span className="font-semibold text-foreground tabular-nums">{filtered.length}</span>
+                  {" / "}{total} {t("fournisseurs", "مورد")}
+                </span>
+                {hasActiveFilter && (
+                  <Button variant="ghost" size="sm" className="h-7 text-xs gap-1" onClick={resetFilters} data-testid="button-reset-filters">
+                    <X className="h-3.5 w-3.5" /> {t("Réinitialiser les filtres", "إعادة تعيين الفلاتر")}
+                  </Button>
+                )}
+              </div>
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50">
-                    <TableHead className="font-semibold">{t("Nom", "الاسم")}</TableHead>
+                    <TableHead className="font-semibold">
+                      <button type="button" onClick={() => toggleSort("name")} className="inline-flex items-center gap-1 hover:text-[#1B3057]" data-testid="sort-name">
+                        {t("Nom", "الاسم")} {sortIcon("name")}
+                      </button>
+                    </TableHead>
                     <TableHead className="font-semibold">{t("Contact", "جهة الاتصال")}</TableHead>
                     <TableHead className="font-semibold">Email</TableHead>
                     <TableHead className="font-semibold">{t("Téléphone", "الهاتف")}</TableHead>
-                    <TableHead className="font-semibold text-right">{t("Solde (DA)", "الرصيد (دج)")}</TableHead>
+                    <TableHead className="font-semibold text-right">
+                      <button type="button" onClick={() => toggleSort("balance")} className="inline-flex items-center gap-1 hover:text-[#1B3057] ml-auto" data-testid="sort-balance">
+                        {t("Solde (DA)", "الرصيد (دج)")} {sortIcon("balance")}
+                      </button>
+                    </TableHead>
                     <TableHead className="font-semibold text-center">{t("Actions", "الإجراءات")}</TableHead>
+                  </TableRow>
+                  <TableRow className="bg-white hover:bg-white">
+                    <TableHead className="py-1.5">
+                      <Input value={filters.name} onChange={(e) => setFilter("name", e.target.value)} placeholder={t("Filtrer…", "تصفية…")} className="h-7 text-xs" data-testid="filter-name" />
+                    </TableHead>
+                    <TableHead className="py-1.5">
+                      <Input value={filters.contactName} onChange={(e) => setFilter("contactName", e.target.value)} placeholder={t("Filtrer…", "تصفية…")} className="h-7 text-xs" data-testid="filter-contact" />
+                    </TableHead>
+                    <TableHead className="py-1.5">
+                      <Input value={filters.email} onChange={(e) => setFilter("email", e.target.value)} placeholder={t("Filtrer…", "تصفية…")} className="h-7 text-xs" data-testid="filter-email" />
+                    </TableHead>
+                    <TableHead className="py-1.5">
+                      <Input value={filters.phone} onChange={(e) => setFilter("phone", e.target.value)} placeholder={t("Filtrer…", "تصفية…")} className="h-7 text-xs" data-testid="filter-phone" />
+                    </TableHead>
+                    <TableHead className="py-1.5">
+                      <select
+                        value={filters.balanceStatus}
+                        onChange={(e) => setFilter("balanceStatus", e.target.value)}
+                        className="h-7 w-full rounded-md border border-input bg-background px-2 text-xs"
+                        data-testid="filter-balance-status"
+                      >
+                        <option value="all">{t("Tous", "الكل")}</option>
+                        <option value="debit">{t("Débiteur (>0)", "مدين (>0)")}</option>
+                        <option value="credit">{t("Créditeur (<0)", "دائن (<0)")}</option>
+                        <option value="zero">{t("Solde nul", "رصيد صفر")}</option>
+                      </select>
+                    </TableHead>
+                    <TableHead className="py-1.5" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(suppliers ?? []).map((s: Supplier) => {
+                  {filtered.map((s: Supplier) => {
                     const balance = parseFloat(s.currentBalance ?? "0");
                     return (
                       <TableRow key={s.id} data-testid={`row-supplier-${s.id}`} className="hover:bg-slate-50/70">
@@ -439,16 +520,19 @@ export default function Suppliers() {
                       </TableRow>
                     );
                   })}
-                  {(!suppliers || suppliers.length === 0) && (
+                  {filtered.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                        {t("Aucun fournisseur", "لا يوجد موردون")}
+                        {total === 0
+                          ? t("Aucun fournisseur", "لا يوجد موردون")
+                          : t("Aucun fournisseur ne correspond aux filtres", "لا يوجد مورد مطابق للفلاتر")}
                       </TableCell>
                     </TableRow>
                   )}
                 </TableBody>
               </Table>
             </div>
+            </>
           )}
         </CardContent>
       </Card>
