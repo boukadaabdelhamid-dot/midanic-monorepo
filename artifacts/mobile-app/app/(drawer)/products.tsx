@@ -22,10 +22,8 @@ import {
   useUpdateProduct,
   useDeleteProduct,
   useCreateProduct,
-  getGetProductsQueryKey,
   type Product,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
 import { useServerConfig } from "@/context/ServerConfigContext";
@@ -411,7 +409,6 @@ export default function ProductsScreen() {
   const c = useColors();
   const { user } = useAuth();
   const { serverUrl } = useServerConfig();
-  const qc = useQueryClient();
   const isAdmin = user?.role === "admin";
 
   const [page, setPage] = useState(1);
@@ -478,8 +475,9 @@ export default function ProductsScreen() {
   );
 
   const forceRefresh = useCallback(() => {
-    qc.invalidateQueries({ queryKey: getGetProductsQueryKey(), refetchType: "all" });
-  }, [qc]);
+    void productsQuery.refetch();
+    void lowStock.refetch();
+  }, [productsQuery, lowStock]);
 
   const handleBarcodeScan = (code: string) => {
     setScannerOpen(false);
