@@ -49,7 +49,7 @@ export default function TransferDetailScreen() {
   const [items, setItems] = useState<TransferItem[]>([]);
   const [productSearch, setProductSearch] = useState("");
 
-  const transfer = useGetErpTransfer({ transferId: isNew ? 0 : transferId });
+  const transfer = useGetErpTransfer(isNew ? 0 : transferId);
   const createTransfer = useCreateErpTransfer();
   const products = useGetProducts({ limit: 30, search: productSearch || undefined });
   const productList = (products.data?.products ?? []) as any[];

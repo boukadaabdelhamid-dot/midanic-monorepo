@@ -68,10 +68,10 @@ export default function AccountingFormScreen() {
       {
         data: {
           type,
-          amount: Number(amount),
-          description: description || undefined,
+          amount: amount,
+          description: description || "",
           date,
-          category: category || undefined,
+          category: (category || "other") as any,
         },
       },
       { onSuccess: () => router.back() },

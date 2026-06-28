@@ -57,16 +57,15 @@ export default function LeavesScreen() {
   const isAdmin = user?.role === "admin";
   const [filter, setFilter] = useState<StatusFilter>("all");
 
-  const { data, isLoading, isError, isFetching, refetch } = useGetLeaves(
-    filter !== "all" ? { status: filter } : undefined,
-  );
+  const { data, isLoading, isError, isFetching, refetch } = useGetLeaves();
   const updateStatus = useUpdateLeaveStatus();
 
-  const leaves = (data ?? []) as any[];
+  const allLeaves = (data ?? []) as any[];
+  const leaves = filter === "all" ? allLeaves : allLeaves.filter((l: any) => l.status === filter);
 
   const handleStatusChange = (leaveId: number, status: "approved" | "rejected") => {
     updateStatus.mutate(
-      { leaveId, data: { status } },
+      { id: leaveId, data: { status } },
       {
         onSuccess: () => void refetch(),
         onError: () => {

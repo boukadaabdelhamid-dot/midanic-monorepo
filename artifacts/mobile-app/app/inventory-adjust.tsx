@@ -64,7 +64,7 @@ export default function InventoryAdjustScreen() {
         productId,
         data: {
           quantity: adjustType === "subtract" ? -qty : qty,
-          reason: finalReason || undefined,
+          reason: finalReason || "",
         },
       },
       { onSuccess: () => router.back() },

@@ -26,9 +26,11 @@ export default function ReportsScreen() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
 
-  const monthly = useGetMonthlyReport({ year, month });
-  const products = useGetProductProfitReport({ year, month });
-  const customers = useGetCustomerProfitReport({ year, month });
+  const from = `${year}-${String(month).padStart(2, "0")}-01`;
+  const to = new Date(year, month, 0).toISOString().split("T")[0];
+  const monthly = useGetMonthlyReport({ from, to });
+  const products = useGetProductProfitReport({ from, to });
+  const customers = useGetCustomerProfitReport({ from, to });
 
   const prevMonth = () => { if (month === 1) { setMonth(12); setYear(y => y - 1); } else setMonth(m => m - 1); };
   const nextMonth = () => {

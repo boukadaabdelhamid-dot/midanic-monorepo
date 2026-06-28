@@ -55,13 +55,13 @@ export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const orderId = Number(id);
 
-  const { data: order, isLoading, isError, refetch } = useGetOrder({ orderId });
+  const { data: order, isLoading, isError, refetch } = useGetOrder(orderId);
   const updateStatus = useUpdateOrderStatus();
 
   const handleStatusChange = (status: OrderStatus) => {
     const action = () =>
       updateStatus.mutate(
-        { orderId, data: { status } },
+        { id: orderId, data: { status } },
         { onSuccess: () => { void refetch(); } },
       );
     if (Platform.OS === "web") { action(); return; }

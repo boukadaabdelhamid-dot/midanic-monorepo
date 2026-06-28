@@ -25,7 +25,7 @@ function todayStr() {
   return new Date().toISOString().split("T")[0];
 }
 
-type AttRecord = { employeeId: number; type: string; timestamp: string };
+type AttRecord = { employeeId: number; timestamp: string; date?: string; checkInTime?: string; checkOutTime?: string };
 
 function EmployeeAttRow({
   emp,
@@ -95,18 +95,21 @@ export default function AttendanceScreen() {
   const [date, setDate] = useState(todayStr());
 
   const employees = useGetEmployees();
-  const attendance = useGetAttendance({ date });
+  const attendance = useGetAttendance();
   const createAtt = useCreateAttendance();
 
   const empList = employees.data ?? [];
-  const attRecords = (attendance.data ?? []) as AttRecord[];
+  const allAttRecords = (attendance.data ?? []) as any[];
+  const attRecords = allAttRecords.filter((r: any) =>
+    (r.date || r.timestamp?.split("T")[0]) === date,
+  ) as AttRecord[];
 
   const getRecord = (empId: number) =>
     attRecords.filter((r) => r.employeeId === empId).at(-1);
 
-  const handleRecord = (empId: number, type: "check_in" | "check_out") => {
+  const handleRecord = (empId: number, _type: "check_in" | "check_out") => {
     createAtt.mutate(
-      { data: { employeeId: empId, type, timestamp: new Date().toISOString() } },
+      { data: { employeeId: empId, timestamp: new Date().toISOString() } as any },
       {
         onSuccess: () => void attendance.refetch(),
         onError: () => {

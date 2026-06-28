@@ -93,7 +93,7 @@ export default function SupplierFormScreen() {
     };
     if (isEdit) {
       updateSupplier.mutate(
-        { supplierId: Number(id), data: payload },
+        { id: Number(id), data: payload },
         { onSuccess: () => router.back() },
       );
     } else {

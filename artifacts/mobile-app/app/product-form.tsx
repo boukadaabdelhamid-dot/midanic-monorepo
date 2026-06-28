@@ -76,7 +76,7 @@ export default function ProductFormScreen() {
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState<number | null>(null);
 
-  const { data: product, isLoading } = useGetProduct({ productId: isEdit ? productId : 0 });
+  const { data: product, isLoading } = useGetProduct(isEdit ? productId : 0);
   const categories = useGetCategories();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
@@ -107,8 +107,8 @@ export default function ProductFormScreen() {
       nameEn: nameEn || undefined,
       reference: reference || undefined,
       barcode: barcode || undefined,
-      price: price ? Number(price) : undefined,
-      costPrice: costPrice ? Number(costPrice) : undefined,
+      price: price || undefined,
+      costPrice: costPrice ? String(costPrice) : undefined,
       stock: stock ? Number(stock) : undefined,
       minStock: minStock ? Number(minStock) : undefined,
       description: description || undefined,
@@ -117,7 +117,7 @@ export default function ProductFormScreen() {
 
     if (isEdit) {
       updateProduct.mutate(
-        { productId, data: payload },
+        { id: productId, data: payload as any },
         { onSuccess: () => router.back() },
       );
     } else {
@@ -131,7 +131,7 @@ export default function ProductFormScreen() {
   const handleDelete = () => {
     const doDelete = () => {
       deleteProduct.mutate(
-        { productId },
+        { id: productId },
         { onSuccess: () => router.back() },
       );
     };

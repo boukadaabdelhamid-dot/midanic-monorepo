@@ -23,7 +23,7 @@ export default function StaffScreen() {
 
   const handleDelete = (id: number, name: string) => {
     const doDelete = () =>
-      deleteStaff.mutate({ staffId: id }, { onSuccess: () => void refetch() });
+      deleteStaff.mutate({ id }, { onSuccess: () => void refetch() });
 
     if (Platform.OS === "web") { doDelete(); return; }
     Alert.alert("حذف الحساب", `هل تريد حذف حساب "${name}"؟`, [

@@ -10,8 +10,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
-import { DrawerActions } from "@react-navigation/native";
+import type { DrawerNavigationProp } from "@react-navigation/drawer";
+import { useNavigation } from "expo-router";
 import { useColors } from "@/hooks/useColors";
 
 type DrawerHeaderProps = {
@@ -24,11 +24,11 @@ type DrawerHeaderProps = {
 export function DrawerHeader({ title, subtitle, rightAction, style }: DrawerHeaderProps) {
   const c = useColors();
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+  const navigation = useNavigation<DrawerNavigationProp<Record<string, undefined>>>();
   const webInset = Platform.OS === "web" ? 12 : 0;
 
   const openDrawer = () => {
-    navigation.dispatch(DrawerActions.openDrawer());
+    navigation.openDrawer();
   };
 
   return (

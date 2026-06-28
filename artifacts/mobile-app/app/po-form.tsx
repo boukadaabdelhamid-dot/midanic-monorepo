@@ -36,7 +36,7 @@ function BackHeader({ title }: { title: string }) {
   );
 }
 
-type POItem = { productId: number; productName: string; quantity: number; unitPrice: number };
+type POItem = { productId: number; productName: string; quantity: number; unitCost: number };
 
 export default function PoFormScreen() {
   const c = useColors();
@@ -57,11 +57,11 @@ export default function PoFormScreen() {
       productId: product.id,
       productName: product.nameAr || product.nameEn,
       quantity: 1,
-      unitPrice: Number(product.costPrice ?? product.price ?? 0),
+      unitCost: Number(product.costPrice ?? product.price ?? 0),
     }]);
   };
 
-  const updateItem = (productId: number, field: "quantity" | "unitPrice", value: string) => {
+  const updateItem = (productId: number, field: "quantity" | "unitCost", value: string) => {
     setItems((prev) =>
       prev.map((i) => i.productId === productId ? { ...i, [field]: Number(value) || 0 } : i),
     );
@@ -71,7 +71,7 @@ export default function PoFormScreen() {
     setItems((prev) => prev.filter((i) => i.productId !== productId));
   };
 
-  const total = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
+  const total = items.reduce((sum, i) => sum + i.quantity * i.unitCost, 0);
 
   const handleSubmit = () => {
     if (!supplierId) {
@@ -86,7 +86,7 @@ export default function PoFormScreen() {
       {
         data: {
           supplierId,
-          items: items.map((i) => ({ productId: i.productId, quantity: i.quantity, unitPrice: i.unitPrice })),
+          items: items.map((i) => ({ productId: i.productId, quantity: i.quantity, unitCost: i.unitCost })),
         },
       },
       { onSuccess: () => router.back() },
@@ -172,8 +172,8 @@ export default function PoFormScreen() {
                   <View style={styles.inputGroup}>
                     <Text style={[styles.inputLabel, { color: c.textMuted }]}>سعر الوحدة</Text>
                     <TextInput
-                      value={String(item.unitPrice)}
-                      onChangeText={(v) => updateItem(item.productId, "unitPrice", v)}
+                      value={String(item.unitCost)}
+                      onChangeText={(v) => updateItem(item.productId, "unitCost", v)}
                       keyboardType="decimal-pad"
                       style={[styles.smallInput, { color: c.text, backgroundColor: c.inputBg, borderColor: c.border }]}
                     />
@@ -181,7 +181,7 @@ export default function PoFormScreen() {
                   <View style={styles.inputGroup}>
                     <Text style={[styles.inputLabel, { color: c.textMuted }]}>المجموع</Text>
                     <Text style={[styles.itemTotal, { color: c.success }]}>
-                      {fmtNum(item.quantity * item.unitPrice, CURRENCY)}
+                      {fmtNum(item.quantity * item.unitCost, CURRENCY)}
                     </Text>
                   </View>
                 </View>

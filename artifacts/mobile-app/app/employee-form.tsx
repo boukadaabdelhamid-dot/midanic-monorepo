@@ -101,7 +101,7 @@ export default function EmployeeFormScreen() {
       name,
       phone: phone || undefined,
       email: email || undefined,
-      position: position || undefined,
+      position: position || "—",
       salary: salary ? Number(salary) : undefined,
       status,
       hireDate: hireDate || undefined,
@@ -109,7 +109,7 @@ export default function EmployeeFormScreen() {
 
     if (isEdit) {
       updateEmployee.mutate(
-        { employeeId: Number(id), data: payload },
+        { id: Number(id), data: payload },
         { onSuccess: () => router.back() },
       );
     } else {

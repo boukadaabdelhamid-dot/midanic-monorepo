@@ -25,7 +25,7 @@ function CaisseCard({ caisse }: { caisse: any }) {
   const c = useColors();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
-  const sessions = useGetErpCaisseSessions({ caisseId: caisse.id });
+  const sessions = useGetErpCaisseSessions(caisse.id);
   const openSession = useOpenErpCaisseSession();
   const closeSession = useCloseErpCaisseSession();
 
@@ -41,7 +41,7 @@ function CaisseCard({ caisse }: { caisse: any }) {
 
   const handleClose = (sessionId: number) => {
     const action = () => closeSession.mutate(
-      { sessionId, data: { closingBalance: caisse.currentBalance ?? 0 } },
+      { id: sessionId, data: { actualClosingBalance: String(caisse.currentBalance ?? 0) } },
       { onSuccess: () => void sessions.refetch() },
     );
     if (Platform.OS === "web") { action(); return; }

@@ -35,7 +35,7 @@ export default function PurchaseOrdersScreen() {
   };
 
   const doReceive = (id: number) => {
-    receive.mutate({ purchaseOrderId: id }, { onSuccess: () => void refetch() });
+    receive.mutate({ id }, { onSuccess: () => void refetch() });
   };
 
   const AddButton = (

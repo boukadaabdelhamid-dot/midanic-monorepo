@@ -26,8 +26,9 @@ export default function AccountingScreen() {
   const c = useColors();
   const [filter, setFilter] = useState<TxType>("all");
   const summary = useGetAccountingSummary();
-  const tx = useGetTransactions(filter !== "all" ? { type: filter } : undefined);
-  const transactions = (tx.data ?? []) as any[];
+  const tx = useGetTransactions();
+  const allTransactions = (tx.data ?? []) as any[];
+  const transactions = filter === "all" ? allTransactions : allTransactions.filter((t: any) => t.type === filter);
 
   const AddButton = (
     <Pressable

@@ -23,11 +23,14 @@ export default function InventoryScreen() {
   const isAdmin = user?.role === "admin";
   const [search, setSearch] = useState("");
 
-  const stock = useGetInventoryStock(search ? { search } : undefined);
+  const stock = useGetInventoryStock();
   const lowStock = useGetLowStock();
 
   const lowIds = useMemo(() => new Set((lowStock.data ?? []).map((p: any) => p.id)), [lowStock.data]);
-  const items = useMemo(() => (stock.data ?? []) as any[], [stock.data]);
+  const items = useMemo(() => {
+    const all = (stock.data ?? []) as any[];
+    return search ? all.filter((p: any) => (p.nameAr || p.nameEn || "").includes(search) || (p.reference || "").includes(search)) : all;
+  }, [stock.data, search]);
 
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>

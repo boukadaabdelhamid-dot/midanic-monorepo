@@ -41,8 +41,8 @@ export default function CustomerDetailScreen() {
   const customerId = Number(id);
   const [noteText, setNoteText] = useState("");
 
-  const customer = useGetErpCustomer({ customerId });
-  const operations = useGetCustomerOperations({ customerId });
+  const customer = useGetErpCustomer(customerId);
+  const operations = useGetCustomerOperations(customerId);
   const addNote = useCreateCustomerNote();
 
   const cu = customer.data as any;

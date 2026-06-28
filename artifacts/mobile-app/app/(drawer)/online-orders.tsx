@@ -44,9 +44,9 @@ function OrderCard({ order }: { order: Order }) {
       </Text>
       <View style={styles.metaRow}>
         <View style={styles.metaItem}>
-          <Ionicons name="location-outline" size={13} color={c.textMuted} />
+          <Ionicons name="bag-outline" size={13} color={c.textMuted} />
           <Text style={[styles.metaText, { color: c.textMuted }]} numberOfLines={1}>
-            {order.shippingAddress || "—"}
+            {(order as any).channel || "online"}
           </Text>
         </View>
         <View style={styles.metaItem}>
