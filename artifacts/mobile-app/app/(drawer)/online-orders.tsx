@@ -61,11 +61,18 @@ function OrderCard({ order }: { order: Order }) {
 export default function OnlineOrdersScreen() {
   const c = useColors();
   const { data, isLoading, isError, isFetching, refetch } = useGetAdminOrders({ channel: "online" });
-  const orders = useMemo(() => data ?? [], [data]);
+  const orders = useMemo(() => (data ?? []) as Order[], [data]);
+  const pendingCount = useMemo(() => orders.filter((o) => o.status === "pending").length, [orders]);
+
+  const PendingBadge = pendingCount > 0 ? (
+    <View style={[styles.badge, { backgroundColor: c.warning }]}>
+      <Text style={styles.badgeText}>{pendingCount}</Text>
+    </View>
+  ) : undefined;
 
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
-      <DrawerHeader title="طلبات المتجر" subtitle="Commandes en ligne" />
+      <DrawerHeader title="طلبات المتجر" subtitle="Commandes en ligne" rightAction={PendingBadge} />
       {isLoading ? <LoadingState /> : isError ? <ErrorState onRetry={() => void refetch()} /> : (
         <FlatList
           data={orders}
@@ -90,4 +97,6 @@ const styles = StyleSheet.create({
   metaRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 10, gap: 12 },
   metaItem: { flexDirection: "row", alignItems: "center", gap: 5, flex: 1 },
   metaText: { fontSize: 13, flex: 1 },
+  badge: { minWidth: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center", paddingHorizontal: 6 },
+  badgeText: { fontSize: 13, fontWeight: "800", color: "#FFFFFF" },
 });

@@ -18,6 +18,7 @@ type Module = {
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
   href: string;
+  adminOnly?: boolean;
 };
 
 const MODULES: Module[] = [
@@ -28,12 +29,12 @@ const MODULES: Module[] = [
   { labelAr: "العملاء", labelFr: "Clients", icon: "people", color: "#0EA5E9", href: "/(drawer)/customers" },
   { labelAr: "الموردون", labelFr: "Fournisseurs", icon: "business", color: "#8B5CF6", href: "/(drawer)/suppliers" },
   { labelAr: "الموظفون", labelFr: "Employés", icon: "person-add", color: "#6366F1", href: "/(drawer)/employees" },
-  { labelAr: "لوحة التحكم", labelFr: "Dashboard", icon: "grid", color: "#475569", href: "/(drawer)/dashboard" },
-  { labelAr: "الوقت الفعلي", labelFr: "Temps Réel", icon: "pulse", color: "#EC4899", href: "/(drawer)/realtime" },
+  { labelAr: "لوحة التحكم", labelFr: "Dashboard", icon: "grid", color: "#475569", href: "/(drawer)/dashboard", adminOnly: true },
+  { labelAr: "الوقت الفعلي", labelFr: "Temps Réel", icon: "pulse", color: "#EC4899", href: "/(drawer)/realtime", adminOnly: true },
   { labelAr: "المخزون", labelFr: "Stock", icon: "layers", color: "#2563EB", href: "/(drawer)/inventory" },
   { labelAr: "الحضور", labelFr: "Présences", icon: "time", color: "#14B8A6", href: "/(drawer)/attendance" },
   { labelAr: "الإجازات", labelFr: "Congés", icon: "calendar", color: "#F97316", href: "/(drawer)/leaves" },
-  { labelAr: "المحاسبة", labelFr: "Comptabilité", icon: "card", color: "#D946EF", href: "/(drawer)/accounting" },
+  { labelAr: "المحاسبة", labelFr: "Comptabilité", icon: "card", color: "#D946EF", href: "/(drawer)/accounting", adminOnly: true },
 ];
 
 const CIRCLE_SIZE = Math.min((Dimensions.get("window").width - 64) / 2, 130);
@@ -75,7 +76,10 @@ function ModuleButton({ mod }: { mod: Module }) {
 export default function HomeScreen() {
   const c = useColors();
   const { user, stores, currentStoreId } = useAuth();
+  const isAdmin = user?.role === "admin";
   const activeStore = stores.find((s) => s.id === currentStoreId);
+
+  const visibleModules = MODULES.filter((m) => !m.adminOnly || isAdmin);
 
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
@@ -104,7 +108,7 @@ export default function HomeScreen() {
         <Text style={[styles.sectionTitle, { color: c.text }]}>الوحدات</Text>
 
         <View style={styles.grid}>
-          {MODULES.map((mod) => (
+          {visibleModules.map((mod) => (
             <ModuleButton key={mod.href} mod={mod} />
           ))}
         </View>
@@ -114,70 +118,19 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 48,
-  },
-  welcomeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    marginBottom: 24,
-  },
-  badge: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  welcomeGreet: {
-    fontSize: 13,
-    textAlign: "right",
-  },
-  welcomeTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    textAlign: "right",
-    marginTop: 2,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "800",
-    textAlign: "right",
-    marginBottom: 20,
-  },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    gap: 24,
-  },
-  modButton: {
-    alignItems: "center",
-    width: CIRCLE_SIZE,
-  },
+  container: { flex: 1 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 48 },
+  welcomeRow: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 24 },
+  badge: { width: 44, height: 44, borderRadius: 14, alignItems: "center", justifyContent: "center" },
+  welcomeGreet: { fontSize: 13, textAlign: "right" },
+  welcomeTitle: { fontSize: 20, fontWeight: "800", textAlign: "right", marginTop: 2 },
+  sectionTitle: { fontSize: 20, fontWeight: "800", textAlign: "right", marginBottom: 20 },
+  grid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between", gap: 24 },
+  modButton: { alignItems: "center", width: CIRCLE_SIZE },
   circle: {
-    alignItems: "center",
-    justifyContent: "center",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 6,
+    alignItems: "center", justifyContent: "center",
+    shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 10, elevation: 6,
   },
-  modLabelAr: {
-    fontSize: 14,
-    fontWeight: "700",
-    marginTop: 10,
-    textAlign: "center",
-  },
-  modLabelFr: {
-    fontSize: 11,
-    marginTop: 2,
-    textAlign: "center",
-  },
+  modLabelAr: { fontSize: 14, fontWeight: "700", marginTop: 10, textAlign: "center" },
+  modLabelFr: { fontSize: 11, marginTop: 2, textAlign: "center" },
 });

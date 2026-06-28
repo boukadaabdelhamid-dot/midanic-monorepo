@@ -14,6 +14,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   useCreateProduct,
+  useDeleteProduct,
   useGetCategories,
   useGetProduct,
   useUpdateProduct,
@@ -79,6 +80,7 @@ export default function ProductFormScreen() {
   const categories = useGetCategories();
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
+  const deleteProduct = useDeleteProduct();
 
   useEffect(() => {
     const p = product as any;
@@ -124,6 +126,24 @@ export default function ProductFormScreen() {
         { onSuccess: () => router.back() },
       );
     }
+  };
+
+  const handleDelete = () => {
+    const doDelete = () => {
+      deleteProduct.mutate(
+        { productId },
+        { onSuccess: () => router.back() },
+      );
+    };
+    if (Platform.OS === "web") { doDelete(); return; }
+    Alert.alert(
+      "حذف المنتج",
+      `هل تريد حذف "${nameAr || nameEn}"؟ هذا الإجراء لا يمكن التراجع عنه.`,
+      [
+        { text: "إلغاء", style: "cancel" },
+        { text: "حذف", style: "destructive", onPress: doDelete },
+      ],
+    );
   };
 
   if (isEdit && isLoading) return <LoadingState />;
@@ -183,7 +203,26 @@ export default function ProductFormScreen() {
           </View>
         )}
 
-        <Button label={isEdit ? "حفظ التعديلات" : "إضافة المنتج"} onPress={handleSave} loading={isPending} style={{ marginTop: 8 }} />
+        <Button
+          label={isEdit ? "حفظ التعديلات" : "إضافة المنتج"}
+          onPress={handleSave}
+          loading={isPending}
+          style={{ marginTop: 8 }}
+        />
+
+        {isEdit && (
+          <Pressable
+            onPress={handleDelete}
+            disabled={deleteProduct.isPending}
+            style={({ pressed }) => [
+              styles.deleteBtn,
+              { borderColor: c.danger, opacity: pressed || deleteProduct.isPending ? 0.7 : 1 },
+            ]}
+          >
+            <Ionicons name="trash-outline" size={18} color={c.danger} />
+            <Text style={[styles.deleteBtnText, { color: c.danger }]}>حذف المنتج</Text>
+          </Pressable>
+        )}
       </ScrollView>
     </View>
   );
@@ -208,4 +247,9 @@ const styles = StyleSheet.create({
   catGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   catBtn: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1 },
   catText: { fontSize: 13, fontWeight: "700" },
+  deleteBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, marginTop: 12, paddingVertical: 14, borderRadius: 14, borderWidth: 1,
+  },
+  deleteBtnText: { fontSize: 15, fontWeight: "700" },
 });

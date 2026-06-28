@@ -1,22 +1,24 @@
+import { useState } from "react";
 import {
-  FlatList,
+  Alert,
+  Platform,
   Pressable,
-  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Platform } from "react-native";
 import {
   useGetErpCustomer,
   useGetCustomerOperations,
+  useCreateCustomerNote,
 } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
-import { LoadingState, ErrorState, Pill } from "@/components/ErpUi";
+import { LoadingState, ErrorState } from "@/components/ErpUi";
 import { CURRENCY, fmtDate, fmtNum } from "@/lib/format";
 
 function BackHeader({ title }: { title: string }) {
@@ -27,7 +29,7 @@ function BackHeader({ title }: { title: string }) {
       <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={10}>
         <Ionicons name="chevron-forward" size={24} color="#FFFFFF" />
       </Pressable>
-      <Text style={styles.headerTitle}>{title}</Text>
+      <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
       <View style={{ width: 38 }} />
     </View>
   );
@@ -37,15 +39,48 @@ export default function CustomerDetailScreen() {
   const c = useColors();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const customerId = Number(id);
+  const [noteText, setNoteText] = useState("");
 
   const customer = useGetErpCustomer({ customerId });
   const operations = useGetCustomerOperations({ customerId });
+  const addNote = useCreateCustomerNote();
 
   const cu = customer.data as any;
   const ops = ((operations.data ?? []) as any[]);
 
-  if (customer.isLoading) return <View style={[styles.container, { backgroundColor: c.background }]}><BackHeader title="العميل" /><LoadingState /></View>;
-  if (customer.isError) return <View style={[styles.container, { backgroundColor: c.background }]}><BackHeader title="العميل" /><ErrorState onRetry={() => void customer.refetch()} /></View>;
+  const handleAddNote = () => {
+    if (!noteText.trim()) return;
+    addNote.mutate(
+      { id: customerId, data: { note: noteText } as any },
+      {
+        onSuccess: () => {
+          setNoteText("");
+          void operations.refetch();
+          void customer.refetch();
+        },
+        onError: () => {
+          if (Platform.OS !== "web") Alert.alert("خطأ", "تعذّر إضافة الملاحظة");
+        },
+      },
+    );
+  };
+
+  if (customer.isLoading) {
+    return (
+      <View style={[styles.container, { backgroundColor: c.background }]}>
+        <BackHeader title="العميل" />
+        <LoadingState />
+      </View>
+    );
+  }
+  if (customer.isError) {
+    return (
+      <View style={[styles.container, { backgroundColor: c.background }]}>
+        <BackHeader title="العميل" />
+        <ErrorState onRetry={() => void customer.refetch()} />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: c.background }]}>
@@ -83,16 +118,48 @@ export default function CustomerDetailScreen() {
           </View>
         </View>
 
+        <View style={[styles.noteCard, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Text style={[styles.sectionTitle, { color: c.text }]}>إضافة ملاحظة</Text>
+          <TextInput
+            value={noteText}
+            onChangeText={setNoteText}
+            placeholder="اكتب ملاحظة حول هذا العميل…"
+            placeholderTextColor={c.textMuted}
+            multiline
+            style={[styles.noteInput, { color: c.text, backgroundColor: c.inputBg, borderColor: c.border }]}
+          />
+          <Pressable
+            onPress={handleAddNote}
+            disabled={!noteText.trim() || addNote.isPending}
+            style={({ pressed }) => [
+              styles.noteSaveBtn,
+              { backgroundColor: c.primary, opacity: pressed || addNote.isPending || !noteText.trim() ? 0.6 : 1 },
+            ]}
+          >
+            <Ionicons name="checkmark" size={16} color="#FFFFFF" />
+            <Text style={styles.noteSaveBtnText}>حفظ الملاحظة</Text>
+          </Pressable>
+        </View>
+
         {ops.length > 0 && (
           <View>
             <Text style={[styles.sectionTitle, { color: c.text }]}>السجل ({ops.length})</Text>
             {ops.map((op: any, i: number) => (
               <View key={i} style={[styles.opRow, { backgroundColor: c.surface, borderColor: c.border }]}>
-                <View style={[styles.opIcon, { backgroundColor: op.type === "order" ? c.success + "22" : c.primary + "22" }]}>
-                  <Ionicons name={op.type === "order" ? "receipt" : "document-text"} size={16} color={op.type === "order" ? c.success : c.primary} />
+                <View style={[
+                  styles.opIcon,
+                  { backgroundColor: op.type === "order" ? c.success + "22" : op.type === "note" ? c.primaryTint + "22" : c.primary + "22" },
+                ]}>
+                  <Ionicons
+                    name={op.type === "order" ? "receipt" : op.type === "note" ? "document-text" : "document-text"}
+                    size={16}
+                    color={op.type === "order" ? c.success : c.primary}
+                  />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.opDesc, { color: c.text }]} numberOfLines={1}>{op.description || op.reference || "—"}</Text>
+                  <Text style={[styles.opDesc, { color: c.text }]} numberOfLines={2}>
+                    {op.description || op.note || op.reference || "—"}
+                  </Text>
                   <Text style={[styles.opDate, { color: c.textMuted }]}>{fmtDate(op.date || op.createdAt)}</Text>
                 </View>
                 {op.amount ? (
@@ -125,7 +192,18 @@ const styles = StyleSheet.create({
   statCard: { flex: 1, borderRadius: 14, borderWidth: 1, padding: 14, alignItems: "center", gap: 4 },
   statValue: { fontSize: 20, fontWeight: "800", fontVariant: ["tabular-nums"] },
   statLabel: { fontSize: 12 },
-  sectionTitle: { fontSize: 16, fontWeight: "800", textAlign: "right", marginBottom: 8 },
+  noteCard: { borderRadius: 16, borderWidth: 1, padding: 14, gap: 10 },
+  sectionTitle: { fontSize: 16, fontWeight: "800", textAlign: "right", marginBottom: 4 },
+  noteInput: {
+    height: 80, borderRadius: 12, borderWidth: 1,
+    paddingHorizontal: 14, paddingTop: 10,
+    fontSize: 15, textAlign: "right", textAlignVertical: "top",
+  },
+  noteSaveBtn: {
+    flexDirection: "row", alignItems: "center", justifyContent: "center",
+    gap: 8, paddingVertical: 11, borderRadius: 12,
+  },
+  noteSaveBtnText: { fontSize: 15, fontWeight: "700", color: "#FFFFFF" },
   opRow: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 12, borderWidth: 1, padding: 12, marginBottom: 8 },
   opIcon: { width: 36, height: 36, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   opDesc: { fontSize: 14, fontWeight: "600", textAlign: "right" },

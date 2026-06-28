@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Image,
   Pressable,
@@ -45,6 +45,8 @@ const NAV_ITEMS: NavItem[] = [
   { labelAr: "الموردون", labelFr: "Fournisseurs", icon: "business-outline", href: "/(drawer)/suppliers" },
   { labelAr: "الموظفون", labelFr: "Employés", icon: "person-add-outline", href: "/(drawer)/employees", dividerBefore: true },
   { labelAr: "إدارة الحسابات", labelFr: "Accès / Staff", icon: "shield-checkmark-outline", href: "/(drawer)/staff", adminOnly: true },
+  { labelAr: "الصلاحيات", labelFr: "Permissions", icon: "key-outline", href: "/(drawer)/permissions", adminOnly: true },
+  { labelAr: "المتاجر", labelFr: "Magasins", icon: "storefront-outline", href: "/(drawer)/magasins", adminOnly: true },
   { labelAr: "الحضور", labelFr: "Présences", icon: "time-outline", href: "/(drawer)/attendance" },
   { labelAr: "الإجازات", labelFr: "Congés", icon: "calendar-outline", href: "/(drawer)/leaves" },
   { labelAr: "المحاسبة", labelFr: "Comptabilité", icon: "card-outline", href: "/(drawer)/accounting", dividerBefore: true },
@@ -60,6 +62,7 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
   const isAdmin = user?.role === "admin";
   const activeStore = stores.find((s) => s.id === currentStoreId);
   const webTop = Platform.OS === "web" ? 16 : 0;
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
   const visibleItems = NAV_ITEMS.filter((item) => !item.adminOnly || isAdmin);
 
@@ -178,13 +181,29 @@ function CustomDrawerContent(props: DrawerContentComponentProps) {
           { paddingBottom: insets.bottom + 12, borderTopColor: "rgba(255,255,255,0.1)" },
         ]}
       >
-        <Pressable
-          onPress={handleSignOut}
-          style={({ pressed }) => [styles.signOutBtn, { opacity: pressed ? 0.7 : 1 }]}
-        >
-          <Ionicons name="log-out-outline" size={20} color="#E07A63" />
-          <Text style={styles.signOutText}>تسجيل الخروج</Text>
-        </Pressable>
+        <View style={styles.footerRow}>
+          <Pressable
+            onPress={() => setSoundEnabled((v) => !v)}
+            style={({ pressed }) => [styles.soundBtn, { opacity: pressed ? 0.7 : 1 }]}
+            hitSlop={8}
+          >
+            <Ionicons
+              name={soundEnabled ? "volume-high-outline" : "volume-mute-outline"}
+              size={20}
+              color={soundEnabled ? "rgba(255,255,255,0.75)" : "rgba(255,255,255,0.35)"}
+            />
+            <Text style={[styles.soundText, { color: soundEnabled ? "rgba(255,255,255,0.75)" : "rgba(255,255,255,0.35)" }]}>
+              {soundEnabled ? "صوت" : "صامت"}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={handleSignOut}
+            style={({ pressed }) => [styles.signOutBtn, { opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Ionicons name="log-out-outline" size={20} color="#E07A63" />
+            <Text style={styles.signOutText}>خروج</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -226,6 +245,8 @@ export default function DrawerLayout() {
       <Drawer.Screen name="realtime" />
       <Drawer.Screen name="mon-compte" />
       <Drawer.Screen name="settings" />
+      <Drawer.Screen name="permissions" />
+      <Drawer.Screen name="magasins" />
     </Drawer>
   );
 }
@@ -340,10 +361,27 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     borderTopWidth: 1,
   },
+  footerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  soundBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 10,
+  },
+  soundText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
   signOutBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 10,
