@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   FlatList,
+  Image,
   Platform,
   Pressable,
   RefreshControl,
@@ -15,15 +16,24 @@ import { Ionicons } from "@expo/vector-icons";
 import { useGetLowStock, useGetProducts, type Product } from "@workspace/api-client-react";
 import { useColors } from "@/hooks/useColors";
 import { useAuth } from "@/context/AuthContext";
+import { useServerConfig } from "@/context/ServerConfigContext";
 import { DrawerHeader } from "@/components/DrawerHeader";
 import { EmptyState, ErrorState, LoadingState, Pill } from "@/components/ErpUi";
 import { CURRENCY, fmtInt, fmtNum } from "@/lib/format";
 import { BarcodeScannerModal } from "@/components/BarcodeScannerModal";
 
-function ProductCard({ product, isLow }: { product: Product; isLow: boolean }) {
+function resolveImg(url: string | null | undefined, serverUrl: string | null): string | null {
+  if (!url) return null;
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (serverUrl && url.startsWith("/")) return `${serverUrl}${url}`;
+  return null;
+}
+
+function ProductCard({ product, isLow, serverUrl }: { product: Product; isLow: boolean; serverUrl: string | null }) {
   const c = useColors();
   const name = product.nameAr || product.nameEn;
   const stockColor = product.stock <= 0 ? c.danger : isLow ? c.warning : c.success;
+  const imgSrc = resolveImg(product.imageUrl, serverUrl);
 
   return (
     <Pressable
@@ -33,6 +43,17 @@ function ProductCard({ product, isLow }: { product: Product; isLow: boolean }) {
         { backgroundColor: c.surface, borderColor: c.border, opacity: pressed ? 0.85 : 1 },
       ]}
     >
+      {imgSrc ? (
+        <Image
+          source={{ uri: imgSrc }}
+          style={[styles.thumb, { borderColor: c.border }]}
+          resizeMode="cover"
+        />
+      ) : (
+        <View style={[styles.thumbPlaceholder, { backgroundColor: c.inputBg, borderColor: c.border }]}>
+          <Ionicons name="image-outline" size={20} color={c.textMuted} />
+        </View>
+      )}
       <View style={styles.cardMain}>
         <Text style={[styles.name, { color: c.text }]} numberOfLines={2}>
           {name}
@@ -69,6 +90,7 @@ function ProductCard({ product, isLow }: { product: Product; isLow: boolean }) {
 export default function ProductsScreen() {
   const c = useColors();
   const { user } = useAuth();
+  const { serverUrl } = useServerConfig();
   const isAdmin = user?.role === "admin";
   const [search, setSearch] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -182,7 +204,9 @@ export default function ProductsScreen() {
         <FlatList
           data={items}
           keyExtractor={(item) => String(item.id)}
-          renderItem={({ item }) => <ProductCard product={item} isLow={lowIds.has(item.id)} />}
+          renderItem={({ item }) => (
+            <ProductCard product={item} isLow={lowIds.has(item.id)} serverUrl={serverUrl} />
+          )}
           contentContainerStyle={styles.list}
           ListEmptyComponent={<EmptyState icon="cube-outline" message="لا توجد منتجات" />}
           refreshControl={
@@ -222,7 +246,14 @@ const styles = StyleSheet.create({
   list: { paddingHorizontal: 16, paddingBottom: 40, gap: 12 },
   card: {
     flexDirection: "row", alignItems: "center", borderRadius: 16,
-    borderWidth: 1, padding: 16, gap: 14,
+    borderWidth: 1, padding: 12, gap: 12,
+  },
+  thumb: {
+    width: 60, height: 60, borderRadius: 10, borderWidth: 1,
+  },
+  thumbPlaceholder: {
+    width: 60, height: 60, borderRadius: 10, borderWidth: 1,
+    alignItems: "center", justifyContent: "center",
   },
   cardMain: { flex: 1 },
   name: { fontSize: 16, fontWeight: "700", textAlign: "right" },
